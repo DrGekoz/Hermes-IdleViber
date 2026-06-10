@@ -1,0 +1,12 @@
+{
+  "name": "hermes-idleviber",
+  "version": "1.0.0",
+  "description": "Hermes IdleViber — The Ambient Gateway Idle Game",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "keywords": ["idle-game", "hermes", "gateway", "pixel-art"],
+  "license": "MIT"
+}

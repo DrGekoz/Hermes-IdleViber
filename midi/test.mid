@@ -1,0 +1,1 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1"><title>404 Not Found</title><style>html { color-scheme: light dark; } body { font-family: sans-serif; text-align: center; }</style></head><body><h1>404 Not Found</h1></body></html>
