@@ -1,0 +1,32 @@
+// ============================================================
+// Hermes IdleViber — Firestore Security Rules
+// ============================================================
+// Copy these into: Firebase Console → Firestore → Rules
+// ============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- LEADERBOARD ----
+    // Anyone (even logged-out) can read the leaderboard
+    // Only authenticated users can write their own entry
+    match /leaderboard/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null 
+                    && request.auth.uid == userId;
+    }
+
+    // ---- SAVES (cloud saves) ----
+    // Only the owning user can read or write their save
+    match /saves/{userId} {
+      allow read, write: if request.auth != null 
+                          && request.auth.uid == userId;
+    }
+
+    // ---- DENY EVERYTHING ELSE ----
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

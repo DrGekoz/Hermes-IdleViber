@@ -17,13 +17,18 @@
 <!-- ========================================== -->
 <div id="login-screen">
     <div class="login-box">
-        <h1>✦ HERMES<br>IDLEVIBER ✦</h1>
+        <h1>✦ HERMES ✦<br>IDLEVIBER</h1>
         <div class="login-subtitle">~ THE AMBIENT GATEWAY ~</div>
         <input type="text" id="username" placeholder="USERNAME" autocomplete="off">
         <input type="password" id="password" placeholder="PASSWORD">
         <button id="login-btn">▶ LOGIN / REGISTER</button>
         <div class="pixel-divider">— O R —</div>
         <button id="guest-btn" class="secondary">▶ PROCEED AS GUEST</button>
+        <div class="pixel-divider">— O R —</div>
+        <div class="social-login">
+            <button id="google-btn" class="social-btn google">▶ CONTINUE WITH GOOGLE</button>
+            <button id="github-btn" class="social-btn github">▶ CONTINUE WITH GITHUB</button>
+        </div>
         <div id="login-message"></div>
         <div style="margin-top:15px;font-size:6px;color:#444;">
             ⚡ Requires Hermes Gateway running locally<br>
@@ -41,9 +46,10 @@
     <div class="sidebar">
         <!-- Header -->
         <div class="sidebar-header">
-            <h2>✦ HERMES<br>IDLEVIBER ✦</h2>
+            <h2>✦ HERMES ✦<br>IDLEVIBER</h2>
             <div class="user-info">
                 <span id="user-display">User</span>
+                <button id="settings-btn" title="Settings">⚙</button>
                 <button id="logout-btn">✕</button>
             </div>
         </div>
@@ -75,6 +81,7 @@
             <button id="tab-decor">✨ Decor</button>
             <button id="tab-gateway">🔌 Gateway</button>
             <button id="tab-prestige">💎 Prestige</button>
+            <button id="tab-achievements">🏆 Achievements</button>
         </div>
 
         <!-- Panel: Upgrades -->
@@ -116,23 +123,21 @@
                        style="width:60px;padding:4px;background:#000;border:1px solid #444;color:#0f0;font-family:var(--pixel-font);font-size:7px;">
                 <button id="gw-connect-btn" style="padding:4px 8px;background:#333;border:1px solid #555;color:#0f0;font-family:var(--pixel-font);font-size:7px;cursor:pointer;">▶ Connect</button>
             </div>
-            <div style="font-size:7px;color:var(--text-secondary);margin-bottom:8px;">
-                ▼ GATEWAY UPGRADES — permanent bonuses
-            </div>
-            <div id="gw-upgrade-list"></div>
             <div style="font-size:6px;color:#444;margin-top:12px;padding:8px;border:1px dashed #222;">
-                💡 Gateway upgrades persist through prestige.<br>
+                💡 Gateway upgrades have moved to the Prestige tab.<br>
                 Faster gateway = bigger multiplier.<br>
-                Full scan: all 65,535 ports checked progressively in background
+                Auto-scans hot ports (instant) + web server range (1024-10000) in ~20s<br>
+                Use manual port to connect to any specific port
             </div>
         </div>
 
         <!-- Panel: Prestige -->
         <div class="tab-panel" id="panel-prestige">
+            <!-- Chip Balance -->
             <div class="prestige-stats">
-                <div class="stat-box">
-                    <div class="stat-value" id="pp-display">0</div>
-                    <div class="stat-label">PRESTIGE POINTS</div>
+                <div class="stat-box prestige-chip-box">
+                    <div class="stat-value chip-value" id="pp-display">0</div>
+                    <div class="stat-label">✦ PRESTIGE CHIPS</div>
                 </div>
                 <div class="stat-box">
                     <div class="stat-value" id="lifetime-display">0</div>
@@ -142,24 +147,29 @@
                     <div class="stat-value" id="prestige-count">0</div>
                     <div class="stat-label">PRESTIGES</div>
                 </div>
-                <div class="stat-box">
-                    <div class="stat-value" style="color:var(--accent-cyan);font-size:11px;">
-                        +<span id="pp-display-total">0</span>% VPS
-                    </div>
-                    <div class="stat-label">PP BONUS</div>
+            </div>
+
+            <!-- Prestige Button -->
+            <div class="prestige-reset-box">
+                <div class="prestige-gain-text" id="prestige-gain">Need 10T lifetime vibes to unlock</div>
+                <button id="prestige-btn" disabled>💎 PRESTIGE</button>
+                <div style="font-size:6px;color:#553333;margin-top:6px;text-align:center;">
+                    Reset for <span id="prestige-chip-gain">0</span> chips<br>
+                    Keeps: Prestige Upgrades • Loses: Vibes, Rooms, Autoclickers, Decor
                 </div>
             </div>
-            <div style="padding:8px;background:rgba(156,39,176,0.05);border:1px solid #2a1a30;font-size:7px;color:var(--text-secondary);line-height:1.8;">
-                💎 Prestige resets your vibes, rooms, autoclickers, and decor<br>
-                but PERMANENTLY increases all generation by PP%<br>
-                Gateway upgrades are KEPT. Room VPS multipliers are LOST.<br>
-                <span style="color:var(--accent-cyan);" id="prestige-gain">Need 1M lifetime vibes</span>
+
+            <!-- Prestige Upgrades -->
+            <div class="prestige-upgrades-section">
+                <div style="font-size:7px;color:var(--text-secondary);margin-bottom:8px;">
+                    ▼ PRESTIGE SHOP — permanent upgrades (spend chips)
+                </div>
+                <div id="prestige-upgrade-list"></div>
             </div>
-            <div style="padding:8px;background:rgba(255,68,68,0.05);border:1px solid #441a1a;font-size:7px;color:#ff6666;line-height:1.8;margin-top:8px;">
-                ⚠️ Room VPS multipliers reset on prestige — unlock rooms again for their ×VPS bonuses.<br>
-                Gateway upgrades & PP bonus are KEPT.
-            </div>
-            <button id="prestige-btn" disabled>💎 PRESTIGE</button>
+        </div>
+
+        <!-- Panel: Achievements -->
+        <div class="tab-panel" id="panel-achievements">
         </div>
     </div>
 
@@ -183,26 +193,43 @@
         <div class="leaderboard-float" id="leaderboard-panel">
             <button class="leaderboard-minimize" id="leaderboard-minimize">✕</button>
             <h3>✦ LEADERBOARD ✦</h3>
+            <div class="lb-header">
+                <span class="lb-rank">#</span>
+                <span class="lb-name">NAME</span>
+                <span class="lb-vibes">VIBES</span>
+                <span class="lb-pp">PP</span>
+                <span class="lb-prestige">PRESTIGE</span>
+            </div>
             <div id="leaderboard-list">
                 <div class="lb-entry"><span style="color:#666;font-size:6px;">Loading...</span></div>
             </div>
         </div>
 
-        <!-- Music Controls (top left) -->
-        <div class="music-controls">
-            <button id="music-btn">🔊</button>
-            <button id="music-next-btn">⏭</button>
-            <button id="music-shuffle-btn" style="background:rgba(0,255,136,0.3);border:1px solid #0f0;color:#0f0;font-family:var(--pixel-font);font-size:10px;padding:6px 8px;cursor:pointer;">🔀</button>
-            <select id="music-genre-select" style="background:rgba(0,0,0,0.6);border:1px solid #444;color:var(--accent-cyan);font-family:var(--pixel-font);font-size:7px;padding:6px 4px;">
-                <option value="all">ALL</option>
-                <option value="chill">CHILL</option>
-                <option value="cyber">CYBER</option>
-                <option value="jazz">JAZZ</option>
-                <option value="nature">NATURE</option>
-            </select>
-            <input type="range" id="music-volume" min="0" max="1" step="0.1" value="0.5"
-                   style="width:50px;height:4px;background:#333;accent-color:#0f0;">
+        <!-- Music Player (top left, collapsible) -->
+        <div class="music-wrapper">
+            <button id="music-toggle" class="music-toggle-btn">🎵</button>
+            <div id="music-panel" class="music-panel hidden">
+                <div class="music-panel-header">
+                    <span id="music-now-playing" class="music-now-playing">—</span>
+                    <button id="music-btn">🔊</button>
+                    <button id="music-next-btn">⏭</button>
+                    <button id="music-shuffle-btn">🔀</button>
+                </div>
+                <div class="music-panel-row">
+                    <select id="music-genre-select">
+                        <option value="all">ALL</option>
+                        <option value="chill">CHILL</option>
+                        <option value="cyber">CYBER</option>
+                        <option value="jazz">JAZZ</option>
+                        <option value="nature">NATURE</option>
+                    </select>
+                    <input type="range" id="music-volume" min="0" max="1" step="0.1" value="0.5">
+                </div>
+            </div>
         </div>
+
+        <!-- Shop Tooltip (top right, below gateway HUD on canvas) -->
+        <div id="shop-tooltip-main" class="shop-tooltip-main hidden"></div>
     </div>
 </div>
 
@@ -229,10 +256,12 @@
             <div class="credits-subtitle">Hermes IdleViber</div>
 
             <div class="credits-section">
-                <div class="credits-heading">🎵 MUSIC</div>
-                <div class="credits-line">All MIDI compositions generated in-engine</div>
-                <div class="credits-line">Chiptune-style melodies, bass & percussion</div>
-                <div class="credits-line">via Web Audio API</div>
+                <div class="credits-heading">🎵 MUSIC — PUBLIC DOMAIN MIDI</div>
+                <div class="credits-line">Erik Satie — Gymnopedies No.1-3 (Mutopia Project)</div>
+                <div class="credits-line">Claude Debussy — Arabesque No.1 & Clair de Lune (Mutopia Project)</div>
+                <div class="credits-line">J.S. Bach — Toccata & Fugue BWV565 & Fugue in G minor BWV542 (Mutopia Project)</div>
+                <div class="credits-line">Scott Joplin — The Entertainer & Maple Leaf Rag (Mutopia Project)</div>
+                <div class="credits-line">All MIDIs sourced from mutopiaproject.org — Public Domain / CC-BY</div>
             </div>
 
             <div class="credits-section">
@@ -255,6 +284,7 @@
                 <div class="credits-line">Node.js — MIT License</div>
                 <div class="credits-line">Web Audio API — W3C</div>
                 <div class="credits-line">Canvas 2D API — WHATWG/W3C</div>
+                <div class="credits-line">MidiPlayerJS — MIT (github.com/grimmdude/MidiPlayerJS)</div>
             </div>
 
             <div class="credits-section">
@@ -270,13 +300,173 @@
 </div>
 
 <!-- ========================================== -->
+<!-- SETTINGS OVERLAY -->
+<!-- ========================================== -->
+<div id="settings-screen" class="hidden">
+    <div class="settings-backdrop" id="settings-backdrop"></div>
+    <div class="settings-content">
+        <button id="settings-close" class="settings-close">✕</button>
+        <h2>⚙ SETTINGS</h2>
+
+        <!-- Tabs -->
+        <div class="settings-tabs">
+            <button id="settings-tab-name" class="settings-tab active">▼ NAME</button>
+            <button id="settings-tab-audio" class="settings-tab">▼ AUDIO</button>
+            <button id="settings-tab-credits" class="settings-tab">▼ CREDITS</button>
+        </div>
+
+        <!-- Tab: Display Name -->
+        <div id="settings-panel-name" class="settings-panel">
+            <div class="settings-section">
+                <div class="settings-label">CURRENT NAME</div>
+                <div class="settings-current-name" id="settings-display-name">Player</div>
+            </div>
+            <div class="settings-section">
+                <div class="settings-label">CHANGE NAME</div>
+                <div class="settings-name-warning" style="font-size:6px;color:var(--text-secondary);margin-bottom:8px;">
+                    Can change once every 30 days
+                </div>
+                <input type="text" id="settings-name-input" placeholder="ENTER NAME" maxlength="20" autocomplete="off">
+                <div id="settings-cooldown-info" class="settings-cooldown"></div>
+                <div id="settings-name-error" class="settings-error"></div>
+                <button id="settings-save-btn" class="settings-save-btn">▶ SAVE</button>
+            </div>
+            <!-- Logout Section -->
+            <div class="settings-section settings-logout-section">
+                <div class="settings-label">ACCOUNT</div>
+                <button id="settings-logout-btn" class="settings-logout-btn">✕ LOGOUT</button>
+                <div class="settings-logout-hint">Clears session — you'll need to log in again</div>
+            </div>
+            <!-- Sidebar Position -->
+            <div class="settings-section settings-sidebar-section">
+                <div class="settings-label">SIDEBAR</div>
+                <label class="settings-toggle-row">
+                    <span>Left</span>
+                    <input type="checkbox" id="settings-sidebar-pos">
+                    <span>Right</span>
+                </label>
+                <div class="settings-hint">Swap sidebar to the right side of the screen</div>
+            </div>
+            <!-- Support Section -->
+            <div class="settings-section settings-support-section">
+                <div class="settings-label">☕ SUPPORT</div>
+                <div class="settings-support-box">
+                    <div class="settings-support-text">
+                        If you enjoy the game, every coffee ($) goes a long way!<br>
+                        Helps keep the servers running and new features coming.
+                    </div>
+                    <a href="https://buymeacoffee.com/DrGekoz" target="_blank" rel="noopener" class="settings-support-link">
+                        <span class="settings-support-icon">☕</span>
+                        <span>BUY ME A COFFEE</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Audio -->
+        <div id="settings-panel-audio" class="settings-panel hidden">
+            <div class="settings-section">
+                <div class="settings-label">🎵 MUSIC VOLUME</div>
+                <div class="settings-volume-row">
+                    <input type="range" id="settings-music-volume" min="0" max="1" step="0.05" value="0.5"
+                           style="flex:1;height:4px;background:#333;accent-color:var(--accent-cyan);">
+                    <span id="settings-music-vol-label" class="settings-vol-label">50%</span>
+                </div>
+                <div class="settings-hint">Synced with the canvas music slider</div>
+            </div>
+            <div class="settings-section">
+                <div class="settings-label">🔊 SFX VOLUME</div>
+                <div class="settings-volume-row">
+                    <input type="range" id="settings-sfx-volume" min="0" max="1" step="0.05" value="0.5"
+                           style="flex:1;height:4px;background:#333;accent-color:var(--accent-green);">
+                    <span id="settings-sfx-vol-label" class="settings-vol-label">50%</span>
+                </div>
+                <div class="settings-hint">8-bit UI clicks, chimes, and sound effects</div>
+            </div>
+        </div>
+
+        <!-- Tab: Credits -->
+        <div id="settings-panel-credits" class="settings-panel hidden">
+            <div class="settings-section">
+                <div class="settings-label">✦ HERMES IDLEVIBER ✦</div>
+                <div class="settings-credits-text">
+                    The Ambient Gateway — an 8-bit pixel-art idle game<br>
+                    Powered by Hermes Agent ecosystem
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-label">CREATOR</div>
+                <div class="settings-credits-text">
+                    <a href="https://adsdoctormelbourne.com.au" target="_blank" rel="noopener" class="settings-link">🌐 Website</a>
+                    <a href="https://github.com/DrGekoz" target="_blank" rel="noopener" class="settings-link">🐙 GitHub</a>
+                    <a href="https://buymeacoffee.com/DrGekoz" target="_blank" rel="noopener" class="settings-link">☕ Buy Me a Coffee</a>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-label">🎵 MUSIC — PUBLIC DOMAIN MIDI</div>
+                <div class="settings-credits-text">
+                    Erik Satie — Gymnopedies No.1-3 (Mutopia Project)<br>
+                    Claude Debussy — Arabesque No.1 &amp; Clair de Lune (Mutopia Project)<br>
+                    J.S. Bach — Toccata &amp; Fugue BWV565 &amp; Fugue in G minor BWV542 (Mutopia Project)<br>
+                    Scott Joplin — The Entertainer &amp; Maple Leaf Rag (Mutopia Project)<br>
+                    All MIDIs sourced from mutopiaproject.org — Public Domain / CC-BY
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-label">🎨 PIXEL ART</div>
+                <div class="settings-credits-text">
+                    Hardware palettes & animation loops<br>
+                    ported from Synero/pixel-art-studio (MIT)<br>
+                    <a href="https://github.com/Synero/pixel-art-studio" target="_blank" rel="noopener" class="settings-link">github.com/Synero/pixel-art-studio</a>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-label">🔌 HERMES AGENT</div>
+                <div class="settings-credits-text">
+                    Built for the Hermes Agent ecosystem<br>
+                    <a href="https://nousresearch.com/hermes" target="_blank" rel="noopener" class="settings-link">nousresearch.com/hermes</a>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-label">🛠 OPEN SOURCE TOOLS</div>
+                <div class="settings-credits-text">
+                    Press Start 2P font — Google Fonts (OFL)<br>
+                    Node.js — MIT License<br>
+                    Web Audio API — W3C<br>
+                    Canvas 2D API — WHATWG/W3C<br>
+                    Firebase — Google<br>
+                    MidiPlayerJS — MIT (github.com/grimmdude/MidiPlayerJS)
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-label">❤️ SPECIAL THANKS</div>
+                <div class="settings-credits-text">
+                    DrGekoz — Testing & Chaos Engineering<br>
+                    Zoops — Quality Assurance & Vibes<br>
+                    The Hermes Community
+                </div>
+            </div>
+
+            <div class="settings-credits-end">✦ THANK YOU FOR VIBING ✦</div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
 <!-- SCRIPTS -->
 <!-- ========================================== -->
-<script type="module" src="js/state.js"></script>
-<script type="module" src="js/gateway.js"></script>
-<script type="module" src="js/sprites.js"></script>
-<script type="module" src="js/music.js"></script>
-<script type="module" src="js/app.js"></script>
+    <script type="module" src="js/state.js?v=6"></script>
+<script type="module" src="js/gateway.js?v=6"></script>
+<script type="module" src="js/sprites.js?v=6"></script>
+<script type="module" src="js/music.js?v=6"></script>
+<script type="module" src="js/sfx.js?v=6"></script>
+<script type="module" src="js/app.js?v=6"></script>
 
 </body>
 </html>

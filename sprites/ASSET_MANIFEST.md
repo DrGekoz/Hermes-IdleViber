@@ -1,124 +1,53 @@
 # Hermes IdleViber — Sprite Asset Manifest
-## Generated via Codex CLI /imagegen + remove-background
+## All sprites generated via Codex CLI /imagegen + remove_chroma_key.py
 
 ---
 
-## 1. ROOM BACKGROUNDS (panoramic, 16:9)
+## 1. ROOM BACKGROUNDS (panoramic, 16:9, 1600×900)
 
-| ID | Description | Aspect | Gen Status |
-|----|-------------|--------|------------|
-| `bg_campfire` | Night forest clearing with glowing campfire, stars, silhouetted trees | 1600×900 | ✅ Codex CLI |
-| `bg_cyber` | Neon-lit digital hideout, server racks, matrix rain, grid floor | 1600×900 | ❌ |
-| `bg_zen` | Peaceful bamboo grove, stone pond, cherry blossom petals, mist | 1600×900 | ❌ |
-| `bg_star` | Cosmic observatory, nebula, planets, aurora borealis | 1600×900 | ❌ |
-| `bg_study` | Cozy library with bookshelves, warm lamp glow, window to night | 1600×900 | ❌ |
-| `bg_beach` | Sunset beach scene, pixel waves, palm tree silhouette, ocean | 1600×900 | ❌ |
+| ID | Description | Status |
+|----|-------------|--------|
+| `bg_campfire` | Night forest clearing with glowing campfire, stars, silhouetted trees | ✅ Generated |
+| `bg_cyber` | Neon-lit digital hideout, server racks, matrix rain, grid floor | ✅ Generated |
+| `bg_zen_garden` | Peaceful bamboo grove, stone pond, cherry blossom petals, mist | ✅ Generated |
+| `bg_star_deck` | Cosmic observatory, nebula, planets, aurora borealis | ✅ Generated |
+| `bg_study_lounge` | Cozy library with bookshelves, warm lamp glow, window to night | ✅ Generated |
+| `bg_beach_cove` | Sunset beach scene, pixel waves, palm tree silhouette, ocean | ✅ Generated |
+| `bg_login` | Dark atmospheric login screen, campfire, gateway arch, starry night | ✅ Generated |
 
----
+## 2. DECOR ITEMS (sprite sheets, 256×256 per item, chroma-key removed)
 
-## 2. DECOR ITEMS (square, 256×256, transparent bg)
+| Sheet | Items | Status |
+|-------|-------|--------|
+| `decor_sheet_1_nobg` | Desk lamp, Neon strip, Potted fern, Cactus | ✅ Generated + chroma removed |
+| `decor_sheet_2_nobg` | Bonsai, Candle set, Bookshelf, Wooden desk, Armchair, Retro poster, World map, Picture frame, Oval rug, Neon floor mat, Side table, Coffee table | ✅ Generated + chroma removed |
 
-| ID | Description | Aspect | Gen Status |
-|----|-------------|--------|------------|
-| `decor_lamp` | Pixel-style desk lamp, warm yellow glow | 256×256 | ❌ |
-| `decor_neon` | Neon strip light, pink/cyan glow | 256×256 | ❌ |
-| `decor_candle` | Three candles on small plate, warm flame | 256×256 | ❌ |
-| `decor_fern` | Potted fern plant, green leaves, terracotta pot | 256×256 | ❌ |
-| `decor_bonsai` | Bonsai tree in ceramic pot, sculpted branches | 256×256 | ❌ |
-| `decor_cactus` | Cartoon cactus in small pot, pink flower on top | 256×256 | ❌ |
-| `decor_desk` | Wooden desk, top-down or isometric view | 256×256 | ❌ |
-| `decor_bookshelf` | Bookshelf filled with colorful books | 256×256 | ❌ |
-| `decor_armchair` | Comfortable armchair, red or brown fabric | 256×256 | ❌ |
-| `decor_poster` | Retro sci-fi movie poster on wall | 256×256 | ❌ |
-| `decor_map` | Antique world map on parchment | 256×256 | ❌ |
-| `decor_frame` | Empty picture frame, gold border | 256×256 | ❌ |
-| `decor_rug` | Patterned oval rug, warm colors | 256×256 | ❌ |
-| `decor_neon_mat` | Glowing neon floor mat, futuristic | 256×256 | ❌ |
-| `decor_side_table` | Small round side table, wooden | 256×256 | ❌ |
-| `decor_coffee_table` | Rectangular coffee table with items on top | 256×256 | ❌ |
+## 3. AUTOCLICKER ICONS (sprite sheet, 128×128 per icon)
 
----
+| Sheet | Items | Status |
+|-------|-------|--------|
+| `ac_sheet_nobg` | Win95, Win98, iMac G3, XP tower, Mac Mini, Gaming Rig, RTX 5090, Mac Studio, Server Rack, DGX Pod, Quantum Core, Dyson Sphere | ✅ Generated + chroma removed |
 
-## 3. AUTOCLICKER ICONS (square, 128×128, transparent bg)
+## 4. TROPHIES (sprite sheet, 128×128 each)
 
-| ID | Description | Aspect | Gen Status |
-|----|-------------|--------|------------|
-| `ac_win95` | Vintage beige Windows 95 PC tower | 128×128 | ❌ |
-| `ac_win98` | Windows 98 PC with CRT monitor | 128×128 | ❌ |
-| `ac_imac_g3` | Bondi blue iMac G3 all-in-one | 128×128 | ❌ |
-| `ac_xp` | Windows XP-era tower PC | 128×128 | ❌ |
-| `ac_macmini` | Small silver Mac Mini | 128×128 | ❌ |
-| `ac_gaming_rig` | RGB-lit gaming PC with glass panel | 128×128 | ❌ |
-| `ac_rtx` | High-end RTX 5090 graphics card | 128×128 | ❌ |
-| `ac_macstudio` | Mac Studio desktop computer | 128×128 | ❌ |
-| `ac_server_rack` | Server rack with blinking LEDs | 128×128 | ❌ |
-| `ac_dgx` | NVIDIA DGX supercomputer | 128×128 | ❌ |
-| `ac_quantum` | Futuristic quantum computer | 128×128 | ❌ |
-| `ac_dyson` | Dyson Sphere megastructure in space | 128×128 | ❌ |
+| Sheet | Items | Status |
+|-------|-------|--------|
+| `trophies_sheet_nobg` | Bronze cup, Silver cup, Gold cup with glow | ✅ Generated + chroma removed |
+
+## 5. UI ELEMENTS + ATMOSPHERIC EFFECTS (sprite sheet)
+
+| Sheet | Items | Status |
+|-------|-------|--------|
+| `ui_effects_sheet_nobg` | VIBE button, Music note, Click icon, Gateway dot, Fire ember, Star, Firefly, Cherry blossom, Snowflake, Matrix character | ✅ Generated + chroma removed |
 
 ---
 
-## 4. TROPHIES (square, 128×128, transparent bg)
+## File Locations
 
-| ID | Description | Aspect | Gen Status |
-|----|-------------|--------|------------|
-| `trophy_bronze` | Bronze medal / cup, 3rd place | 128×128 | ❌ |
-| `trophy_silver` | Silver medal / cup, 2nd place | 128×128 | ❌ |
-| `trophy_gold` | Gold medal / cup, 1st place, glowing | 128×128 | ❌ |
+All sprites stored under `sprites/images/`:
+- `bg/*.png` — Room backgrounds (directly loaded by drawBackground)
+- `decor/*_nobg.png` — Decor items with transparency
+- `icons/*_nobg.png` — Icons, trophies, UI, and effects with transparency
 
----
-
-## 5. ATMOSPHERIC EFFECTS
-
-| ID | Description | Format | Gen Status |
-|----|-------------|--------|------------|
-| `fx_fire_particle` | Small glowing ember particle | 16×16 | ❌ |
-| `fx_star` | Twinkling star | 16×16 | ❌ |
-| `fx_firefly` | Glowing firefly bug | 16×16 | ❌ |
-| `fx_cherry` | Cherry blossom petal | 16×16 | ❌ |
-| `fx_snow` | Snowflake | 16×16 | ❌ |
-| `fx_matrix` | Matrix-style falling code character | 16×16 | ❌ |
-
----
-
-## 6. UI ELEMENTS (various)
-
-| ID | Description | Aspect | Gen Status |
-|----|-------------|--------|------------|
-| `ui_vibe_button` | Large pulsing "VIBE" button texture | 256×128 | ❌ |
-| `ui_gateway_dot` | Gateway status indicator dot (green/red) | 32×32 | ❌ |
-| `ui_click_icon` | Hand cursor clicking animation icon | 64×64 | ❌ |
-| `ui_music_note` | Music note icon for controls | 32×32 | ❌ |
-
----
-
-## 7. LOGIN SCREEN (16:9)
-
-| ID | Description | Aspect | Gen Status |
-|----|-------------|--------|------------|
-| `login_bg` | Ambient login screen background, dark and atmospheric | 1600×900 | ❌ |
-
----
-
-## Aspect Ratio Guide for sprites.js
-
-```javascript
-const SPRITE_ASPECTS = {
-    // Backgrounds: fill canvas (use object-fit: cover or stretching)
-    bg: { w: 1600, h: 900, fit: 'cover' },
-    // Decor: square sprites displayed at grid cell size
-    decor: { w: 256, h: 256, fit: 'contain' },
-    // Autoclicker icons: square icons in upgrade list
-    icon: { w: 128, h: 128, fit: 'contain' },
-    // Trophies: square with visual padding
-    trophy: { w: 128, h: 128, fit: 'contain' },
-    // UI elements: flexible
-    ui: { w: 64, h: 64, fit: 'contain' },
-};
-```
-
----
-
-**Total: 42 sprite assets needed**
-
-Priority order: Room Backgrounds (6) → Decor Items (16) → Autoclickers (12) → UI (5) → Effects (6) → Login (1)
+**Total: 17 files, ~24MB**
+**Fallback: game engine renders all sprites programmatically via `sprites.js` SPRITES array**

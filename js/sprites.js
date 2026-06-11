@@ -3,9 +3,8 @@
 // + Decor Grid Placement & Drag System
 // ============================================================
 
-// --- GRID CONSTANTS ---
-const GRID_CELL = 48;       // Grid cell size in pixels
-const PLACEMENT_SNAP = 48;  // Snap distance
+// --- FREE PLACEMENT (no grid snap) ---
+const PLACEMENT_SNAP = 1;  // Pixel-perfect placement
 
 // --- PLACEMENT STATE ---
 const placementState = {
@@ -27,6 +26,8 @@ const dragState = {
     currentY: 0,
     velocityX: 0,
     velocityY: 0,
+    rotation: 0,        // current rotation angle in radians
+    targetRotation: 0,  // target rotation based on velocity
     wobblePhase: 0,
 };
 
@@ -202,8 +203,8 @@ const SPRITES = {
             '..OSBBDDBBBDDBBSOO.......',
             '..OSBBBBBBBBBBBBSOO......',
             '..OSBBBBBBBBBBBBSOO......',
-            '..OOSSSSSSSSSSSS OO......',
-            '....OOO HH OOO...........',
+            '..OOSSSSSSSSSSSSOO.......',
+            '....OOOHHOOO............',
             '.....OHHHHHO............',
             '.....OHHHHHO............',
             '.....OHHHHHO............',
@@ -690,42 +691,35 @@ function generateSprite(spriteId, scale = 2) {
     return canvas;
 }
 
-// Get sprite dimensions (in grid cells)
+// Get sprite dimensions (free placement)
 function getSpriteGridSize(spriteId) {
     const def = SPRITES[spriteId];
-    if (!def) return { w: 1, h: 1 };
+    if (!def) return { w: 2, h: 2 };
     return {
-        w: Math.ceil(def.w * 2 / GRID_CELL),
-        h: Math.ceil(def.h * 2 / GRID_CELL),
+        w: Math.ceil(def.w * 2 / 1),
+        h: Math.ceil(def.h * 2 / 1),
     };
 }
 
 function getSpritePixelSize(spriteId) {
     const def = SPRITES[spriteId];
-    if (!def) return { w: 32, h: 32 };
-    return { w: def.w * 2, h: def.h * 2 };
+    if (def) return { w: def.w * 2, h: def.h * 2 };
+    // Room decor items (IDs with underscores) use 64x64 PNG icons
+    if (spriteId && spriteId.includes('_')) return { w: 64, h: 64 };
+    return { w: 32, h: 32 };
 }
 
-// --- GRID SNAPPING ---
+// --- FREE PLACEMENT (no grid snap) ---
 function snapToGrid(x, y) {
-    return {
-        x: Math.round(x / GRID_CELL) * GRID_CELL,
-        y: Math.round(y / GRID_CELL) * GRID_CELL,
-    };
+    return { x: Math.round(x), y: Math.round(y) };
 }
 
 function worldToGrid(x, y) {
-    return {
-        gx: Math.round(x / GRID_CELL),
-        gy: Math.round(y / GRID_CELL),
-    };
+    return { gx: x, gy: y };
 }
 
 function gridToWorld(gx, gy) {
-    return {
-        x: gx * GRID_CELL,
-        y: gy * GRID_CELL,
-    };
+    return { x: gx, y: gy };
 }
 
 // --- ROOM BACKGROUND DRAWING ---
@@ -735,17 +729,26 @@ const rnd = (seed) => {
 };
 
 function drawStars(ctx, w, h, rand, count = 40) {
+    const t = Date.now() / 1000;
     ctx.fillStyle = PAL.white;
     for (let i = 0; i < count; i++) {
         const x = rand() * w;
         const y = rand() * h * 0.6;
         const sz = rand() > 0.85 ? 2 : 1;
+        // Twinkle: each star oscillates at a unique frequency
+        const twinkle = 0.5 + 0.5 * Math.sin(t * 1.5 + i * 2.7);
+        ctx.globalAlpha = 0.4 + twinkle * 0.6;
         ctx.fillRect(Math.floor(x), Math.floor(y), sz, sz);
     }
+    ctx.globalAlpha = 1;
 }
 
 function drawCampfireBg(ctx, w, h, scale) {
-    ctx.fillStyle = PAL.dk_blu;
+    const t = Date.now() / 1000;
+
+    // Night sky — subtle colour shift
+    const skyPulse = 0.05 * Math.sin(t * 0.08);
+    ctx.fillStyle = `rgb(${13+Math.floor(skyPulse*20)}, ${11+Math.floor(skyPulse*10)}, ${10+Math.floor(skyPulse*5)})`;
     ctx.fillRect(0, 0, w, h);
 
     drawStars(ctx, w, h, rnd(42), 35);
@@ -756,33 +759,67 @@ function drawCampfireBg(ctx, w, h, scale) {
     ctx.fillStyle = PAL.dk_grn;
     ctx.fillRect(0, h * 0.73, w, h * 0.03);
 
-    // Trees
+    // Trees — subtle sway
     ctx.fillStyle = PAL.black;
     for (let i = 0; i < 3; i++) {
         const tx = 20 + i * (w / 3) + (i * 7);
         const th = 50 + (i * 13) % 30;
-        ctx.fillRect(tx, h * 0.73 - th, 6, th);
-        ctx.fillRect(tx - 6, h * 0.73 - th - 12, 10, 6);
-        ctx.fillRect(tx - 4, h * 0.73 - th - 18, 8, 6);
+        const sway = Math.sin(t * 0.4 + i * 1.7) * 1.5;
+        ctx.fillRect(tx + sway, h * 0.73 - th, 6, th);
+        ctx.fillRect(tx - 6 + sway, h * 0.73 - th - 12, 10, 6);
+        ctx.fillRect(tx - 4 + sway, h * 0.73 - th - 18, 8, 6);
     }
 
-    // Fire glow
-    const grad = ctx.createRadialGradient(w * 0.5, h * 0.7, 10, w * 0.5, h * 0.7, w * 0.35);
-    grad.addColorStop(0, 'rgba(255, 107, 53, 0.25)');
-    grad.addColorStop(0.5, 'rgba(255, 170, 68, 0.1)');
+    // Fire glow — pulsing
+    const firePulse = 0.7 + 0.3 * Math.sin(t * 2.5);
+    const glowRadius = w * (0.3 + 0.08 * Math.sin(t * 1.8));
+    const grad = ctx.createRadialGradient(w * 0.5, h * 0.7, 5, w * 0.5, h * 0.7, glowRadius);
+    grad.addColorStop(0, `rgba(255, ${Math.floor(150 + 50 * Math.sin(t*3))}, 53, ${0.3 * firePulse})`);
+    grad.addColorStop(0.4, `rgba(255, 170, 68, ${0.12 * firePulse})`);
     grad.addColorStop(1, 'rgba(255, 170, 68, 0)');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
+
+    // Embers — rising from fire
+    for (let i = 0; i < 12; i++) {
+        const emberX = w * 0.5 + Math.sin(t * 0.7 + i * 5.1) * 25;
+        const emberY = h * 0.68 - ((t * 30 + i * 43) % 70);
+        const emberLife = 1 - ((t * 30 + i * 43) % 70) / 70;
+        if (emberLife > 0) {
+            ctx.globalAlpha = emberLife * 0.8;
+            ctx.fillStyle = `hsl(${25 + Math.floor(emberLife * 20)}, 100%, ${60 + Math.floor(emberLife * 30)}%)`;
+            const esz = 1 + emberLife * 2;
+            ctx.fillRect(Math.floor(emberX), Math.floor(emberY), Math.ceil(esz), Math.ceil(esz));
+        }
+    }
+    ctx.globalAlpha = 1;
+
+    // Smoke wisps
+    for (let i = 0; i < 5; i++) {
+        const sx = w * 0.5 + Math.sin(t * 0.3 + i * 1.3) * 40;
+        const sy = h * 0.65 - ((t * 15 + i * 97) % 50);
+        const life = 1 - ((t * 15 + i * 97) % 50) / 50;
+        if (life > 0) {
+            ctx.globalAlpha = life * 0.08;
+            ctx.fillStyle = '#aaa';
+            const sw = 8 + life * 20;
+            ctx.beginPath();
+            ctx.arc(sx, sy, sw, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    ctx.globalAlpha = 1;
 }
 
 function drawCyberBg(ctx, w, h, scale) {
+    const t = Date.now() / 1000;
+
     ctx.fillStyle = PAL.black;
     ctx.fillRect(0, 0, w, h);
 
-    const rand = rnd(99);
-    // Grid
+    // Grid — pulsing scanlines
     ctx.strokeStyle = PAL.neGrn;
-    ctx.globalAlpha = 0.3;
+    ctx.globalAlpha = 0.2 + 0.15 * Math.sin(t * 0.5);
     for (let x = 0; x < w; x += 30) {
         ctx.beginPath();
         ctx.moveTo(x, h * 0.65);
@@ -797,74 +834,182 @@ function drawCyberBg(ctx, w, h, scale) {
     }
     ctx.globalAlpha = 1;
 
-    // Neon lines
-    ctx.strokeStyle = PAL.neonPink;
+    // Neon lines — pulsing intensity
     ctx.lineWidth = 2;
     for (let i = 0; i < 4; i++) {
         const x = 15 + i * 25;
+        const neonPulse = 0.4 + 0.6 * Math.sin(t * 1.2 + i * 1.1);
+        ctx.strokeStyle = `rgba(255, 0, ${Math.floor(80 + 100 * neonPulse)}, ${0.6 * neonPulse})`;
         ctx.beginPath();
         ctx.moveTo(x, h * 0.25);
         ctx.lineTo(x + 8, h * 0.65);
         ctx.stroke();
     }
 
-    // Matrix rain
+    // Matrix rain — falling
     ctx.fillStyle = PAL.neGrn;
-    ctx.globalAlpha = 0.4;
-    for (let i = 0; i < 20; i++) {
-        const x = rand() * w;
-        const y = rand() * h * 0.55;
-        ctx.fillRect(Math.floor(x), Math.floor(y), 2, 4);
+    ctx.globalAlpha = 0.5;
+    for (let i = 0; i < 25; i++) {
+        const mx = (i * 37 + Math.floor(t * 10)) % Math.floor(w / 6) * 6 + 3;
+        const fallY = ((t * 60 + i * 71) % (h * 0.6));
+        ctx.fillRect(Math.floor(mx), Math.floor(fallY), 2, 5 + (i % 3) * 3);
+        // Trail
+        ctx.globalAlpha = 0.15;
+        ctx.fillRect(Math.floor(mx), Math.floor(fallY - 8), 2, 6);
+        ctx.globalAlpha = 0.5;
     }
     ctx.globalAlpha = 1;
+
+    // Glitch flicker (random)
+    if (Math.sin(t * 7.3) > 0.92) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.fillRect(Math.random() * w * 0.3, 0, Math.random() * 30 + 10, h);
+    }
 }
 
 function drawZenBg(ctx, w, h, scale) {
+    const t = Date.now() / 1000;
+
     ctx.fillStyle = PAL.dk_grn;
     ctx.fillRect(0, 0, w, h);
 
-    // Mist
-    ctx.fillStyle = 'rgba(129, 199, 132, 0.15)';
-    ctx.fillRect(0, h * 0.15, w, h * 0.35);
+    // Mist — drifting
+    ctx.globalAlpha = 0.1 + 0.06 * Math.sin(t * 0.15);
+    ctx.fillStyle = PAL.lime;
+    const mistX = Math.sin(t * 0.05) * 20;
+    ctx.fillRect(mistX, h * 0.15, w, h * 0.35);
+    ctx.globalAlpha = 1;
 
     // Ground
     ctx.fillStyle = PAL.md_brown;
     ctx.fillRect(0, h * 0.8, w, h * 0.2);
 
-    // Pond
+    // Bamboo — swaying
+    for (let i = 0; i < 5; i++) {
+        const bx = w * 0.15 + i * w * 0.18;
+        const bh = 40 + (i * 17) % 30;
+        const sway = Math.sin(t * 0.35 + i * 0.9) * 2;
+        ctx.fillStyle = PAL.md_grn;
+        ctx.fillRect(bx + sway, h * 0.8 - bh, 4, bh);
+        // Leaves
+        ctx.fillStyle = PAL.grn;
+        const leafAngle = Math.sin(t * 0.4 + i * 1.3) * 0.3;
+        ctx.save();
+        ctx.translate(bx + sway, h * 0.8 - bh);
+        ctx.rotate(leafAngle);
+        ctx.fillRect(-2, -5, 8, 3);
+        ctx.restore();
+    }
+
+    // Pond — ripples
     ctx.fillStyle = PAL.dk_blu;
     ctx.fillRect(w * 0.3, h * 0.82, w * 0.4, h * 0.12);
+    // Ripple rings
+    for (let i = 0; i < 3; i++) {
+        const ripplePhase = (t * 0.8 + i * 1.2) % 1;
+        const rw = 6 + ripplePhase * 35;
+        const ry = h * 0.86 + Math.sin(t * 0.3 + i * 2.1) * 3;
+        const rx = w * 0.5 + Math.sin(t * 0.2 + i * 3.7) * 30;
+        ctx.strokeStyle = `rgba(0, 188, 212, ${0.3 * (1 - ripplePhase)})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(rx, ry, rw, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    // Water shimmer
     ctx.fillStyle = PAL.cyan;
+    ctx.globalAlpha = 0.2 + 0.15 * Math.sin(t * 0.6);
     ctx.fillRect(w * 0.35, h * 0.84, w * 0.05, 3);
     ctx.fillRect(w * 0.55, h * 0.87, 3, 2);
+    ctx.globalAlpha = 1;
+
+    // Cherry blossoms — drifting
+    for (let i = 0; i < 8; i++) {
+        const cx = ((t * 12 + i * 47) % (w + 30)) - 15;
+        const cy = ((t * 8 + i * 71) % (h * 0.7)) + h * 0.05;
+        const drift = Math.sin(t * 0.5 + i * 3.1) * 15;
+        ctx.fillStyle = 'rgba(255, 182, 193, 0.5)';
+        ctx.fillRect(Math.floor(cx + drift), Math.floor(cy), 3, 3);
+    }
 }
 
 function drawStarBg(ctx, w, h, scale) {
+    const t = Date.now() / 1000;
+
     ctx.fillStyle = PAL.black;
     ctx.fillRect(0, 0, w, h);
 
     drawStars(ctx, w, h, rnd(7), 60);
 
-    // Nebula
-    const grad = ctx.createRadialGradient(w * 0.7, h * 0.3, 10, w * 0.7, h * 0.3, w * 0.3);
-    grad.addColorStop(0, 'rgba(136, 136, 255, 0.15)');
-    grad.addColorStop(0.5, 'rgba(136, 136, 255, 0.05)');
+    // Aurora — undulating waves
+    for (let a = 0; a < 3; a++) {
+        ctx.globalAlpha = 0.06 + 0.03 * Math.sin(t * 0.2 + a * 2.1);
+        ctx.fillStyle = a === 0 ? '#88ff88' : a === 1 ? '#8888ff' : '#ff88ff';
+        ctx.beginPath();
+        ctx.moveTo(0, h * 0.15 + a * 10);
+        for (let x = 0; x <= w; x += 8) {
+            const ay = Math.sin(x * 0.02 + t * 0.3 + a * 1.7) * 20
+                    + Math.sin(x * 0.01 + t * 0.15 + a * 3.2) * 15;
+            ctx.lineTo(x, h * 0.15 + a * 10 + ay);
+        }
+        ctx.lineTo(w, h * 0.15 + a * 10 - 5);
+        ctx.lineTo(0, h * 0.15 + a * 10 - 5);
+        ctx.closePath();
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Nebula — pulsing
+    const nebulaPulse = 0.8 + 0.2 * Math.sin(t * 0.1);
+    const grad = ctx.createRadialGradient(w * 0.7, h * 0.3, 10, w * 0.7, h * 0.3, w * 0.35);
+    grad.addColorStop(0, `rgba(136, 136, 255, ${0.15 * nebulaPulse})`);
+    grad.addColorStop(0.5, `rgba(136, 136, 255, ${0.05 * nebulaPulse})`);
     grad.addColorStop(1, 'rgba(136, 136, 255, 0)');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
-    // Planet
+    // Planet — rotating glow ring
+    const planetX = w * 0.8;
+    const planetY = h * 0.4;
+    const planetAngle = t * 0.15;
     ctx.fillStyle = PAL.purp;
     ctx.beginPath();
-    ctx.arc(w * 0.8, h * 0.4, 12, 0, Math.PI * 2);
+    ctx.arc(planetX, planetY, 14, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = PAL.neonPink;
     ctx.beginPath();
-    ctx.arc(w * 0.8, h * 0.4, 5, 0, Math.PI * 2);
+    ctx.arc(planetX, planetY, 6, 0, Math.PI * 2);
     ctx.fill();
+    // Ring
+    ctx.strokeStyle = `rgba(255, 0, 102, ${0.3 + 0.15 * Math.sin(t * 0.5)})`;
+    ctx.lineWidth = 2;
+    ctx.save();
+    ctx.translate(planetX, planetY);
+    ctx.rotate(planetAngle);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 20, 5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // Shooting stars
+    for (let i = 0; i < 2; i++) {
+        const phase = (t * 0.07 + i * 0.5) % 1;
+        if (phase > 0.7) continue;
+        const sx = phase * w * 0.9 + 10;
+        const sy = phase * h * 0.3 + 10;
+        const len = 20 + 10 * Math.sin(i * 2.3);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${0.6 * (1 - phase)})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx - len, sy + len * 0.3);
+        ctx.stroke();
+    }
 }
 
 function drawStudyBg(ctx, w, h, scale) {
+    const t = Date.now() / 1000;
+
     ctx.fillStyle = PAL.dk_brown;
     ctx.fillRect(0, 0, w, h);
 
@@ -876,11 +1021,28 @@ function drawStudyBg(ctx, w, h, scale) {
     ctx.fillStyle = PAL.br_brown;
     ctx.fillRect(0, h * 0.72, w, h * 0.28);
 
-    // Window
+    // Window — night sky with moon drift
     ctx.fillStyle = PAL.dk_blu;
     ctx.fillRect(w * 0.35, h * 0.12, w * 0.3, h * 0.35);
-    ctx.fillStyle = PAL.lt_blu;
+    // Interior warm window glow
+    const windowGlow = 0 + 0.05 * Math.sin(t * 0.3);
+    ctx.fillStyle = `rgba(212, 165, 116, ${windowGlow})`;
     ctx.fillRect(w * 0.36, h * 0.13, w * 0.12, h * 0.14);
+    ctx.fillStyle = PAL.lt_blu;
+    // Moon drifting across window
+    const moonX = w * 0.4 + Math.sin(t * 0.03) * w * 0.12;
+    const moonY = h * 0.22 + Math.sin(t * 0.02) * h * 0.05;
+    ctx.beginPath();
+    ctx.arc(moonX, moonY, 4, 0, Math.PI * 2);
+    ctx.fill();
+    // Tiny stars in window
+    ctx.fillStyle = '#fff';
+    ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 1.2);
+    ctx.fillRect(w * 0.4, h * 0.16, 1, 1);
+    ctx.fillRect(w * 0.55, h * 0.18, 1, 1);
+    ctx.fillRect(w * 0.5, h * 0.22, 1, 1);
+    ctx.fillRect(w * 0.45, h * 0.28, 1, 1);
+    ctx.globalAlpha = 1;
     ctx.strokeStyle = PAL.tan;
     ctx.lineWidth = 2;
     ctx.strokeRect(w * 0.35, h * 0.12, w * 0.3, h * 0.35);
@@ -891,49 +1053,101 @@ function drawStudyBg(ctx, w, h, scale) {
     ctx.lineTo(w * 0.65, h * 0.295);
     ctx.stroke();
 
-    // Warm light
+    // Warm light — pulsing lamp
+    const lampPulse = 0.85 + 0.15 * Math.sin(t * 2.0) + 0.05 * Math.sin(t * 5.3);
     const grad = ctx.createRadialGradient(w * 0.5, h * 0.5, 10, w * 0.5, h * 0.5, w * 0.4);
-    grad.addColorStop(0, 'rgba(212, 165, 116, 0.12)');
-    grad.addColorStop(1, 'rgba(212, 165, 116, 0)');
+    grad.addColorStop(0, `rgba(212, 165, 116, ${0.12 * lampPulse})`);
+    grad.addColorStop(1, `rgba(212, 165, 116, 0)`);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
+
+    // Dust motes — floating in lamplight
+    for (let i = 0; i < 8; i++) {
+        const dx = ((t * 5 + i * 31) % (w * 0.6)) + w * 0.2;
+        const dy = ((t * 3 + i * 53) % (h * 0.5)) + h * 0.15;
+        const dz = Math.sin(t * 0.4 + i * 2.3) * 15;
+        ctx.fillStyle = `rgba(255, 255, 200, ${0.15 + 0.1 * Math.sin(t + i)})`;
+        ctx.fillRect(Math.floor(dx + dz), Math.floor(dy), 2, 2);
+    }
 }
 
 function drawBeachBg(ctx, w, h, scale) {
-    // Sky
+    const t = Date.now() / 1000;
+
+    // Sky — sunset gradient with time shift
+    const skyShift = 0.05 * Math.sin(t * 0.05);
     const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.55);
-    skyGrad.addColorStop(0, PAL.lt_blu);
-    skyGrad.addColorStop(0.4, PAL.lt_orange);
-    skyGrad.addColorStop(1, PAL.md_orange);
+    skyGrad.addColorStop(0, `rgb(${66+Math.floor(skyShift*20)}, ${165+Math.floor(skyShift*15)}, ${245})`);
+    skyGrad.addColorStop(0.4, `rgb(${255}, ${136+Math.floor(skyShift*10)}, ${51+Math.floor(skyShift*10)})`);
+    skyGrad.addColorStop(1, `rgb(${255}, ${107+Math.floor(skyShift*15)}, ${53})`);
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, w, h * 0.55);
 
-    // Ocean
+    // Clouds — drifting
+    for (let i = 0; i < 3; i++) {
+        const cx = ((t * 4 + i * 113) % (w + 50)) - 25;
+        const cy = h * 0.08 + i * 12 + Math.sin(t * 0.1 + i * 1.7) * 5;
+        ctx.fillStyle = `rgba(255, 200, 150, ${0.2 + 0.1 * Math.sin(t * 0.3 + i * 2.1)})`;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 12 + i * 3, 0, Math.PI * 2);
+        ctx.arc(cx + 15, cy - 3, 10 + i * 2, 0, Math.PI * 2);
+        ctx.arc(cx + 30, cy, 8 + i * 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Ocean — animated waves
     ctx.fillStyle = PAL.blu;
     ctx.fillRect(0, h * 0.48, w, h * 0.25);
-
-    // Waves
-    ctx.fillStyle = PAL.lt_blu;
-    ctx.fillRect(0, h * 0.48, w, 3);
-    ctx.fillRect(w * 0.2, h * 0.5, w * 0.3, 2);
-    ctx.fillStyle = PAL.cyan;
-    ctx.fillRect(w * 0.6, h * 0.53, w * 0.25, 2);
+    // Wave lines — moving
+    for (let i = 0; i < 5; i++) {
+        const waveY = h * 0.48 + i * 6 + Math.sin(t * 0.8 + i * 1.3) * 2;
+        const waveAlpha = 0.4 + 0.3 * (1 - i / 5);
+        ctx.fillStyle = `rgba(102, 204, 255, ${waveAlpha})`;
+        ctx.beginPath();
+        ctx.moveTo(0, waveY);
+        for (let x = 0; x <= w; x += 10) {
+            const wy = waveY + Math.sin(x * 0.04 + t * 1.5 + i * 2.1) * 3;
+            ctx.lineTo(x, wy);
+        }
+        ctx.lineTo(w, waveY + 3);
+        ctx.lineTo(0, waveY + 3);
+        ctx.closePath();
+        ctx.fill();
+    }
 
     // Sand
     ctx.fillStyle = PAL.tan;
     ctx.fillRect(0, h * 0.73, w, h * 0.27);
 
-    // Sun
+    // Sun — pulsing glow
+    const sunPulse = 0.8 + 0.2 * Math.sin(t * 0.4);
     ctx.fillStyle = PAL.md_gold;
     ctx.beginPath();
     ctx.arc(w * 0.5, h * 0.33, 15, 0, Math.PI * 2);
     ctx.fill();
-    // Sun rays
-    ctx.fillStyle = PAL.fire_ylw;
-    ctx.globalAlpha = 0.5;
-    ctx.fillRect(w * 0.5 - 1, 0, 2, h * 0.25);
-    ctx.fillRect(w * 0.4, h * 0.2, w * 0.2, 2);
+    // Sun glow
+    ctx.fillStyle = `rgba(255, 235, 59, ${0.15 * sunPulse})`;
+    ctx.beginPath();
+    ctx.arc(w * 0.5, h * 0.33, 22 + 3 * Math.sin(t * 0.5), 0, Math.PI * 2);
+    ctx.fill();
+    // Sun rays — rotating
+    ctx.globalAlpha = 0.35 * sunPulse;
+    for (let r = 0; r < 6; r++) {
+        const angle = t * 0.06 + r * (Math.PI / 3);
+        ctx.fillStyle = PAL.fire_ylw;
+        ctx.fillRect(
+            w * 0.5 + Math.cos(angle) * 18 - 1,
+            h * 0.33 + Math.sin(angle) * 18 - 1,
+            2, 8
+        );
+    }
     ctx.globalAlpha = 1;
+
+    // Foam line at shore — moving
+    const foamX = Math.sin(t * 0.4) * 15;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.fillRect(w * 0.3 + foamX, h * 0.73, w * 0.15, 2);
+    ctx.fillRect(w * 0.55 - foamX, h * 0.73, w * 0.12, 2);
 }
 
 // --- EXTERNAL SPRITE LOADER ---
@@ -946,28 +1160,35 @@ function setSpriteRoot(root) {
 }
 
 function loadExternalSprite(path) {
-    if (externalSprites[path]) return Promise.resolve(externalSprites[path]);
-    return new Promise((resolve) => {
+    // Return cached or in-flight promise to prevent duplicate loads
+    if (externalSprites[path] === true) return Promise.resolve(null); // failed previously
+    if (externalSprites[path] instanceof HTMLImageElement) return Promise.resolve(externalSprites[path]);
+    if (externalSprites[path] instanceof Promise) return externalSprites[path];
+    
+    const promise = new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
             externalSprites[path] = img;
             resolve(img);
         };
         img.onerror = () => {
+            externalSprites[path] = true; // mark failed so we don't retry
             resolve(null);
         };
         img.src = path;
     });
+    externalSprites[path] = promise;
+    return promise;
 }
 
 async function drawBackground(roomId, ctx, w, h) {
     const bgMap = {
         'campfire_grove': 'bg_campfire',
         'cyber_den': 'bg_cyber',
-        'zen_garden': 'bg_zen',
-        'star_deck': 'bg_star',
-        'study_lounge': 'bg_study',
-        'beach_cove': 'bg_beach',
+        'zen_garden': 'bg_zen_garden',
+        'star_deck': 'bg_star_deck',
+        'study_lounge': 'bg_study_lounge',
+        'beach_cove': 'bg_beach_cove',
     };
     const bgName = bgMap[roomId];
     if (bgName) {
@@ -1005,64 +1226,47 @@ function drawGodrays(ctx, w, h) {
 }
 
 // --- PLACEMENT SOUND ---
-function playPlacementSound() {
-    try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1320, audioCtx.currentTime + 0.05);
-        osc.frequency.exponentialRampToValueAtTime(1100, audioCtx.currentTime + 0.1);
-
-        const env = audioCtx.createGain();
-        env.gain.setValueAtTime(0.08, audioCtx.currentTime);
-        env.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
-
-        osc.connect(env);
-        env.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.15);
-    } catch (e) {}
-}
-
-// --- GRID OVERLAY ---
-function drawGridOverlay(ctx, w, h) {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < w; x += GRID_CELL) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, h);
-        ctx.stroke();
-    }
-    for (let y = 0; y < h; y += GRID_CELL) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
-        ctx.stroke();
-    }
-    ctx.restore();
-}
+// (Replaced by sfx.js module -- playPlace in sfx.js)
 
 // --- PLACEMENT GHOST ---
 function drawPlacementGhost(ctx, state) {
     if (!placementState.active || !placementState.decorId) return;
-    const sprite = generateSprite(placementState.decorId, 2);
+    const decorId = placementState.decorId;
+    const ghostX = placementState.ghostX;
+    const ghostY = placementState.ghostY;
+
+    // For room decor, try loading the external PNG sprite (cached)
+    if (decorId && decorId.includes('_')) {
+        loadExternalSprite(`sprites/images/room_decor/icons/${decorId}.png`).then(img => {
+            if (!img) return;
+            ctx.save();
+            ctx.globalAlpha = 0.5;
+            ctx.drawImage(img, ghostX, ghostY);
+            ctx.restore();
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.strokeRect(ghostX, ghostY, img.width, img.height);
+            ctx.restore();
+        });
+        return;
+    }
+
+    // Fallback: generated sprite
+    const sprite = generateSprite(decorId, 2);
     if (!sprite) return;
 
-    const snapped = snapToGrid(placementState.ghostX, placementState.ghostY);
     ctx.save();
     ctx.globalAlpha = 0.6;
-    ctx.drawImage(sprite, snapped.x, snapped.y);
+    ctx.drawImage(sprite, ghostX, ghostY);
     ctx.restore();
 
-    // Draw ghost border
     ctx.save();
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
-    ctx.strokeRect(snapped.x, snapped.y, sprite.width, sprite.height);
+    ctx.strokeRect(ghostX, ghostY, sprite.width, sprite.height);
     ctx.restore();
 }
 
@@ -1125,40 +1329,92 @@ function renderRoom(roomId, canvas, state) {
             }
         }
         // Draw placed decor items (after background)
+        const decorPromises = [];
         if (state.placed_decor) {
+            const currentRoomId = state.current_room || 'campfire_grove';
             for (const [decorKey, placements] of Object.entries(state.placed_decor)) {
                 if (!placements || !Array.isArray(placements)) continue;
+                // Skip decor not belonging to current room
+                if (!decorBelongsToRoom(decorKey, currentRoomId)) continue;
                 for (let i = 0; i < placements.length; i++) {
                     const p = placements[i];
                     const spriteId = decorToSprite(decorKey);
-                    const sprite = generateSprite(spriteId, 2);
-                    if (!sprite) continue;
-                    const snapped = snapToGrid(p.x, p.y);
-                    ctx.save();
-                    ctx.fillStyle = 'rgba(0,0,0,0.2)';
-                    ctx.fillRect(snapped.x + 2, snapped.y + 2, sprite.width, sprite.height);
-                    ctx.restore();
-                    if (dragState.active && dragState.decorKey === decorKey && dragState.index === i) {
-                        const wobbleX = Math.sin(Date.now() * 0.015 + dragState.wobblePhase) * 2;
-                        const wobbleY = Math.sin(Date.now() * 0.012 + dragState.wobblePhase + 1) * 2;
-                        ctx.drawImage(sprite, dragState.currentX + wobbleX, dragState.currentY + wobbleY);
+                    // Try external PNG for room decor
+                    let sprite = null;
+                    if (spriteId.length > 2 && spriteId.includes('_')) {
+                        decorPromises.push(
+                            loadExternalSprite(`sprites/images/room_decor/icons/${spriteId}.png`).then(img => {
+                                if (img) return { decorKey, index: i, sprite: img, p };
+                                // Fall back to generated sprite
+                                return { decorKey, index: i, sprite: generateSprite(spriteId, 2), p };
+                            })
+                        );
                     } else {
-                        ctx.drawImage(sprite, snapped.x, snapped.y);
+                        sprite = generateSprite(spriteId, 2);
+                        if (!sprite) continue;
+                        const snapped = snapToGrid(p.x, p.y);
+                        ctx.save();
+                        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                        ctx.fillRect(snapped.x + 2, snapped.y + 2, sprite.width, sprite.height);
+                        ctx.restore();
+                        if (dragState.active && dragState.decorKey === decorKey && dragState.index === i) {
+                            ctx.save();
+                            ctx.translate(dragState.currentX + sprite.width/2, dragState.currentY + sprite.height/2);
+                            ctx.rotate(dragState.rotation || 0);
+                            ctx.drawImage(sprite, -sprite.width/2, -sprite.height/2);
+                            ctx.restore();
+                        } else {
+                            ctx.drawImage(sprite, snapped.x, snapped.y);
+                        }
                     }
                 }
             }
         }
-        drawGodrays(ctx, w, h);
-        if (placementState.active) {
-            drawGridOverlay(ctx, w, h);
-            drawPlacementGhost(ctx, state);
-        }
-        drawGatewayHUD(ctx, w, h, state);
+        // Draw async loaded decor images
+        Promise.all(decorPromises).then(results => {
+            for (const r of results) {
+                if (!r || !r.sprite || !r.sprite.width) continue;
+                const snapped = snapToGrid(r.p.x, r.p.y);
+                ctx.save();
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.fillRect(snapped.x + 2, snapped.y + 2, r.sprite.width, r.sprite.height);
+                ctx.restore();
+                if (dragState.active && dragState.decorKey === r.decorKey && dragState.index === r.index) {
+                    ctx.save();
+                    ctx.translate(dragState.currentX + r.sprite.width/2, dragState.currentY + r.sprite.height/2);
+                    ctx.rotate(dragState.rotation || 0);
+                    ctx.drawImage(r.sprite, -r.sprite.width/2, -r.sprite.height/2);
+                    ctx.restore();
+                } else {
+                    ctx.drawImage(r.sprite, snapped.x, snapped.y);
+                }
+            }
+            drawGodrays(ctx, w, h);
+            if (placementState.active) {
+                drawPlacementGhost(ctx, state);
+            }
+            drawGatewayHUD(ctx, w, h, state);
+        });
     });
 }
 
-// Map decor IDs to sprite names
+// Map decor IDs to sprite names (fallback for when external images fail)
 function decorToSprite(decorId) {
+    const ROOM_DECOR_MAP = {
+        'campfire_grove': ['cg_log_stool','cg_compass','cg_canteen','cg_whittle_figure','cg_star_chart','cg_map_stand','cg_wildflower','cg_berry_bush','cg_birdhouse','cg_fishing_rod','cg_axe_block','cg_wood_pile','cg_bedroll','cg_lantern_post','cg_fire_ring'],
+        'cyber_den': ['cd_digital_clock','cd_glitch_art','cd_circuit_board','cd_cooling_fan','cd_data_crystal','cd_rgb_panel','cd_vr_headset','cd_keyboard_rig','cd_cable_spaghetti','cd_server_tower','cd_power_core','cd_access_terminal','cd_projector_screen','cd_robot_arm','cd_holographic_display'],
+        'zen_garden': ['zg_tea_set','zg_water_dipper','zg_incense_burner','zg_lotus_flower','zg_wind_chime','zg_meditation_cush','zg_moss_rock','zg_cherry_bonsai','zg_bamboo_fence','zg_stone_path','zg_koi_pond','zg_sand_garden','zg_rain_chain','zg_bamboo_fountain','zg_stone_lantern'],
+        'star_deck': ['sd_moon_globe','sd_constellation_map','sd_meteor_stone','sd_orbit_diagram','sd_astrolabe','sd_galaxy_painting','sd_observatory_chair','sd_star_projector','sd_lunar_lamp','sd_cosmic_map','sd_nebula_art','sd_planet_model','sd_rocket_model','sd_satellite_dish','sd_telescope'],
+        'study_lounge': ['sl_coffee_mug','sl_candle_holder','sl_plant_pot','sl_wall_clock','sl_typewriter','sl_globe','sl_throw_pillow','sl_magazine_rack','sl_picture_frame','sl_reading_lamp','sl_floor_lamp','sl_record_player','sl_writing_desk','sl_armchair','sl_bookshelf'],
+        'beach_cove': ['bc_seashell','bc_starfish','bc_sand_bucket','bc_flip_flops','bc_beach_ball','bc_driftwood','bc_sandcastle','bc_coral_piece','bc_tiki_torch','bc_cooler','bc_beach_towel','bc_surfboard','bc_beach_umbrella','bc_hammock','bc_palm_tree'],
+    };
+    // Check all rooms for this decor ID
+    for (const roomId of Object.keys(ROOM_DECOR_MAP)) {
+        if (ROOM_DECOR_MAP[roomId].includes(decorId)) {
+            return decorId; // Use the ID directly for external sprite loading
+        }
+    }
+    // Legacy decor fallback
     const map = {
         'lamp_1': 'lamp', 'lamp_2': 'neon_sign', 'lamp_3': 'campfire',
         'plant_1': 'fern', 'plant_2': 'bonsai', 'plant_3': 'cactus',
@@ -1172,6 +1428,21 @@ function decorToSprite(decorId) {
 
 function getDecorSpriteId(decorId) {
     return decorToSprite(decorId);
+}
+
+// --- DECOR ROOM MAPPING ---
+const DECOR_PREFIX_TO_ROOM = {
+    cg: 'campfire_grove',
+    cd: 'cyber_den',
+    zg: 'zen_garden',
+    sd: 'star_deck',
+    sl: 'study_lounge',
+    bc: 'beach_cove',
+};
+
+function decorBelongsToRoom(decorId, roomId) {
+    const prefix = decorId.substring(0, 2);
+    return DECOR_PREFIX_TO_ROOM[prefix] === roomId;
 }
 
 // --- PLACEMENT MODE ---
@@ -1205,39 +1476,57 @@ function startDrag(decorKey, index, mx, my) {
     dragState.currentY = my;
     dragState.velocityX = 0;
     dragState.velocityY = 0;
+    dragState.rotation = 0;
+    dragState.targetRotation = 0;
     dragState.wobblePhase = Math.random() * Math.PI * 2;
 }
 
 function updateDrag(mx, my) {
     if (!dragState.active) return;
 
-    // Calculate velocity (for inertia)
-    dragState.velocityX = (mx - dragState.mouseX) * 0.3;
-    dragState.velocityY = (my - dragState.mouseY) * 0.3;
+    // Calculate velocity (for inertia + rotation wobble)
+    const rawVx = (mx - dragState.mouseX);
+    const rawVy = (my - dragState.mouseY);
+    dragState.velocityX = rawVx * 0.3;
+    dragState.velocityY = rawVy * 0.3;
     dragState.mouseX = mx;
     dragState.mouseY = my;
 
-    // Apply with lerp for smooth follow
-    dragState.currentX += (mx - dragState.currentX) * 0.2;
-    dragState.currentY += (my - dragState.currentY) * 0.2;
+    // Calculate rotation from velocity: fast movement = more rotation
+    const speed = Math.sqrt(rawVx * rawVx + rawVy * rawVy);
+    // Target rotation: small angles proportional to speed, max ±0.15 rad (~8.5°)
+    dragState.targetRotation = Math.max(-0.15, Math.min(0.15, speed * 0.008));
+    // Smoothly lerp current rotation toward target (acceleration/deceleration feel)
+    dragState.rotation += (dragState.targetRotation - dragState.rotation) * 0.15;
+
+    // Apply with lerp for smooth follow (0.5 = snappy but smooth)
+    dragState.currentX += (mx - dragState.currentX) * 0.5;
+    dragState.currentY += (my - dragState.currentY) * 0.5;
 }
 
-function endDrag(state) {
+function endDrag(state, finalX, finalY) {
     if (!dragState.active) return false;
 
-    // Apply inertia
-    dragState.currentX += dragState.velocityX * 3;
-    dragState.currentY += dragState.velocityY * 3;
+    // Smooth rotation decay
+    dragState.targetRotation = 0;
+    dragState.rotation *= 0.8;
 
-    // Snap to grid
-    const snapped = snapToGrid(dragState.currentX, dragState.currentY);
+    // If final mouse position provided, snap to it (no lerp lag)
+    if (finalX !== undefined && finalY !== undefined) {
+        dragState.currentX = finalX;
+        dragState.currentY = finalY;
+    } else {
+        // Apply inertia
+        dragState.currentX += dragState.velocityX * 3;
+        dragState.currentY += dragState.velocityY * 3;
+    }
 
-    // Update state
+    // Update state (no grid snap — free placement)
     const decorKey = dragState.decorKey;
     const index = dragState.index;
     if (state.placed_decor && state.placed_decor[decorKey] && state.placed_decor[decorKey][index]) {
-        state.placed_decor[decorKey][index].x = snapped.x;
-        state.placed_decor[decorKey][index].y = snapped.y;
+        state.placed_decor[decorKey][index].x = Math.round(dragState.currentX);
+        state.placed_decor[decorKey][index].y = Math.round(dragState.currentY);
     }
 
     dragState.active = false;
@@ -1253,19 +1542,22 @@ function isDragging() {
 
 function hitTestDecor(state, mx, my) {
     if (!state.placed_decor) return null;
+    // Only check decor for the current room
+    const currentRoomId = state.current_room || 'campfire_grove';
     // Check from last placed to first (top-most first)
     const decorKeys = Object.keys(state.placed_decor);
     for (let d = decorKeys.length - 1; d >= 0; d--) {
         const key = decorKeys[d];
+        // Skip decor that doesn't belong to current room
+        if (!decorBelongsToRoom(key, currentRoomId)) continue;
         const placements = state.placed_decor[key];
         if (!placements) continue;
         for (let i = placements.length - 1; i >= 0; i--) {
             const p = placements[i];
             const spriteId = decorToSprite(key);
             const size = getSpritePixelSize(spriteId);
-            const snapped = snapToGrid(p.x, p.y);
-            if (mx >= snapped.x && mx <= snapped.x + size.w &&
-                my >= snapped.y && my <= snapped.y + size.h) {
+            if (mx >= p.x && mx <= p.x + size.w &&
+                my >= p.y && my <= p.y + size.h) {
                 return { decorKey: key, index: i };
             }
         }
@@ -1321,6 +1613,9 @@ class ParticleSystem {
         }
     }
 
+    // Alias: render() is the drawing method, update() is what the game loop calls
+    update() { this.render(); }
+
     start() { this.running = true; }
     stop() { this.running = false; this.particles = []; }
 }
@@ -1331,7 +1626,7 @@ export {
     renderRoom,
     ParticleSystem,
     PAL,
-    GRID_CELL,
+    PLACEMENT_SNAP,
     snapToGrid,
     worldToGrid,
     gridToWorld,
@@ -1345,7 +1640,6 @@ export {
     endDrag,
     isDragging,
     hitTestDecor,
-    playPlacementSound,
     drawBackground,
     setSpriteRoot,
 };

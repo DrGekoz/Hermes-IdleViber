@@ -98,42 +98,25 @@ Every visual in the game is generated at runtime via Canvas 2D API:
 - **Pixel-perfect rendering** with `image-rendering: pixelated`
 - **Zero external image assets**
 
-### 💾 Supabase-Ready Architecture
+### 💾 Built-in Server API (No External Dependencies)
 
-The game state is structured for drop-in Supabase integration:
+The game comes with a **self-hosted backend** running on the same port:
 
-```sql
--- Users table
-CREATE TABLE users (
-    user_id UUID PRIMARY KEY,
-    username TEXT UNIQUE,
-    email TEXT UNIQUE,
-    auth_provider TEXT,
-    created_at TIMESTAMP DEFAULT NOW()
-);
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | Server status + player count |
+| `/api/register` | POST | Create account (username + password) |
+| `/api/login` | POST | Login, returns auth token |
+| `/api/save` | POST | Upload cloud save (requires token) |
+| `/api/load` | GET | Download cloud save (requires token) |
+| `/api/leaderboard` | GET | Global leaderboard (top 50) |
+| `/api/leaderboard/submit` | POST | Submit score to leaderboard (requires token) |
 
--- Game saves
-CREATE TABLE saves (
-    user_id UUID REFERENCES users(user_id),
-    save_data JSONB,  -- Full game state
-    updated_at TIMESTAMP DEFAULT NOW()
-);
+**Auth**: Token-based (7-day expiry). Tokens are stored in your browser's localStorage.
+**Storage**: `server/data.json` — all player data in a single JSON file.
+**Zero setup**: Just start the server and play. Accounts + leaderboard work immediately.
 
--- Leaderboard (materialized view)
-CREATE MATERIALIZED VIEW leaderboard AS
-SELECT
-    u.user_id,
-    u.username,
-    (s.save_data->>'lifetime_vibes')::bigint AS lifetime_vibes,
-    (s.save_data->>'total_pp_earned')::int AS total_pp,
-    (s.save_data->>'total_prestiges')::int AS prestiges,
-    (s.save_data->>'total_gateway_pings')::int AS gateway_pings
-FROM users u
-JOIN saves s ON u.user_id = s.user_id
-ORDER BY lifetime_vibes DESC;
-```
-
-**Ready for:** Supabase Auth (email/Google/GitHub), row-level security, real-time leaderboard.
+No Supabase, no Firebase, no external signups. True offline-first with optional cloud sync.
 
 ### 🎮 Game Loop
 
@@ -147,7 +130,7 @@ ORDER BY lifetime_vibes DESC;
 ### 📊 Leaderboard
 
 Local leaderboard with mock data (DrGekoz, Zoops, CipherZero, PixelWarden).
-Drop-in ready for Supabase real-time leaderboard with auth.
+Auto-pipes to the server leaderboard when connected with an account.
 
 ---
 
@@ -210,14 +193,13 @@ Game Loop (10Hz) → State Engine → UI Update → Canvas Render → Audio
 
 ---
 
-## 🔜 Supabase Integration (Coming)
+## 🔜 Roadmap
 
-Once local testing is complete:
-1. Add `@supabase/supabase-js` to the project
-2. Create Supabase project with the schema above
-3. Wire up `supabase.auth.signUp()` / `signIn()` for auth
-4. Replace localStorage saves with `supabase.from('saves').upsert()`
-5. Enable real-time leaderboard subscriptions
+- [ ] Real-time leaderboard updates via WebSocket
+- [ ] Password reset via email
+- [ ] Rank badges and achievements sync
+- [ ] Global chat in rooms
+- [ ] Direct player profile pages
 
 ---
 

@@ -3,26 +3,45 @@
 // ============================================================
 
 import {
-    G, CONFIG, ROOMS, DECOR_ITEMS, AUTOCLICKERS, GATEWAY_UPGRADES,
+    G, CONFIG, ROOMS, ROOM_DECOR, getDecorForRoom, AUTOCLICKERS, PRESTIGE_UPGRADES, ACHIEVEMENTS,
+    GOLDEN_COOKIE_TYPES, GOLDEN_COOKIE_INTERVAL_MIN, GOLDEN_COOKIE_INTERVAL_MAX, GOLDEN_COOKIE_DURATION,
+    goldenCookieSystem, spawnGoldenCookie, collectGoldenCookie, getClickBoostMult, getVpsBoostMult,
+    wrinklerSystem, SYNERGIES, getSynergyBonus, getWrinklerPenalty, getEffectiveVpsMultiplier,
+    updateWrinklers, popWrinkler, popAllWrinklers,
     getVPS, getClickValue, getPrestigeGain, formatNumber,
-    getRoomVpsMult,
-    addVibes, buyAutoclicker, buyGatewayUpgrade, buyDecor,
+    getRoomVpsMult, calculateOfflineProgress, applyOfflineProgress,
+    getBulkCost, getMaxBuyable,
+    addVibes, buyAutoclicker, buyPrestigeUpgrade, buyDecor,
     activateDecor, unlockRoom, switchRoom, doPrestige,
+    isPrestigeUnlockable, unlockPrestige, checkAchievements,
     onStateChange, saveGame, loadGame, notifyStateChange,
 } from './state.js';
 
 import { discoverGateway, pingGateway, getLatencyMultiplier,
          getConnectionQuality, getGatewayStatus, onGatewayChange,
-         getAverageLatency, connectToPort } from './gateway.js';
+         getAverageLatency, connectToPort, cancelScan } from './gateway.js';
 
 import { generateSprite, renderRoom, ParticleSystem, PAL,
          startPlacement, cancelPlacement, updatePlacementGhost, isPlacing,
          startDrag, updateDrag, endDrag, isDragging, hitTestDecor,
-         playPlacementSound, snapToGrid, getDecorSpriteId } from './sprites.js';
-
+         snapToGrid, getDecorSpriteId } from './sprites.js';
 import { initAudio, playSong, stopSong, setGenre, nextTrack,
-         toggleMusic, setVolume, getAvailableGenres, playNext,
+         toggleMusic, setVolume as setMusicVolume, getAvailableGenres, playNext,
          toggleShuffle, isShuffleOn, getCurrentSongName, MIDI_FILES } from './music.js';
+
+import { setVolume as setSfxVolume, playClick, playVibe,
+         playPrestige as playSfxPrestige, playError, playUnlock,
+         playTabSwitch, playPurchase, playNotification, playPlace } from './sfx.js';
+
+import { apiHealth, apiRegister, apiLogin, apiSave, apiLoad,
+         apiSubmitScore, apiGetLeaderboard } from './api.js';
+
+// ---- Firebase (production backend) ----
+import { initFirebase, onAuthChanged, getCurrentUser, isConfigured,
+         registerWithEmail, loginWithEmail, loginWithGoogle, logout as fbLogout,
+         submitScoreToLeaderboard as fbSubmitScore,
+         getLeaderboard as fbGetLeaderboard,
+         savePlayerData as fbSave, loadPlayerData as fbLoad } from './firebase.js';
 
 // ---- DOM REFS ----
 const $ = (id) => document.getElementById(id);
@@ -35,21 +54,133 @@ let saver = null;
 let gwPoller = null;
 let lbUpdater = null;
 let frameCount = 0;
+let fbReady = false;       // Firebase initialized successfully
+let fbUser = null;         // Firebase auth user object (when logged in via Firebase)
+let _entered = false;      // Guard against double-enterGame
+let _autoLoginCheckQueued = false;
+
+// ---- SESSION COOKIE HELPERS ----
+function setSessionCookie() {
+    if (!G.username && !G.userId) return;
+    const data = {
+        username: G.username || 'Player',
+        userId: G.userId || 'local_guest',
+        authMode: G.auth_mode || 'local',
+        displayName: G.displayName || '',
+        timestamp: Date.now()
+    };
+    try {
+        const json = JSON.stringify(data);
+        document.cookie = `hermes_idleviber=${encodeURIComponent(json)}; path=/; max-age=${60*60*24*30}; SameSite=Lax`;
+    } catch (e) {
+        console.warn('Cookie set failed:', e);
+    }
+}
+
+function getSessionCookie() {
+    try {
+        const match = document.cookie.match(/(?:^|;\s*)hermes_idleviber=([^;]*)/);
+        if (!match) return null;
+        return JSON.parse(decodeURIComponent(match[1]));
+    } catch { return null; }
+}
+
+function clearSessionCookie() {
+    document.cookie = 'hermes_idleviber=; path=/; max-age=0; SameSite=Lax';
+}
+
+// ---- AUTO-LOGIN ----
+function checkAutoLogin() {
+    if (_entered || _autoLoginCheckQueued) return;
+    const cookie = getSessionCookie();
+    if (!cookie || !cookie.userId) return;
+
+    _autoLoginCheckQueued = true;
+
+    // Firebase mode: need fbUser to exist
+    if (cookie.authMode === 'firebase') {
+        if (!fbReady || !fbUser) {
+            // Firebase not ready yet — queue re-check when onAuthChanged fires
+            _autoLoginCheckQueued = false;
+            return;
+        }
+        // Session restored via Firebase
+        G.userId = fbUser.uid;
+        G.username = fbUser.displayName || cookie.username || 'Player';
+        G.auth_mode = 'firebase';
+        G.displayName = cookie.displayName || '';
+        dom.userDisplay.textContent = G.displayName || G.username;
+        // Attempt cloud load
+        (async () => {
+            try {
+                const cloudState = await fbLoad();
+                if (cloudState) {
+                    Object.assign(G, cloudState);
+                    G.auth_mode = 'firebase';
+                    G.userId = fbUser.uid;
+                    G.username = fbUser.displayName || G.username;
+                    showToast('☁️ Cloud save loaded');
+                }
+            } catch (_) {}
+            enterGame();
+        })();
+        return;
+    }
+
+    // Local / guest / local_api mode
+    if (cookie.authMode === 'local' || cookie.authMode === 'local_api' || cookie.authMode === 'guest') {
+        G.userId = cookie.userId;
+        G.username = cookie.username || 'Player';
+        G.auth_mode = cookie.authMode;
+        G.displayName = cookie.displayName || '';
+        dom.userDisplay.textContent = G.displayName || G.username;
+        loadGame();
+        enterGame();
+        return;
+    }
+}
 
 // ---- INIT ----
 function init() {
     console.log('🔥 Hermes IdleViber initializing...');
     cacheDOM();
+    initFirebaseAsync();
     loadGame();
     initCanvas();
     initParticles();
     initGateway();
     initMusic();
+    initAPI();
     initUIEvents();
     initGameLoop();
     startTimers();
     updateAllUI();
     console.log('🔥 Hermes IdleViber ready!');
+
+    // Check for session cookie and auto-login after Firebase has a moment to restore
+    setTimeout(checkAutoLogin, 800);
+}
+
+// ---- FIREBASE INIT (non-blocking) ----
+async function initFirebaseAsync() {
+    try {
+        fbReady = await initFirebase();
+        if (fbReady) {
+            console.log('🔥 Firebase ready for production');
+            // Listen for auth state
+            onAuthChanged((user) => {
+                fbUser = user;
+                if (user) {
+                    console.log('🔥 Firebase user:', user.displayName || user.email || user.uid);
+                }
+                // Auto-login check: cookie exists + Firebase session resolved
+                checkAutoLogin();
+            });
+        }
+    } catch (e) {
+        console.warn('🔥 Firebase unavailable, using fallback:', e.message);
+        fbReady = false;
+    }
 }
 
 function cacheDOM() {
@@ -80,6 +211,7 @@ function cacheDOM() {
         upgradeList: $('upgrade-list'),
         gwUpgradeList: $('gw-upgrade-list'),
         leaderboardList: $('leaderboard-list'),
+        prestigeUpgradeList: $('prestige-upgrade-list'),
         gatewayStatus: $('gateway-status'),
         gatewayLatency: $('gateway-latency'),
         gatewayMult: $('gateway-mult'),
@@ -116,6 +248,29 @@ function cacheDOM() {
         panelPrestige: $('panel-prestige'),
         panelDecor: $('panel-decor'),
         panelGateway: $('panel-gateway'),
+        settingsBtn: $('settings-btn'),
+        settingsScreen: $('settings-screen'),
+        settingsClose: $('settings-close'),
+        settingsBackdrop: $('settings-backdrop'),
+        settingsLogoutBtn: $('settings-logout-btn'),
+        settingsTabName: $('settings-tab-name'),
+        settingsTabAudio: $('settings-tab-audio'),
+        settingsTabCredits: $('settings-tab-credits'),
+        settingsPanelName: $('settings-panel-name'),
+        settingsPanelAudio: $('settings-panel-audio'),
+        settingsPanelCredits: $('settings-panel-credits'),
+        settingsMusicVolume: $('settings-music-volume'),
+        settingsMusicVolLabel: $('settings-music-vol-label'),
+        settingsSfxVolume: $('settings-sfx-volume'),
+        settingsSfxVolLabel: $('settings-sfx-vol-label'),
+        settingsNameInput: $('settings-name-input'),
+        settingsNameError: $('settings-name-error'),
+        settingsCooldownInfo: $('settings-cooldown-info'),
+        settingsSaveBtn: $('settings-save-btn'),
+        settingsDisplayName: $('settings-display-name'),
+        googleBtn: $('google-btn'),
+        githubBtn: $('github-btn'),
+        settingsLogoutBtn: $('settings-logout-btn'),
     };
 }
 
@@ -138,11 +293,18 @@ function resizeCanvas() {
 
 function initParticles() {
     particles.start();
+    // Firefly particles — gateway bonus only
     setInterval(() => {
         if (G.gateway_bonus_active) {
             particles.add('firefly', null, null, 1);
         }
     }, 500);
+    // Continuous dust particles — always running
+    setInterval(() => {
+        if (!G || !G.current_room) return;
+        const count = 1 + Math.floor(Math.random() * 3);
+        particles.add('dust', null, null, count);
+    }, 200);
 }
 
 // ---- GATEWAY ----
@@ -154,28 +316,48 @@ async function initGateway() {
         gwPollerRef = null;
     }
 
-    // First discovery
-    const result = await discoverGateway();
-    updateGatewayUI();
+    // Fire-and-forget discovery (doesn't block game init)
+    discoverGateway().then(result => {
+        updateGatewayUI();
+    }).catch(() => {});
 
     // Periodic check
     gwPollerRef = setInterval(async () => {
         await pingGateway();
+        // Also check if Hermes is busy processing a task
+        if (gatewayStatus.connected && (gatewayStatus.checkCount || 0) % 3 === 0) {
+            checkGatewayBusy().then(() => updateGatewayUI());
+        }
+        gatewayStatus.checkCount = (gatewayStatus.checkCount || 0) + 1;
         updateGatewayUI();
     }, CONFIG.GATEWAY_POLL_INTERVAL);
 
     onGatewayChange(() => updateGatewayUI());
 }
 
+// ---- API INIT ----
+async function initAPI() {
+    // Check Firebase first (production) then fallback to local API (dev server)
+    if (fbReady) {
+        G.server_online = true;
+        console.log('🔌 Firebase backend ready');
+        return;
+    }
+    const health = await apiHealth();
+    console.log(`🔌 Server API: ${health.status === 'ok' ? 'connected' : 'offline'} (${health.players || 0} players)`);
+    G.server_online = health.status === 'ok';
+}
+
 // ---- MUSIC ----
 function initMusic() {
     dom.musicBtn.addEventListener('click', () => {
+        playClick();
         const playing = toggleMusic();
         dom.musicBtn.textContent = playing ? '🔊' : '🔇';
     });
-    dom.musicNextBtn.addEventListener('click', nextTrack);
+    dom.musicNextBtn.addEventListener('click', () => { playClick(); nextTrack(); });
     dom.musicVolumeSlider.addEventListener('input', () => {
-        setVolume(parseFloat(dom.musicVolumeSlider.value));
+        setMusicVolume(parseFloat(dom.musicVolumeSlider.value));
     });
 
     // Shuffle ON by default — show visual indicator
@@ -190,9 +372,64 @@ function initMusic() {
 // ---- UI EVENTS ----
 function initUIEvents() {
     // Auth
-    dom.loginBtn.addEventListener('click', doLogin);
-    dom.guestBtn.addEventListener('click', doGuest);
-    dom.logoutBtn.addEventListener('click', doLogout);
+    dom.loginBtn.addEventListener('click', () => { playClick(); doLogin(); });
+    dom.guestBtn.addEventListener('click', () => { playClick(); doGuest(); });
+    dom.logoutBtn.addEventListener('click', () => { playClick(); doLogout(); });
+    if (dom.settingsBtn) dom.settingsBtn.addEventListener('click', () => { playClick(); openSettings('name'); });
+    if (dom.settingsClose) dom.settingsClose.addEventListener('click', () => { playClick(); closeSettings(); });
+    if (dom.settingsBackdrop) dom.settingsBackdrop.addEventListener('click', closeSettings);
+    if (dom.settingsSaveBtn) dom.settingsSaveBtn.addEventListener('click', saveDisplayName);
+    // Settings: logout button
+    if (dom.settingsLogoutBtn) {
+        dom.settingsLogoutBtn.addEventListener('click', () => {
+            closeSettings();
+            doLogout();
+        });
+    }
+    // Settings tabs
+    if (dom.settingsTabName) dom.settingsTabName.addEventListener('click', () => openSettings('name'));
+    if (dom.settingsTabAudio) dom.settingsTabAudio.addEventListener('click', () => { openSettings('audio'); playClick(); });
+    if (dom.settingsTabCredits) dom.settingsTabCredits.addEventListener('click', () => openSettings('credits'));
+    // Settings: Audio volume sliders
+    if (dom.settingsMusicVolume) {
+        dom.settingsMusicVolume.addEventListener('input', () => {
+            const vol = parseFloat(dom.settingsMusicVolume.value);
+            G.settings.music_volume = vol;
+            setMusicVolume(vol);
+            dom.musicVolumeSlider.value = vol;
+            if (dom.settingsMusicVolLabel) dom.settingsMusicVolLabel.textContent = Math.round(vol * 100) + '%';
+        });
+    }
+    if (dom.settingsSfxVolume) {
+        dom.settingsSfxVolume.addEventListener('input', () => {
+            const vol = parseFloat(dom.settingsSfxVolume.value);
+            G.settings.sfx_volume = vol;
+            setSfxVolume(vol);
+            if (dom.settingsSfxVolLabel) dom.settingsSfxVolLabel.textContent = Math.round(vol * 100) + '%';
+            playClick();
+        });
+    }
+    // Sync canvas music slider → settings
+    dom.musicVolumeSlider.addEventListener('input', () => {
+        const vol = parseFloat(dom.musicVolumeSlider.value);
+        G.settings.music_volume = vol;
+        if (dom.settingsMusicVolume) dom.settingsMusicVolume.value = vol;
+        if (dom.settingsMusicVolLabel) dom.settingsMusicVolLabel.textContent = Math.round(vol * 100) + '%';
+    });
+    // Enter key on name input
+    if (dom.settingsNameInput) {
+        dom.settingsNameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') saveDisplayName();
+        });
+    }
+    if (dom.googleBtn) dom.googleBtn.addEventListener('click', doGoogleLogin);
+    if (dom.githubBtn) {
+        dom.githubBtn.addEventListener('click', () => {
+            showToast('⚠️ GitHub auth requires OAuth setup — use Google or Email');
+        });
+        dom.githubBtn.style.opacity = '0.4';
+        dom.githubBtn.title = 'GitHub OAuth not configured yet';
+    }
 
     // Click button
     dom.clickBtn.addEventListener('click', () => {
@@ -202,17 +439,19 @@ function initUIEvents() {
         spawnClickFloat(val);
         dom.clickBtn.classList.add('clicked');
         setTimeout(() => dom.clickBtn.classList.remove('clicked'), 100);
+        playVibe();
     });
 
     // Prestige
     dom.prestigeBtn.addEventListener('click', () => {
         const gain = getPrestigeGain();
         if (gain <= 0) return;
-        const msg = "Reset for " + gain + " Prestige Points?\n\nYou'll keep:\n\u2022 Prestige Points (" + (G.total_pp_earned + gain) + " total)\n\u2022 Gateway upgrades\n\nYou'll lose:\n\u2022 All vibes\n\u2022 Rooms & room VPS multipliers\n\u2022 All upgrades\n\u2022 All decor";
+        const msg = "Reset for " + gain + " Prestige Chips?\n\nYou'll keep:\n• Prestige Chips (" + (G.total_pp_earned + gain) + " total)\n• All Prestige Upgrades\n\nYou'll lose:\n• All vibes\n• Rooms & room VPS multipliers\n• All autoclickers\n• All decor";
         showPopup('\u2728 Prestige', msg, () => {
             if (doPrestige()) {
                 updateAllUI();
                 showToast(`✨ Prestiged! +${gain} PP`);
+                playSfxPrestige();
                 showCredits();
             }
         });
@@ -269,7 +508,7 @@ function initUIEvents() {
         if (!G.placed_decor[decorId]) G.placed_decor[decorId] = [];
         G.placed_decor[decorId].push({ x: snapped.x, y: snapped.y });
 
-        playPlacementSound();
+        playPlace();
         cancelDecorPlacement();
         notifyStateChange('decor_active');
         showToast(`✅ ${decorId} placed!`);
@@ -291,7 +530,7 @@ function initUIEvents() {
     canvas.addEventListener('mouseup', () => {
         if (isDragging()) {
             if (endDrag(G)) {
-                playPlacementSound();
+                playPlace();
                 notifyStateChange('decor_active');
             }
         }
@@ -361,10 +600,12 @@ function initUIEvents() {
         if (type === 'vibes') {
             updateResourceUI();
             updateShopAffordability(); // Lightweight: just toggles locked class
+            updateLocalLeaderboardEntry(); // Realtime local score
         }
         if (type === 'autoclickers' || type === 'gateway_upgrades') {
             updateResourceUI();
             updateShopUI();
+            renderPrestigeUpgrades();
         }
         if (type === 'prestige' || type === 'reset' || type === 'load') {
             updateAllUI();
@@ -410,52 +651,238 @@ function setupTabs() {
             panel.classList.add('active');
             if (panel === dom.panelRooms) updateRoomUI();
             if (panel === dom.panelUpgrades) updateShopUI();
-            if (panel === dom.panelPrestige) updatePrestigeUI();
+            if (panel === dom.panelPrestige) {
+                updatePrestigeUI();
+                renderPrestigeUpgrades();
+            }
             if (panel === dom.panelDecor) updateDecorUI();
-            if (panel === dom.panelGateway) updateGatewayUpgradeUI();
+            if (panel === dom.panelGateway) {
+                updateGatewayUI();
+            }
         });
     });
 }
 
 // ---- AUTH ----
-function doLogin() {
+async function doLogin() {
     const username = dom.username.value.trim();
     const password = dom.password.value.trim();
     if (!username || !password) {
         dom.loginMsg.textContent = 'Enter both fields.';
         return;
     }
+    // Reserved: DrGekoz is the game dev
+    if (/^drgekoz$/i.test(username)) {
+        dom.loginMsg.textContent = '⛔ That username is reserved';
+        return;
+    }
+
+    dom.loginMsg.textContent = '⏳ Authenticating...';
+
+    // Try Firebase first (production / Netlify)
+    if (fbReady) {
+        const result = await loginWithEmail(username, password);
+        if (result && result.success) {
+            G.userId = result.uid;
+            G.username = result.user.displayName || username;
+            G.auth_mode = 'firebase';
+            dom.userDisplay.textContent = G.username;
+
+            // Load cloud save from Firestore
+            const cloudState = await fbLoad();
+            if (cloudState) {
+                Object.assign(G, cloudState);
+                G.auth_mode = 'firebase';
+                G.userId = result.uid;
+                G.username = result.user.displayName || username;
+                showToast('☁️ Cloud save loaded');
+            }
+
+            enterGame();
+            return;
+        }
+        if (result && result.error === 'Username already taken') {
+            dom.loginMsg.textContent = '⏳ Account exists, trying password...';
+            const retry = await loginWithEmail(username, password);
+            if (retry && retry.success) {
+                G.userId = retry.uid;
+                G.username = retry.user.displayName || username;
+                G.auth_mode = 'firebase';
+                dom.userDisplay.textContent = G.username;
+                const cloudState = await fbLoad();
+                if (cloudState) Object.assign(G, cloudState);
+                enterGame();
+                return;
+            }
+        }
+        // Firebase login failed, fall through to local API
+        console.warn('Firebase login failed:', result?.error);
+    }
+
+    // Try local server API (dev mode)
+    dom.loginMsg.textContent = '⏳ Authenticating (local)...';
+    const result = await apiLogin(username, password);
+    if (result && result.success) {
+        G.userId = username;
+        G.username = username;
+        G.auth_token = result.token;
+        G.auth_mode = 'local_api';
+        dom.userDisplay.textContent = username;
+
+        // Attempt to load cloud save
+        const cloud = await apiLoad(result.token);
+        if (cloud && cloud.success && cloud.state) {
+            try {
+                const cloudState = typeof cloud.state === 'string' ? JSON.parse(cloud.state) : cloud.state;
+                Object.assign(G, cloudState);
+                G.auth_token = result.token;
+                G.auth_mode = 'local_api';
+                showToast('☁️ Cloud save loaded');
+            } catch (e) {
+                console.warn('Cloud save parse failed, using local', e);
+            }
+        }
+
+        enterGame();
+        return;
+    }
+
+    if (result && result.error && result.error !== 'Invalid username or password') {
+        console.warn('Server login failed:', result.error);
+    }
+
+    // Fallback: Register new account on local server
+    if (result && result.error === 'Invalid username or password') {
+        dom.loginMsg.textContent = '⏳ Creating account...';
+        const reg = await apiRegister(username, password);
+        if (reg && reg.success) {
+            const login2 = await apiLogin(username, password);
+            if (login2 && login2.success) {
+                G.userId = username;
+                G.username = username;
+                G.auth_token = login2.token;
+                G.auth_mode = 'local_api';
+                dom.userDisplay.textContent = username;
+                enterGame();
+                return;
+            }
+        }
+    }
+
+    // Last resort: local mode (works offline, no cloud saves)
+    dom.loginMsg.textContent = '';
     G.userId = `local_${username}`;
     G.username = username;
+    G.auth_token = null;
+    G.auth_mode = 'local';
     dom.userDisplay.textContent = username;
+    showToast('🔌 Offline mode (local save only)');
+    loadGame();
     enterGame();
+}
+
+function doGoogleLogin() {
+    dom.loginMsg.textContent = '⏳ Signing in with Google...';
+    doGoogleLoginAsync();
+}
+
+async function doGoogleLoginAsync() {
+    if (!fbReady) {
+        showToast('⚠️ Firebase not ready — use Email or Guest');
+        return;
+    }
+    const result = await loginWithGoogle();
+    if (result && result.success) {
+        G.userId = result.uid;
+        G.username = result.user.displayName || 'Player';
+        G.auth_mode = 'firebase';
+        dom.userDisplay.textContent = G.username;
+
+        // Load cloud save
+        const cloudState = await fbLoad();
+        if (cloudState) {
+            Object.assign(G, cloudState);
+            G.auth_mode = 'firebase';
+            G.userId = result.uid;
+            G.username = result.user.displayName || 'Player';
+            showToast('☁️ Cloud save loaded');
+        }
+
+        enterGame();
+    } else {
+        const msg = result?.error || 'Google sign-in failed';
+        dom.loginMsg.textContent = msg;
+        console.warn('Google login:', msg);
+    }
 }
 
 function doGuest() {
     G.userId = 'local_guest';
     G.username = 'Guest';
+    G.auth_mode = 'local';
     dom.userDisplay.textContent = 'Guest';
+    loadGame();
     enterGame();
 }
 
 function doLogout() {
     saveGame();
+    // Sign out of Firebase if applicable
+    if (fbReady && fbUser) {
+        fbLogout().catch(console.warn);
+    }
+    // Clear session cookie — forces login screen next visit
+    clearSessionCookie();
+    // Reset state guards
+    _entered = false;
+    _autoLoginCheckQueued = false;
+    fbUser = null;
+    G.auth_token = null;
     clearGameLoop();
     dom.loginScreen.classList.remove('hidden');
     dom.gameScreen.classList.add('hidden');
+    // Reset login fields
+    dom.username.value = '';
+    dom.password.value = '';
+    dom.loginMsg.textContent = '';
 }
 
 function enterGame() {
+    // Guard against double-entry from cookie auto-login + user clicking login
+    if (_entered) {
+        console.log('Already entered game, ignoring duplicate enterGame()');
+        return;
+    }
+    _entered = true;
+    _autoLoginCheckQueued = false;
+
     dom.loginScreen.classList.add('hidden');
     dom.gameScreen.classList.remove('hidden');
+
+    // Set display name
+    const display = G.displayName || G.username || 'Player';
+    dom.userDisplay.textContent = display;
+
+    // Persist session cookie (keeps them logged in across page reloads)
+    setSessionCookie();
+
     resizeCanvas();
-    loadGame();
+    // Apply offline progress earned while away
+    const offline = applyOfflineProgress();
     updateAllUI();
     initGameLoop();
     initGateway();
-    // Create AudioContext synchronously during this click gesture
     initAudio();
     playSongForRoom(G.current_room);
+    // Show offline earnings toast
+    if (offline && offline.earned > 0) {
+        setTimeout(() => showToast(`⏰ Welcome back! +${formatNumber(Math.floor(offline.earned))} ✦ while away`), 500);
+    }
+
+    // Prompt for display name if not set
+    if (!G.displayName && G.auth_mode !== 'local') {
+        setTimeout(() => showDisplayNamePrompt(), 800);
+    }
 }
 
 // ---- HELPER: Track current placing decor ID ----
@@ -479,33 +906,70 @@ function cancelDecorPlacement() {
 
 // ---- GAME LOOP ----
 function initGameLoop() {
+    // Game logic: VPS generation at 100ms (10 ticks/sec)
     ticker = setInterval(() => {
         const vps = getVPS();
         if (vps > 0) {
             addVibes(vps / 10);
         }
-        frameCount++;
-        if (frameCount % 2 === 0) {
-            updateCanvas();
-        }
     }, CONFIG.TICK_INTERVAL);
 
-    saver = setInterval(saveGame, CONFIG.SAVE_INTERVAL);
+    // Auto-save every 30s + cloud sync
+    saver = setInterval(() => {
+        saveGame();
+        // Cloud save + leaderboard submit if authenticated
+        if (G.auth_mode === 'firebase' && fbUser) {
+            fbSave(G).catch(() => {});
+            fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_pp_earned).catch(() => {});
+        } else if (G.auth_token && G.server_online) {
+            apiSave(G.auth_token, G).catch(() => {});
+            apiSubmitScore(G.auth_token, G.lifetime_vibes, G.total_pp_earned).catch(() => {});
+        }
+    }, CONFIG.SAVE_INTERVAL);
 
-    // Leaderboard refresh
+    // Leaderboard refresh every 15s
     lbUpdater = setInterval(updateLeaderboardUI, 15000);
 
-    // Animation frame for canvas
-    function frame() {
+    // --- RENDER LOOP: 60fps via requestAnimationFrame ---
+    let lastBgRoom = null;
+    let bgCanvas = null;
+    let lastFrameTime = 0;
+
+    function renderFrame(timestamp) {
+        const canvas = dom.canvas;
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+
+        // Cache background render per room (redraw only on room change)
+        if (lastBgRoom !== G.current_room) {
+            lastBgRoom = G.current_room;
+            // Trigger async background load — renderRoom handles it
+        }
+
+        // Smooth 30fps cap for the heavy canvas render
+        const elapsed = timestamp - lastFrameTime;
+        if (elapsed > 33) { // ~30fps
+            lastFrameTime = timestamp;
+            renderRoom(G.current_room, canvas, G);
+        }
+
+        // Particles animate every frame regardless (lightweight)
+        particles.update();
+
+        // Gateway glow effect (animated every frame)
         const gw = getGatewayStatus();
         if (gw.connected) {
-            dom.canvas.style.boxShadow = `0 0 ${20 + gw.latency < 50 ? 30 : 10}px rgba(0, 255, 136, ${0.1 + getLatencyMultiplier() * 0.05})`;
+            const intensity = 0.1 + getLatencyMultiplier() * 0.05;
+            const size = Math.min(40, 20 + gw.latency * 0.05);
+            dom.canvas.style.boxShadow = `0 0 ${size}px rgba(0, 255, 136, ${intensity})`;
         } else {
             dom.canvas.style.boxShadow = '0 0 10px rgba(255,68,68,0.1)';
         }
-        animFrame = requestAnimationFrame(frame);
+
+        animFrame = requestAnimationFrame(renderFrame);
     }
-    animFrame = requestAnimationFrame(frame);
+    animFrame = requestAnimationFrame(renderFrame);
 }
 
 function clearGameLoop() {
@@ -518,7 +982,6 @@ function clearGameLoop() {
 }
 
 function startTimers() {
-    // Auto-save before unload
     window.addEventListener('beforeunload', saveGame);
 }
 
@@ -526,11 +989,7 @@ function startTimers() {
 function updateCanvas() {
     const canvas = dom.canvas;
     const ctx = canvas.getContext('2d');
-
-    // Render room background with all decor
     renderRoom(G.current_room, canvas, G);
-
-    // Draw particles on top
     particles.update();
 }
 
@@ -542,7 +1001,7 @@ function updateAllUI() {
     updateDecorUI();
     updateRoomUI();
     updateGatewayUI();
-    updateGatewayUpgradeUI();
+    renderPrestigeUpgrades();
     updateLeaderboardUI();
     updateCanvas();
 }
@@ -564,12 +1023,20 @@ function updatePrestigeUI() {
     dom.ppDisplay.textContent = G.prestige_points;
     dom.lifetimeDisplay.textContent = formatNumber(G.lifetime_vibes);
     dom.prestigeCount.textContent = G.total_prestiges;
-    dom.prestigeGain.textContent = gain > 0 ? `+${gain} PP available` : 'Need 1M lifetime vibes';
+    dom.prestigeGain.textContent = gain > 0 ? `✨ Earn ${gain} chips on prestige!` : 'Need 10M lifetime vibes';
     dom.prestigeBtn.disabled = gain <= 0;
     dom.prestigeBtn.style.opacity = gain > 0 ? 1 : 0.5;
-    if (dom.ppDisplayTotal) {
-        dom.ppDisplayTotal.textContent = G.total_pp_earned;
-    }
+    const chipGain = document.getElementById('prestige-chip-gain');
+    if (chipGain) chipGain.textContent = gain;
+    // Update affordability of chip upgrades
+    document.querySelectorAll('#prestige-upgrade-list .shop-item').forEach(el => {
+        const id = el.dataset.upgId;
+        if (!id) return;
+        const upg = PRESTIGE_UPGRADES.find(u => u.id === id);
+        if (!upg) return;
+        const owned = G.prestige_upgrades[id] || false;
+        el.classList.toggle('locked', owned || G.prestige_points < upg.cost);
+    });
 }
 
 function updateShopUI() {
@@ -582,23 +1049,24 @@ function updateShopUI() {
         const el = document.createElement('div');
         el.className = `shop-item ${canBuy ? '' : 'locked'}`;
         el.dataset.tierId = tier.id;
+        const iconHtml = `<img src="sprites/images/icons/individual/${tier.id}_64.png" alt="${tier.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">💻</span>`;
         el.innerHTML = `
-            <div class="shop-item-icon">💻</div>
+            <div class="shop-item-icon">${iconHtml}</div>
             <div class="shop-item-info">
                 <div class="shop-item-name">${tier.name}</div>
-                <div class="shop-item-desc">${tier.desc} | <span style="color:#0ff">${tier.vps} VPS</span></div>
+                <div class="shop-item-desc">${tier.desc}</div>
+                <div class="shop-item-vps">✦ ${tier.vps} VPS each</div>
             </div>
             <div class="shop-item-right">
                 <div class="shop-item-count">${count}</div>
                 <div class="shop-item-cost">${formatNumber(cost)} ✦</div>
             </div>
         `;
-        el.onclick = () => { if (buyAutoclicker(tier.id)) updateAllUI(); };
+        el.onclick = () => { if (buyAutoclicker(tier.id)) { playPurchase(); updateAllUI(); } };
         dom.upgradeList.appendChild(el);
     });
 
-    // Gateway Upgrades (in gateway tab)
-    updateGatewayUpgradeUI();
+    // Affordability updates (called separately)
 }
 
 // Lightweight affordability update - no DOM rebuild
@@ -614,20 +1082,20 @@ function updateShopAffordability() {
         const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
         el.classList.toggle('locked', vibes < cost);
     });
-    // Gateway upgrades
-    document.querySelectorAll('#gw-upgrade-list .shop-item').forEach(el => {
+    // Prestige upgrades (chip-based)
+    document.querySelectorAll('#prestige-upgrade-list .shop-item').forEach(el => {
         const id = el.dataset.upgId;
         if (!id) return;
-        const upg = GATEWAY_UPGRADES.find(u => u.id === id);
+        const upg = PRESTIGE_UPGRADES.find(u => u.id === id);
         if (!upg) return;
-        const owned = G.gateway_upgrades[id] || false;
-        el.classList.toggle('locked', owned || vibes < upg.cost);
+        const owned = G.prestige_upgrades[id] || false;
+        el.classList.toggle('locked', owned || G.prestige_points < upg.cost);
     });
     // Decor
     document.querySelectorAll('#decor-list .shop-item').forEach(el => {
         const id = el.dataset.decorId;
         if (!id) return;
-        const item = DECOR_ITEMS.find(d => d.id === id);
+        const item = getDecorForRoom(G.current_room).find(d => d.id === id) || (() => { for (const r of Object.keys(ROOM_DECOR)) { const f = ROOM_DECOR[r].find(d => d.id === id); if (f) return f; } return null; })();
         if (!item) return;
         const owned = G.owned_decor.includes(id);
         const canBuy = !owned && vibes >= item.cost;
@@ -635,40 +1103,50 @@ function updateShopAffordability() {
     });
 }
 
-function updateGatewayUpgradeUI() {
-    dom.gwUpgradeList.innerHTML = '';
-    GATEWAY_UPGRADES.forEach(upg => {
-        const owned = G.gateway_upgrades[upg.id] || false;
-        const canBuy = G.vibes >= upg.cost && !owned;
+function renderPrestigeUpgrades() {
+    const list = dom.prestigeUpgradeList;
+    if (!list) return;
+    list.innerHTML = '';
+    PRESTIGE_UPGRADES.forEach(upg => {
+        const owned = G.prestige_upgrades[upg.id] || false;
+        const canBuy = G.prestige_points >= upg.cost && !owned;
         const el = document.createElement('div');
-        el.className = `shop-item ${canBuy ? '' : 'locked'}`;
+        el.className = `shop-item ${canBuy ? 'affordable' : 'locked'} ${owned ? 'owned' : ''}`;
         el.dataset.upgId = upg.id;
+        const iconName = `individual/${upg.id}_64.png`;
+        const iconHtml = `<img src="sprites/images/icons/${iconName}" alt="${upg.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">🔶</span>${owned ? '<span class="owned-badge">✓</span>' : ''}`;
         el.innerHTML = `
-            <div class="shop-item-icon">${owned ? '✅' : '🔌'}</div>
+            <div class="shop-item-icon">${iconHtml}</div>
             <div class="shop-item-info">
                 <div class="shop-item-name">${upg.name}</div>
                 <div class="shop-item-desc">${upg.desc}</div>
             </div>
             <div class="shop-item-right">
-                <div class="shop-item-cost">${owned ? 'OWNED' : formatNumber(upg.cost) + ' ✦'}</div>
+                <div class="shop-item-cost">${owned ? 'OWNED' : upg.cost + ' 💎'}</div>
             </div>
         `;
-        el.onclick = () => { if (canBuy && buyGatewayUpgrade(upg.id)) updateAllUI(); };
-        dom.gwUpgradeList.appendChild(el);
+        el.onclick = () => {
+            if (canBuy && buyPrestigeUpgrade(upg.id)) {
+                playPurchase();
+                updateAllUI();
+            }
+        };
+        list.appendChild(el);
     });
 }
 
 function updateDecorUI() {
     dom.decorList.innerHTML = '';
-    DECOR_ITEMS.forEach(item => {
+    getDecorForRoom(G.current_room).forEach(item => {
         const owned = G.owned_decor.includes(item.id);
         const active = G.active_decor[item.type] === item.id;
         const canBuy = G.vibes >= item.cost && !owned;
         const el = document.createElement('div');
         el.className = `shop-item ${canBuy ? '' : 'locked'} ${active ? 'active' : ''}`;
         el.dataset.decorId = item.id;
+        const decorIcon = `<img src="sprites/images/icons/individual/${item.icon}.png" alt="${item.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">${owned ? (active ? '⭐' : '✨') : '🔒'}</span>`;
         el.innerHTML = `
-            <div class="shop-item-icon">${owned ? (active ? '⭐' : '✨') : '🔒'}</div>
+            <div class="shop-item-icon">${decorIcon}</div>
             <div class="shop-item-info">
                 <div class="shop-item-name">${item.name}</div>
                 <div class="shop-item-desc">${item.type} decor</div>
@@ -680,6 +1158,7 @@ function updateDecorUI() {
         el.onclick = () => {
             if (!owned) {
                 if (canBuy && buyDecor(item.id)) {
+                    playPurchase();
                     // Enter placement mode
                     startDecorPlacement(item.id);
                     showToast(`🎯 Click on the screen to place ${item.name}`);
@@ -722,6 +1201,7 @@ function updateRoomUI() {
                 updateAllUI();
             } else if (canUnlock) {
                 if (unlockRoom(room.id)) {
+                    playUnlock();
                     switchRoom(room.id);
                     playSongForRoom(room.id);
                     updateAllUI();
@@ -738,9 +1218,15 @@ function updateGatewayUI() {
     dom.gatewayStatus.textContent = `${quality.icon} ${quality.label}`;
     dom.gatewayStatus.style.color = quality.color;
     dom.gatewayLatency.textContent = gw.connected ? `${gw.latency.toFixed(0)}ms` : '---';
-    const latMult = getLatencyMultiplier();
+    const taskBusy = isGatewayBusy();
+    const baseMult = getLatencyMultiplier();
+    const latMult = taskBusy ? baseMult * 1.5 : baseMult;
     dom.gatewayMult.textContent = gw.connected ? `${latMult.toFixed(1)}x` : '0x';
-    dom.gatewayMult.style.color = gw.connected ? '#0f0' : '#f44';
+    dom.gatewayMult.style.color = taskBusy ? '#ffd700' : (gw.connected ? '#0f0' : '#f44');
+    if (dom.gatewayStatus && taskBusy) {
+        dom.gatewayStatus.textContent = `🔥 ${getGatewayTaskLabel() || 'IN USE'}`;
+        dom.gatewayStatus.style.color = '#ffd700';
+    }
     // Detailed panel
     if (dom.gatewayStatusDetailed) dom.gatewayStatusDetailed.textContent = `${quality.icon} ${quality.label}`;
     if (dom.gatewayLatencyDetailed) dom.gatewayLatencyDetailed.textContent = gw.connected ? `${gw.latency.toFixed(0)}ms (avg ${getAverageLatency().toFixed(0)}ms)` : '---';
@@ -755,40 +1241,120 @@ function updateGatewayUI() {
         } else if (gw.connected) {
             dom.gatewayScanProgress.textContent = '✅ Connected';
             dom.gatewayScanProgress.style.color = '#0f0';
-        } else if (gw.lastError && gw.lastError.includes('complete')) {
-            dom.gatewayScanProgress.textContent = '✅ All ports scanned — no gateway';
+        } else if (gw.lastError && gw.lastError.includes('No gateway')) {
+            dom.gatewayScanProgress.textContent = '⛔ No gateway found (hot + web range)';
             dom.gatewayScanProgress.style.color = '#666';
         } else {
-            dom.gatewayScanProgress.textContent = '⏸ Idle';
+            dom.gatewayScanProgress.textContent = '⏸ Idle — type a port above';
             dom.gatewayScanProgress.style.color = '#666';
         }
     }
 }
 
-function updateLeaderboardUI() {
+async function updateLeaderboardUI() {
     const list = dom.leaderboardList;
-    list.innerHTML = '';
-    // Local leaderboard with mock data for now
-    const entries = [
-        { name: G.username || 'You', vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges },
-        { name: 'DrGekoz', vibes: 100_000_000_000, pp: 1500, prestige: 25 },
-        { name: 'Zoops', vibes: 50_000_000_000, pp: 800, prestige: 12 },
-        { name: 'CipherZero', vibes: 25_000_000_000, pp: 400, prestige: 8 },
-        { name: 'PixelWarden', vibes: 10_000_000_000, pp: 200, prestige: 5 },
-    ];
+    if (!list) return;
+    list.innerHTML = '<div class="lb-entry"><span style="color:#666;font-size:6px;">Loading...</span></div>';
+
+    let entries = [];
+
+    // Try Firebase leaderboard first (production)
+    if (fbReady) {
+        const fbEntries = await fbGetLeaderboard(50);
+        if (fbEntries && fbEntries.length > 0) {
+            entries = fbEntries.map(e => ({
+                name: e.username,
+                vibes: e.score,
+                pp: e.prestige_level || 0,
+                prestige: e.prestige_level || 0,
+            }));
+        }
+    }
+
+    // Fallback to local server API
+    if (entries.length === 0) {
+        const lbResult = await apiGetLeaderboard(50);
+        if (lbResult && lbResult.entries && lbResult.entries.length > 0) {
+            entries = lbResult.entries.map(e => ({
+                name: e.username,
+                vibes: e.score,
+                pp: e.prestige_level || 0,
+                prestige: e.prestige_level || 0,
+            }));
+        }
+    }
+
+    // Fallback to local + mock data
+    if (entries.length === 0) {
+        entries = [
+            { name: G.username || 'You', vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges },
+            { name: 'DrGekoz', vibes: 100_000_000_000, pp: 1500, prestige: 25 },
+            { name: 'Zoops', vibes: 50_000_000_000, pp: 800, prestige: 12 },
+            { name: 'CipherZero', vibes: 25_000_000_000, pp: 400, prestige: 8 },
+            { name: 'PixelWarden', vibes: 10_000_000_000, pp: 200, prestige: 5 },
+        ];
+    }
+
+    // Always include local player if not in list
+    const displayName = G.displayName || G.username || 'You';
+    const localEntry = { name: displayName, vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges };
+    if (!entries.find(e => e.name === displayName || e.name === G.username)) {
+        entries.push(localEntry);
+    }
+
     entries.sort((a, b) => b.vibes - a.vibes);
-    entries.forEach((entry, i) => {
-        const isYou = entry.name === (G.username || 'You');
+    list.innerHTML = '';
+    entries.slice(0, 50).forEach((entry, i) => {
+        const isYou = entry.name === displayName || entry.name === G.username;
+        const isDev = /^drgekoz$/i.test(entry.name);
         const el = document.createElement('div');
-        el.className = `lb-entry ${isYou ? 'you' : ''}`;
-        el.innerHTML = `
-            <span class="lb-rank">#${i + 1}</span>
-            <span class="lb-name">${isYou ? '⭐ ' : ''}${entry.name}</span>
-            <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
-            <span class="lb-pp">${entry.pp} PP</span>
-        `;
+        el.className = `lb-entry ${isYou ? 'you' : ''} ${isDev ? 'dev' : ''}`;
+        if (isDev) {
+            // DrGekoz — game dev with diamond, (DEV) badge, tooltip popup
+            el.innerHTML = `
+                <span class="lb-rank">#${i + 1}</span>
+                <span class="lb-name dev">◆ ${entry.name}</span>
+                <span class="lb-dev-badge">(DEV)
+                    <span class="dev-tooltip">
+                        <strong>Official Game Dev</strong>
+                        <a href="https://adsdoctormelbourne.com.au" target="_blank" rel="noopener">🌐 Website</a>
+                        <a href="https://github.com/DrGekoz" target="_blank" rel="noopener">🐙 GitHub</a>
+                    </span>
+                </span>
+                <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
+                <span class="lb-pp">${entry.pp} PP</span>
+            `;
+        } else {
+            el.innerHTML = `
+                <span class="lb-rank">#${i + 1}</span>
+                <span class="lb-name">${isYou ? '⭐ ' : ''}${entry.name}</span>
+                <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
+                <span class="lb-pp">${entry.pp} PP</span>
+            `;
+        }
         list.appendChild(el);
     });
+}
+
+// ---- REALTIME LOCAL LEADERBOARD UPDATE ----
+// Updates just the local player's row numbers without re-fetching from server
+function updateLocalLeaderboardEntry() {
+    const list = dom.leaderboardList;
+    if (!list) return;
+    const entries = list.querySelectorAll('.lb-entry');
+    const displayName = G.displayName || G.username || 'You';
+    for (const row of entries) {
+        const nameEl = row.querySelector('.lb-name');
+        if (!nameEl) continue;
+        const rowName = nameEl.textContent.replace('◆ ', '').replace('⭐ ', '').trim();
+        if (rowName === displayName || rowName === G.username) {
+            const vibeEl = row.querySelector('.lb-vibes');
+            const ppEl = row.querySelector('.lb-pp');
+            if (vibeEl) vibeEl.textContent = formatNumber(G.lifetime_vibes);
+            if (ppEl) ppEl.textContent = G.total_pp_earned + ' PP';
+            break;
+        }
+    }
 }
 
 // ---- HELPER FUNCTIONS ----
@@ -807,6 +1373,34 @@ function playSongForRoom(roomId) {
     dom.musicGenreDisplay.textContent = room.musicGenre.toUpperCase();
     if (dom.musicGenreLabel) dom.musicGenreLabel.textContent = room.musicGenre.toUpperCase();
     if (dom.musicGenreSelect) dom.musicGenreSelect.value = room.musicGenre;
+}
+
+// ---- ACHIEVEMENTS UI ----
+function updateAchievementsUI() {
+    const list = dom.panelAchievements;
+    if (!list || !ACHIEVEMENTS) return;
+    const unlocked = G.achievements.length;
+    const total = ACHIEVEMENTS.length;
+    const pct = total > 0 ? Math.round(unlocked / total * 100) : 0;
+    list.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:7px;color:var(--accent-gold);white-space:nowrap;">🏆 ${unlocked}/${total}</span>
+        <div style="flex:1;height:6px;background:#1a1a1a;border:1px solid #333;position:relative;">
+            <div style="height:100%;width:${pct}%;background:linear-gradient(90deg, #ffd700, #ffaa00);transition:width 0.5s;"></div>
+        </div>
+        <span style="font-size:6px;color:var(--text-secondary);white-space:nowrap;">${pct}%</span>
+    </div>`;
+    ACHIEVEMENTS.forEach(ach => {
+        const earned = G.achievements.includes(ach.id);
+        const el = document.createElement('div');
+        el.className = `ach-item ${earned ? 'unlocked' : 'locked'}`;
+        el.innerHTML = `<div class="ach-icon">${earned ? ach.icon : '🔒'}</div>
+            <div class="ach-info">
+                <div class="ach-name">${earned ? ach.name : '???'}</div>
+                <div class="ach-desc">${earned ? ach.desc : '???'}</div>
+            </div>
+            <div class="ach-status">${earned ? '✓' : ''}</div>`;
+        list.appendChild(el);
+    });
 }
 
 function spawnClickFloat(value) {
@@ -865,6 +1459,109 @@ function showCredits() {
 
     // Auto-close after animation
     setTimeout(handler, 26000);
+}
+
+// ---- SETTINGS & DISPLAY NAME ----
+function showDisplayNamePrompt() {
+    const current = G.displayName || G.username || 'Player';
+    dom.settingsNameInput.value = current;
+    dom.settingsCooldownInfo.style.display = 'none';
+    dom.settingsNameError.textContent = '';
+    dom.settingsSaveBtn.disabled = false;
+    dom.settingsSaveBtn.textContent = '▶ SAVE';
+    openSettings('name');
+}
+
+async function saveDisplayName() {
+    const name = dom.settingsNameInput.value.trim();
+    if (!name || name.length < 2) {
+        dom.settingsNameError.textContent = 'MIN 2 CHARS';
+        return;
+    }
+    if (name.length > 20) {
+        dom.settingsNameError.textContent = 'MAX 20 CHARS';
+        return;
+    }
+
+    const lastChanged = G.display_name_last_changed || 0;
+    const daysSince = Math.floor((Date.now() - lastChanged) / (1000 * 60 * 60 * 24));
+    if (daysSince < 30 && G.displayName) {
+        const daysLeft = 30 - daysSince;
+        dom.settingsNameError.textContent = `⚠️ ${daysLeft} DAY(S) REMAINING`;
+        return;
+    }
+
+    G.displayName = name;
+    G.display_name_last_changed = Date.now();
+    dom.userDisplay.textContent = name;
+    dom.settingsDisplayName.textContent = name;
+    dom.settingsNameError.textContent = '';
+    dom.settingsSaveBtn.textContent = '✅ SAVED';
+    dom.settingsSaveBtn.disabled = true;
+    saveGame();
+    showToast(`✨ Name set to "${name}"`);
+
+    if (G.auth_mode === 'firebase' && fbUser) {
+        try {
+            const { updateProfile } = await import(
+                'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js'
+            );
+            await updateProfile(fbUser, { displayName: name });
+        } catch (_) {}
+    }
+}
+
+function updateSettingsCooldown() {
+    const lastChanged = G.display_name_last_changed || 0;
+    if (!lastChanged || !G.displayName) {
+        dom.settingsCooldownInfo.style.display = 'none';
+        return;
+    }
+    const daysSince = Math.floor((Date.now() - lastChanged) / (1000 * 60 * 60 * 24));
+    if (daysSince >= 30) {
+        dom.settingsCooldownInfo.style.display = 'none';
+        dom.settingsSaveBtn.disabled = false;
+        return;
+    }
+    const daysLeft = 30 - daysSince;
+    dom.settingsCooldownInfo.style.display = 'block';
+    dom.settingsCooldownInfo.textContent = `⏳ ${daysLeft} DAY(S) UNTIL NEXT CHANGE`;
+    dom.settingsSaveBtn.disabled = true;
+}
+
+function openSettings(tab) {
+    dom.settingsScreen.classList.remove('hidden');
+    dom.settingsNameInput.value = G.displayName || G.username || '';
+    dom.settingsDisplayName.textContent = G.displayName || G.username || 'Player';
+    updateSettingsCooldown();
+
+    // Sync volume sliders
+    if (dom.settingsMusicVolume) dom.settingsMusicVolume.value = G.settings.music_volume;
+    if (dom.settingsMusicVolLabel) dom.settingsMusicVolLabel.textContent = Math.round(G.settings.music_volume * 100) + '%';
+    if (dom.settingsSfxVolume) dom.settingsSfxVolume.value = G.settings.sfx_volume;
+    if (dom.settingsSfxVolLabel) dom.settingsSfxVolLabel.textContent = Math.round(G.settings.sfx_volume * 100) + '%';
+
+    dom.settingsTabName.classList.remove('active');
+    dom.settingsTabAudio.classList.remove('active');
+    dom.settingsTabCredits.classList.remove('active');
+    dom.settingsPanelName.classList.add('hidden');
+    dom.settingsPanelAudio.classList.add('hidden');
+    dom.settingsPanelCredits.classList.add('hidden');
+
+    if (tab === 'name') {
+        dom.settingsTabName.classList.add('active');
+        dom.settingsPanelName.classList.remove('hidden');
+    } else if (tab === 'audio') {
+        dom.settingsTabAudio.classList.add('active');
+        dom.settingsPanelAudio.classList.remove('hidden');
+    } else {
+        dom.settingsTabCredits.classList.add('active');
+        dom.settingsPanelCredits.classList.remove('hidden');
+    }
+}
+
+function closeSettings() {
+    dom.settingsScreen.classList.add('hidden');
 }
 
 // ---- BOOT ----
