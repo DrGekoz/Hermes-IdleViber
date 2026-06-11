@@ -159,6 +159,15 @@ body {
     background: #0a0a0f;
 }
 
+/* Sidebar right-side layout */
+#game-screen.sidebar-right {
+    flex-direction: row-reverse;
+}
+#game-screen.sidebar-right .sidebar {
+    border-right: none;
+    border-left: 2px solid #222;
+}
+
 /* --- SIDEBAR --- */
 .sidebar {
     width: 300px;
@@ -276,27 +285,36 @@ body {
 }
 .tab-panel.active { display: block; }
 
-/* --- SHOP TOOLTIP (fixed on canvas area) --- */
+/* --- SHOP TOOLTIP (fixed top-right of canvas, under gateway HUD) --- */
 .shop-tooltip-main {
     position: absolute;
-    top: 58px;
+    top: 82px;
     right: 12px;
     z-index: 10001;
     background: #0f0f12;
     border: 1px solid #555;
-    padding: 8px 10px;
-    min-width: 180px;
-    max-width: 220px;
+    padding: 10px 12px;
+    min-width: 200px;
+    max-width: 240px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    font-size: 6px;
+    gap: 4px;
+    font-size: 7px;
     pointer-events: none;
     box-shadow: 0 0 20px rgba(0,0,0,0.8);
     line-height: 1.5;
 }
 .shop-tooltip-main.hidden {
     display: none;
+}
+.shop-tooltip-main .tt-icon-img {
+    width: 96px;
+    height: 96px;
+    image-rendering: pixelated;
+    object-fit: contain;
+    flex-shrink: 0;
+    align-self: center;
+    margin-bottom: 4px;
 }
 .shop-tooltip-main .tt-name {
     font-size: 8px;
@@ -621,22 +639,38 @@ body {
     width: 100%;
     height: 100%;
     z-index: 9999;
-    background: rgba(0,0,0,0.92);
+    background: rgba(0,0,0,0.94);
     border: none;
     cursor: default;
     display: flex;
     flex-direction: column;
-    padding: 30px 40px;
+    padding: 40px 60px;
     overflow-y: auto;
 }
 .leaderboard-float.fullscreen h3 {
-    font-size: 14px;
-    margin-bottom: 20px;
+    font-size: 18px;
+    margin-bottom: 24px;
+}
+.leaderboard-float.fullscreen .lb-header {
+    font-size: 9px;
+    padding: 6px 14px 8px;
+}
+.leaderboard-float.fullscreen .lb-header span {
+    font-size: 9px;
 }
 .leaderboard-float.fullscreen .lb-entry {
-    font-size: 9px;
-    padding: 8px 12px;
+    font-size: 11px;
+    padding: 10px 14px;
 }
+.leaderboard-float.fullscreen .lb-rank { width: 40px; font-size: 11px; }
+.leaderboard-float.fullscreen .lb-name { font-size: 11px; }
+.leaderboard-float.fullscreen .lb-vibes { min-width: 80px; font-size: 11px; }
+.leaderboard-float.fullscreen .lb-pp { min-width: 60px; font-size: 11px; }
+.leaderboard-float.fullscreen .lb-prestige { min-width: 40px; font-size: 10px; }
+.leaderboard-float.fullscreen .lb-dev-badge { font-size: 8px; }
+.leaderboard-float.fullscreen .dev-tooltip { font-size: 10px; }
+.leaderboard-float.fullscreen .dev-tooltip strong { font-size: 10px; }
+.leaderboard-float.fullscreen .dev-tooltip a { font-size: 10px; }
 .leaderboard-minimize {
     display: none;
     position: absolute;
@@ -677,8 +711,18 @@ body {
     padding: 1px 4px;
     border-radius: 2px;
 }
+/* Bridge the gap so hover doesn't break between badge and tooltip */
+.lb-dev-badge::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    height: 12px;
+    /* invisible bridge — keeps hover active */
+}
 .dev-tooltip {
-    display: none;
+    display: flex;
     position: absolute;
     top: calc(100% + 6px);
     left: 50%;
@@ -691,11 +735,18 @@ body {
     flex-direction: column;
     gap: 6px;
     font-size: 7px;
-    pointer-events: auto;
+    pointer-events: none;
     box-shadow: 0 0 20px rgba(255,215,0,0.2);
+    opacity: 0;
+    /* Exit delay: fades out 0.5s after mouse leaves */
+    transition: opacity 0.15s ease-out 0.5s;
 }
-.dev-tooltip.visible {
-    display: flex;
+.lb-dev-badge:hover .dev-tooltip,
+.dev-tooltip:hover {
+    opacity: 1;
+    pointer-events: auto;
+    /* Instant appear on hover */
+    transition: opacity 0s;
 }
 .dev-tooltip strong {
     color: #ffd700;
@@ -709,11 +760,11 @@ body {
     white-space: nowrap;
 }
 .dev-tooltip a:hover { text-decoration: underline; color: #0df; }
-.lb-rank { color: var(--text-secondary); width: 18px; }
-.lb-name { flex: 1; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; }
-.lb-vibes { color: var(--accent-gold); min-width: 50px; text-align: right; }
-.lb-pp { color: var(--accent-cyan); min-width: 30px; text-align: right; }
-.lb-prestige { color: var(--accent-pink); min-width: 20px; text-align: right; font-size: 6px; }
+.lb-rank { color: var(--text-secondary); width: 24px; text-align: center; }
+.lb-name { flex: 1; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; min-width: 60px; }
+.lb-vibes { color: var(--accent-gold); min-width: 55px; text-align: right; }
+.lb-pp { color: var(--accent-cyan); min-width: 35px; text-align: right; }
+.lb-prestige { color: var(--accent-pink); min-width: 25px; text-align: right; font-size: 6px; }
 
 /* Leaderboard header row */
 .lb-header {
@@ -724,103 +775,6 @@ body {
     border-bottom: 1px solid #333;
     color: var(--text-secondary);
     align-items: center;
-}
-
-/* --- MUSIC PLAYER (collapsible, top-left) --- */
-.music-wrapper {
-    position: absolute;
-    top: 15px;
-    left: 15px;
-    z-index: 45;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-}
-.music-toggle-btn {
-    background: rgba(0,0,0,0.55);
-    border: 1px solid #444;
-    color: var(--accent-cyan);
-    font-family: var(--pixel-font);
-    font-size: 18px;
-    padding: 4px 10px;
-    cursor: pointer;
-    transition: all 0.15s;
-    line-height: 1.2;
-}
-.music-toggle-btn:hover {
-    background: rgba(0,0,0,0.75);
-    border-color: var(--accent-cyan);
-    box-shadow: 0 0 12px rgba(0,229,255,0.2);
-}
-.music-toggle-btn.playing {
-    color: var(--accent-green);
-    border-color: var(--accent-green);
-    box-shadow: 0 0 12px rgba(0,255,136,0.15);
-}
-.music-panel {
-    background: rgba(5,5,10,0.92);
-    border: 1px solid #333;
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 200px;
-    box-shadow: 0 0 20px rgba(0,0,0,0.6);
-}
-.music-panel.hidden {
-    display: none;
-}
-.music-panel-header {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-.music-now-playing {
-    flex: 1;
-    font-size: 7px;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
-}
-.music-panel-header button {
-    background: rgba(0,0,0,0.4);
-    border: 1px solid #444;
-    color: var(--text-primary);
-    font-family: var(--pixel-font);
-    font-size: 12px;
-    padding: 4px 6px;
-    cursor: pointer;
-    transition: all 0.1s;
-    line-height: 1;
-}
-.music-panel-header button:hover {
-    background: rgba(255,255,255,0.1);
-    border-color: #666;
-}
-.music-panel-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-.music-panel-row select {
-    flex: 1;
-    background: #000;
-    border: 1px solid #444;
-    color: var(--accent-cyan);
-    font-family: var(--pixel-font);
-    font-size: 7px;
-    padding: 4px;
-    outline: none;
-}
-.music-panel-row input[type="range"] {
-    flex: 1;
-    height: 4px;
-    background: #333;
-    accent-color: var(--accent-green);
-    min-width: 40px;
 }
 
 /* --- POPUP --- */
@@ -1168,7 +1122,6 @@ input[type="range"]::-webkit-slider-thumb {
 @media (max-width: 768px) {
     .sidebar { width: 240px; min-width: 240px; }
     .leaderboard-float { display: none; }
-    .music-controls { bottom: 90px; }
 }
 @media (max-width: 600px) {
     .sidebar { width: 100%; min-width: 100%; height: auto; max-height: 50vh; border-right: none; border-bottom: 2px solid #222; }
@@ -1361,4 +1314,161 @@ input[type="range"]::-webkit-slider-thumb {
 @keyframes pulseGold {
     0%, 100% { opacity: 0.8; }
     50% { opacity: 1; }
+}
+
+/* ---- MUSIC PLAYER ---- */
+.music-player {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 45;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.music-player.hidden { display: none; }
+.music-toggle {
+    width: 36px;
+    height: 28px;
+    font-size: 12px;
+    cursor: pointer;
+}
+.music-panel {
+    background: rgba(10,12,25,0.95);
+    border: 2px solid #4af;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 160px;
+    box-shadow: 0 0 16px rgba(68,170,255,0.3);
+}
+.music-panel.hidden { display: none; }
+.music-now-playing {
+    font-family: var(--pixel-font);
+    font-size: 7px;
+    color: #4af;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 2px 0;
+}
+.music-controls {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+}
+.music-volume {
+    width: 100%;
+    height: 4px;
+    accent-color: #4af;
+    cursor: pointer;
+}
+
+/* ---- PIXEL ART BUTTON STYLES ---- */
+.pixel-btn, .pixel-btn-sm {
+    background: #14182d;
+    border: 2px solid;
+    border-top-color: #4af;
+    border-left-color: #3ad;
+    border-right-color: #28c;
+    border-bottom-color: #18b;
+    color: #4af;
+    font-family: var(--pixel-font);
+    font-size: 8px;
+    cursor: pointer;
+    padding: 4px 12px;
+    image-rendering: pixelated;
+    transition: all 0.1s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.pixel-btn-sm {
+    font-size: 6px;
+    padding: 3px 8px;
+}
+.pixel-btn:hover, .pixel-btn-sm:hover {
+    background: #1e2a4d;
+    border-top-color: #8df;
+    border-left-color: #6cf;
+    border-right-color: #4af;
+    border-bottom-color: #2af;
+    color: #8df;
+    box-shadow: 0 0 12px rgba(68,170,255,0.4);
+}
+.pixel-btn:active, .pixel-btn-sm:active {
+    transform: translate(1px, 1px);
+    border-top-color: #18b;
+    border-bottom-color: #4af;
+    box-shadow: none;
+}
+
+/* Apply pixel button style to existing transparent buttons */
+.login-box button,
+.popup-box button,
+.settings-logout-btn,
+#gw-connect-btn,
+.settings-tab,
+.sidebar-tabs button {
+    background: #14182d !important;
+    border: 2px solid !important;
+    border-top-color: #4af !important;
+    border-left-color: #3ad !important;
+    border-right-color: #28c !important;
+    border-bottom-color: #18b !important;
+    color: #4af !important;
+    font-family: var(--pixel-font) !important;
+    font-size: 7px !important;
+    cursor: pointer !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    transition: all 0.1s !important;
+}
+.login-box button:hover,
+.popup-box button:hover,
+.settings-logout-btn:hover,
+#gw-connect-btn:hover,
+.settings-tab:hover,
+.sidebar-tabs button:hover {
+    background: #1e2a4d !important;
+    border-top-color: #8df !important;
+    border-left-color: #6cf !important;
+    border-right-color: #4af !important;
+    border-bottom-color: #2af !important;
+    color: #8df !important;
+    box-shadow: 0 0 12px rgba(68,170,255,0.4) !important;
+}
+.login-box button:active,
+.popup-box button:active,
+.settings-logout-btn:active,
+#gw-connect-btn:active {
+    transform: translate(1px, 1px) !important;
+}
+
+/* Sidebar tabs active state override */
+.sidebar-tabs button.active {
+    background: #1e3a5d !important;
+    border-color: #8df !important;
+    color: #fff !important;
+}
+
+/* Secondary/danger buttons get a more subtle style */
+.login-box button.secondary,
+button.secondary {
+    border-top-color: #555 !important;
+    border-left-color: #444 !important;
+    border-right-color: #333 !important;
+    border-bottom-color: #222 !important;
+    color: #888 !important;
+    background: #111 !important;
+}
+.login-box button.secondary:hover,
+button.secondary:hover {
+    border-top-color: #777 !important;
+    border-left-color: #666 !important;
+    border-right-color: #555 !important;
+    border-bottom-color: #444 !important;
+    color: #aaa !important;
+    background: #1a1a1a !important;
 }

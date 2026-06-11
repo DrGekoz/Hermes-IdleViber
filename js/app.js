@@ -8,7 +8,7 @@ import {
     goldenCookieSystem, spawnGoldenCookie, collectGoldenCookie, getClickBoostMult, getVpsBoostMult,
     wrinklerSystem, SYNERGIES, getSynergyBonus, getWrinklerPenalty, getEffectiveVpsMultiplier,
     updateWrinklers, popWrinkler, popAllWrinklers,
-    getVPS, getClickValue, getPrestigeGain, formatNumber,
+    getVPS, getClickValue, getPrestigeGain, getPrestigeThreshold, formatNumber,
     getRoomVpsMult, calculateOfflineProgress, applyOfflineProgress,
     getBulkCost, getMaxBuyable,
     addVibes, buyAutoclicker, buyPrestigeUpgrade, buyDecor,
@@ -19,19 +19,16 @@ import {
 
 import { discoverGateway, pingGateway, getLatencyMultiplier,
          getConnectionQuality, getGatewayStatus, onGatewayChange,
-         getAverageLatency, connectToPort, cancelScan } from './gateway.js';
+         getAverageLatency, connectToPort, cancelScan, checkGatewayBusy } from './gateway.js';
 
 import { generateSprite, renderRoom, ParticleSystem, PAL,
          startPlacement, cancelPlacement, updatePlacementGhost, isPlacing,
          startDrag, updateDrag, endDrag, isDragging, hitTestDecor,
          snapToGrid, getDecorSpriteId } from './sprites.js';
-import { initAudio, playSong, stopSong, setGenre, nextTrack,
-         toggleMusic, setVolume as setMusicVolume, getAvailableGenres, playNext,
-         toggleShuffle, isShuffleOn, getCurrentSongName, MIDI_FILES } from './music.js';
-
 import { setVolume as setSfxVolume, playClick, playVibe,
          playPrestige as playSfxPrestige, playError, playUnlock,
          playTabSwitch, playPurchase, playNotification, playPlace } from './sfx.js';
+import { initMusicPlayer, setMusicVolume } from './music.js';
 
 import { apiHealth, apiRegister, apiLogin, apiSave, apiLoad,
          apiSubmitScore, apiGetLeaderboard } from './api.js';
@@ -146,10 +143,10 @@ function init() {
     cacheDOM();
     initFirebaseAsync();
     loadGame();
+    applySidebarPosition(); // Restore sidebar position from saved state
     initCanvas();
     initParticles();
     initGateway();
-    initMusic();
     initAPI();
     initUIEvents();
     initGameLoop();
@@ -224,13 +221,7 @@ function cacheDOM() {
         gatewayScanProgress: $('gateway-scan-progress'),
         leaderboardPanel: $('leaderboard-panel'),
         leaderboardMinimize: $('leaderboard-minimize'),
-        musicGenreSelect: $('music-genre-select'),
-        musicShuffleBtn: $('music-shuffle-btn'),
-        musicBtn: $('music-btn'),
-        musicGenreDisplay: $('music-genre'),
-        musicGenreLabel: $('music-genre-label'),
-        musicNextBtn: $('music-next-btn'),
-        musicVolumeSlider: $('music-volume'),
+
         ppDisplayTotal: $('pp-display-total'),
         clickValueOverlay: $('click-value-display-overlay'),
         roomMultDisplay: $('room-mult-display'),
@@ -243,15 +234,18 @@ function cacheDOM() {
         tabPrestige: $('tab-prestige'),
         tabDecor: $('tab-decor'),
         tabGateway: $('tab-gateway'),
+        tabAchievements: $('tab-achievements'),
         panelRooms: $('panel-rooms'),
         panelUpgrades: $('panel-upgrades'),
         panelPrestige: $('panel-prestige'),
         panelDecor: $('panel-decor'),
         panelGateway: $('panel-gateway'),
+        panelAchievements: $('panel-achievements'),
         settingsBtn: $('settings-btn'),
         settingsScreen: $('settings-screen'),
         settingsClose: $('settings-close'),
         settingsBackdrop: $('settings-backdrop'),
+        settingsSidebarPos: $('settings-sidebar-pos'),
         settingsLogoutBtn: $('settings-logout-btn'),
         settingsTabName: $('settings-tab-name'),
         settingsTabAudio: $('settings-tab-audio'),
@@ -259,10 +253,10 @@ function cacheDOM() {
         settingsPanelName: $('settings-panel-name'),
         settingsPanelAudio: $('settings-panel-audio'),
         settingsPanelCredits: $('settings-panel-credits'),
-        settingsMusicVolume: $('settings-music-volume'),
-        settingsMusicVolLabel: $('settings-music-vol-label'),
         settingsSfxVolume: $('settings-sfx-volume'),
         settingsSfxVolLabel: $('settings-sfx-vol-label'),
+        settingsMusicVolume: $('settings-music-volume'),
+        settingsMusicVolLabel: $('settings-music-vol-label'),
         settingsNameInput: $('settings-name-input'),
         settingsNameError: $('settings-name-error'),
         settingsCooldownInfo: $('settings-cooldown-info'),
@@ -348,27 +342,6 @@ async function initAPI() {
     G.server_online = health.status === 'ok';
 }
 
-// ---- MUSIC ----
-function initMusic() {
-    dom.musicBtn.addEventListener('click', () => {
-        playClick();
-        const playing = toggleMusic();
-        dom.musicBtn.textContent = playing ? '🔊' : '🔇';
-    });
-    dom.musicNextBtn.addEventListener('click', () => { playClick(); nextTrack(); });
-    dom.musicVolumeSlider.addEventListener('input', () => {
-        setMusicVolume(parseFloat(dom.musicVolumeSlider.value));
-    });
-
-    // Shuffle ON by default — show visual indicator
-    dom.musicShuffleBtn.style.background = 'rgba(0,255,136,0.3)';
-    dom.musicShuffleBtn.style.borderColor = '#0f0';
-    dom.musicShuffleBtn.style.color = '#0f0';
-
-    // Autoplay won't work until user gesture (click). The playSongForRoom
-    // call in enterGame handles this after the user logs in.
-}
-
 // ---- UI EVENTS ----
 function initUIEvents() {
     // Auth
@@ -378,6 +351,15 @@ function initUIEvents() {
     if (dom.settingsBtn) dom.settingsBtn.addEventListener('click', () => { playClick(); openSettings('name'); });
     if (dom.settingsClose) dom.settingsClose.addEventListener('click', () => { playClick(); closeSettings(); });
     if (dom.settingsBackdrop) dom.settingsBackdrop.addEventListener('click', closeSettings);
+    // Sidebar position toggle
+    if (dom.settingsSidebarPos) {
+        dom.settingsSidebarPos.addEventListener('change', () => {
+            const right = dom.settingsSidebarPos.checked;
+            G.settings.sidebar_position = right ? 'right' : 'left';
+            applySidebarPosition();
+            saveGame();
+        });
+    }
     if (dom.settingsSaveBtn) dom.settingsSaveBtn.addEventListener('click', saveDisplayName);
     // Settings: logout button
     if (dom.settingsLogoutBtn) {
@@ -391,15 +373,6 @@ function initUIEvents() {
     if (dom.settingsTabAudio) dom.settingsTabAudio.addEventListener('click', () => { openSettings('audio'); playClick(); });
     if (dom.settingsTabCredits) dom.settingsTabCredits.addEventListener('click', () => openSettings('credits'));
     // Settings: Audio volume sliders
-    if (dom.settingsMusicVolume) {
-        dom.settingsMusicVolume.addEventListener('input', () => {
-            const vol = parseFloat(dom.settingsMusicVolume.value);
-            G.settings.music_volume = vol;
-            setMusicVolume(vol);
-            dom.musicVolumeSlider.value = vol;
-            if (dom.settingsMusicVolLabel) dom.settingsMusicVolLabel.textContent = Math.round(vol * 100) + '%';
-        });
-    }
     if (dom.settingsSfxVolume) {
         dom.settingsSfxVolume.addEventListener('input', () => {
             const vol = parseFloat(dom.settingsSfxVolume.value);
@@ -409,13 +382,15 @@ function initUIEvents() {
             playClick();
         });
     }
-    // Sync canvas music slider → settings
-    dom.musicVolumeSlider.addEventListener('input', () => {
-        const vol = parseFloat(dom.musicVolumeSlider.value);
-        G.settings.music_volume = vol;
-        if (dom.settingsMusicVolume) dom.settingsMusicVolume.value = vol;
-        if (dom.settingsMusicVolLabel) dom.settingsMusicVolLabel.textContent = Math.round(vol * 100) + '%';
-    });
+    if (dom.settingsMusicVolume) {
+        dom.settingsMusicVolume.addEventListener('input', () => {
+            const vol = parseFloat(dom.settingsMusicVolume.value);
+            G.settings.music_volume = vol;
+            setMusicVolume(vol);
+            if (dom.settingsMusicVolLabel) dom.settingsMusicVolLabel.textContent = Math.round(vol * 100) + '%';
+            saveGame();
+        });
+    }
     // Enter key on name input
     if (dom.settingsNameInput) {
         dom.settingsNameInput.addEventListener('keydown', (e) => {
@@ -564,36 +539,17 @@ function initUIEvents() {
         dom.leaderboardPanel.classList.remove('fullscreen');
     });
 
-    // Genre select
-    dom.musicGenreSelect.addEventListener('change', () => {
-        const genre = dom.musicGenreSelect.value;
-        dom.musicGenreDisplay.textContent = genre.toUpperCase();
-        if (dom.musicGenreLabel) dom.musicGenreLabel.textContent = genre.toUpperCase();
-        // If ALL, just shuffle all tracks
-        if (genre === 'all') {
-            stopSong();
-            // Refill shuffle queue with all tracks
-            setTimeout(() => playNext(), 100);
-        } else {
-            setGenre(genre);
-        }
-    });
-
-    // Shuffle toggle
-    dom.musicShuffleBtn.addEventListener('click', () => {
-        const on = toggleShuffle();
-        dom.musicShuffleBtn.style.background = on ? 'rgba(0,255,136,0.3)' : 'rgba(255,0,0,0.15)';
-        dom.musicShuffleBtn.style.borderColor = on ? '#0f0' : '#f44';
-        dom.musicShuffleBtn.style.color = on ? '#0f0' : '#f88';
-        if (on) {
-            showToast('🔀 Shuffle ON');
-        } else {
-            showToast('🔀 Shuffle OFF');
-        }
-    });
-
     // Tabs
     setupTabs();
+
+    // Tooltip delegation for shop items
+    initTooltipDelegation();
+
+    // Click & hold to spam-purchase upgrades
+    initHoldToSpam();
+
+    // Music player
+    initMusicPlayer();
 
     // State changes
     onStateChange((type) => {
@@ -639,6 +595,7 @@ function setupTabs() {
         { btn: dom.tabPrestige, panel: dom.panelPrestige },
         { btn: dom.tabDecor, panel: dom.panelDecor },
         { btn: dom.tabGateway, panel: dom.panelGateway },
+        { btn: dom.tabAchievements, panel: dom.panelAchievements },
     ];
 
     tabs.forEach(({ btn, panel }) => {
@@ -658,6 +615,9 @@ function setupTabs() {
             if (panel === dom.panelDecor) updateDecorUI();
             if (panel === dom.panelGateway) {
                 updateGatewayUI();
+            }
+            if (panel === dom.panelAchievements) {
+                updateAchievementsUI();
             }
         });
     });
@@ -870,10 +830,9 @@ function enterGame() {
     // Apply offline progress earned while away
     const offline = applyOfflineProgress();
     updateAllUI();
+    applySidebarPosition();
     initGameLoop();
     initGateway();
-    initAudio();
-    playSongForRoom(G.current_room);
     // Show offline earnings toast
     if (offline && offline.earned > 0) {
         setTimeout(() => showToast(`⏰ Welcome back! +${formatNumber(Math.floor(offline.earned))} ✦ while away`), 500);
@@ -906,11 +865,19 @@ function cancelDecorPlacement() {
 
 // ---- GAME LOOP ----
 function initGameLoop() {
+    let prestigeCheckCounter = 0;
     // Game logic: VPS generation at 100ms (10 ticks/sec)
     ticker = setInterval(() => {
         const vps = getVPS();
         if (vps > 0) {
             addVibes(vps / 10);
+        }
+        // Check prestige unlock every 1s (every 10 ticks)
+        prestigeCheckCounter++;
+        if (prestigeCheckCounter >= 10 && !G.prestige_unlocked) {
+            prestigeCheckCounter = 0;
+            unlockPrestige();
+            updatePrestigeUI();
         }
     }, CONFIG.TICK_INTERVAL);
 
@@ -1020,10 +987,31 @@ function updateResourceUI() {
 
 function updatePrestigeUI() {
     const gain = getPrestigeGain();
+    const threshold = getPrestigeThreshold();
     dom.ppDisplay.textContent = G.prestige_points;
     dom.lifetimeDisplay.textContent = formatNumber(G.lifetime_vibes);
     dom.prestigeCount.textContent = G.total_prestiges;
-    dom.prestigeGain.textContent = gain > 0 ? `✨ Earn ${gain} chips on prestige!` : 'Need 10M lifetime vibes';
+
+    let needMsg;
+    if (gain > 0) {
+        needMsg = `✨ Earn ${gain} chips on prestige!`;
+    } else if (!G.prestige_unlocked) {
+        const totalRoomCost = Object.values(ROOMS).reduce((sum, r) => sum + r.cost, 0);
+        const allRoomIds = Object.keys(ROOMS);
+        const needRooms = totalRoomCost > threshold && !allRoomIds.every(id => G.unlocked_rooms.includes(id));
+        if (needRooms) {
+            const locked = allRoomIds.filter(id => !G.unlocked_rooms.includes(id));
+            needMsg = `🔒 Unlock all rooms first (${locked.length} left) — then ${formatNumber(threshold)} vibes`;
+        } else if (G.lifetime_vibes < threshold) {
+            needMsg = `Need ${formatNumber(threshold)} lifetime vibes (${formatNumber(G.lifetime_vibes)} / ${formatNumber(threshold)})`;
+        } else {
+            needMsg = `Need ${formatNumber(threshold)} lifetime vibes to unlock`;
+        }
+    } else {
+        // Already unlocked, just not enough vibes
+        needMsg = `Need ${formatNumber(threshold)} lifetime vibes to prestige again (${formatNumber(G.lifetime_vibes)} / ${formatNumber(threshold)})`;
+    }
+    dom.prestigeGain.textContent = needMsg;
     dom.prestigeBtn.disabled = gain <= 0;
     dom.prestigeBtn.style.opacity = gain > 0 ? 1 : 0.5;
     const chipGain = document.getElementById('prestige-chip-gain');
@@ -1063,6 +1051,16 @@ function updateShopUI() {
             </div>
         `;
         el.onclick = () => { if (buyAutoclicker(tier.id)) { playPurchase(); updateAllUI(); } };
+        el._tooltipData = {
+            name: tier.name,
+            desc: tier.desc,
+            icon: `sprites/images/icons/individual/${tier.id}_64.png`,
+            stats: [
+                { label: 'VPS each', value: '✦ ' + tier.vps, cls: 'cyan' },
+                { label: 'Owned', value: String(count), cls: '' },
+                { label: 'Cost', value: formatNumber(cost) + ' ✦', cls: canBuy ? 'green' : 'gold' }
+            ]
+        };
         dom.upgradeList.appendChild(el);
     });
 
@@ -1082,14 +1080,15 @@ function updateShopAffordability() {
         const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
         el.classList.toggle('locked', vibes < cost);
     });
-    // Prestige upgrades (chip-based)
+    // Prestige upgrades (count-based, chip cost)
     document.querySelectorAll('#prestige-upgrade-list .shop-item').forEach(el => {
         const id = el.dataset.upgId;
         if (!id) return;
         const upg = PRESTIGE_UPGRADES.find(u => u.id === id);
         if (!upg) return;
-        const owned = G.prestige_upgrades[id] || false;
-        el.classList.toggle('locked', owned || G.prestige_points < upg.cost);
+        const count = G.prestige_upgrades[id] || 0;
+        const cost = Math.floor(upg.baseCost * Math.pow(upg.costMult, count));
+        el.classList.toggle('locked', G.prestige_points < cost);
     });
     // Decor
     document.querySelectorAll('#decor-list .shop-item').forEach(el => {
@@ -1108,21 +1107,23 @@ function renderPrestigeUpgrades() {
     if (!list) return;
     list.innerHTML = '';
     PRESTIGE_UPGRADES.forEach(upg => {
-        const owned = G.prestige_upgrades[upg.id] || false;
-        const canBuy = G.prestige_points >= upg.cost && !owned;
+        const count = G.prestige_upgrades[upg.id] || 0;
+        const cost = Math.floor(upg.baseCost * Math.pow(upg.costMult, count));
+        const canBuy = G.prestige_points >= cost;
         const el = document.createElement('div');
-        el.className = `shop-item ${canBuy ? 'affordable' : 'locked'} ${owned ? 'owned' : ''}`;
+        el.className = `shop-item ${canBuy ? 'affordable' : 'locked'} ${count > 0 ? 'owned' : ''}`;
         el.dataset.upgId = upg.id;
         const iconName = `individual/${upg.id}_64.png`;
-        const iconHtml = `<img src="sprites/images/icons/${iconName}" alt="${upg.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">🔶</span>${owned ? '<span class="owned-badge">✓</span>' : ''}`;
+        const iconHtml = `<img src="sprites/images/icons/${iconName}" alt="${upg.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">🔶</span>`;
         el.innerHTML = `
             <div class="shop-item-icon">${iconHtml}</div>
             <div class="shop-item-info">
-                <div class="shop-item-name">${upg.name}</div>
+                <div class="shop-item-name">${upg.name} ${count > 0 ? '×' + count : ''}</div>
                 <div class="shop-item-desc">${upg.desc}</div>
             </div>
             <div class="shop-item-right">
-                <div class="shop-item-cost">${owned ? 'OWNED' : upg.cost + ' 💎'}</div>
+                <div class="shop-item-count">${count}</div>
+                <div class="shop-item-cost">${formatNumber(cost)} 💎</div>
             </div>
         `;
         el.onclick = () => {
@@ -1130,6 +1131,17 @@ function renderPrestigeUpgrades() {
                 playPurchase();
                 updateAllUI();
             }
+        };
+        el._tooltipData = {
+            name: upg.name,
+            desc: upg.desc,
+            icon: `sprites/images/icons/individual/${upg.id}_64.png`,
+            stats: [
+                { label: 'Effect', value: upg.desc, cls: 'cyan' },
+                { label: 'Owned', value: String(count), cls: '' },
+                { label: 'Next cost', value: formatNumber(cost) + ' 💎', cls: canBuy ? 'green' : 'gold' }
+            ],
+            owned: false
         };
         list.appendChild(el);
     });
@@ -1139,7 +1151,7 @@ function updateDecorUI() {
     dom.decorList.innerHTML = '';
     getDecorForRoom(G.current_room).forEach(item => {
         const owned = G.owned_decor.includes(item.id);
-        const active = G.active_decor[item.type] === item.id;
+        const active = !!G.active_decor[item.id];
         const canBuy = G.vibes >= item.cost && !owned;
         const el = document.createElement('div');
         el.className = `shop-item ${canBuy ? '' : 'locked'} ${active ? 'active' : ''}`;
@@ -1152,7 +1164,7 @@ function updateDecorUI() {
                 <div class="shop-item-desc">${item.type} decor</div>
             </div>
             <div class="shop-item-right">
-                ${owned ? (active ? '<span style="color:#0f0">ACTIVE</span>' : '<span style="color:#ff0">EQUIP</span>') : `<div class="shop-item-cost">${formatNumber(item.cost)} ✦</div>`}
+                ${owned ? (active ? '<span style="color:#0f0">ACTIVATED</span>' : '<span style="color:#ff0">EQUIP</span>') : `<div class="shop-item-cost">${formatNumber(item.cost)} ✦</div>`}
             </div>
         `;
         el.onclick = () => {
@@ -1168,7 +1180,22 @@ function updateDecorUI() {
                 activateDecor(item.id);
                 startDecorPlacement(item.id);
                 updateAllUI();
+            } else {
+                // Deactivate — toggle off and remove from canvas
+                activateDecor(item.id);
+                updateAllUI();
             }
+        };
+        el._tooltipData = {
+            name: item.name,
+            desc: item.type + ' decor',
+            icon: `sprites/images/icons/individual/${item.icon}.png`,
+            stats: [
+                { label: 'Type', value: item.type, cls: '' },
+                { label: 'Status', value: owned ? (active ? 'ACTIVE' : 'OWNED') : 'LOCKED', cls: active ? 'green' : (owned ? 'gold' : '') },
+                { label: 'Cost', value: owned ? '—' : formatNumber(item.cost) + ' ✦', cls: owned ? '' : 'gold' }
+            ],
+            owned: owned
         };
         dom.decorList.appendChild(el);
     });
@@ -1184,7 +1211,7 @@ function updateRoomUI() {
         const el = document.createElement('div');
         el.className = `room-card ${active ? 'active' : ''} ${unlocked ? '' : 'locked'}`;
         el.innerHTML = `
-            <div class="room-card-bg" style="background: linear-gradient(135deg, ${room.bg[0]}, ${room.bg[1]});">
+            <div class="room-card-bg" style="background-image:url('${room.bgImage || ''}');background-size:cover;background-position:center;">
                 <div class="room-card-icon">${active ? '📍' : unlocked ? '🏠' : '🔒'}</div>
             </div>
             <div class="room-card-info">
@@ -1197,13 +1224,11 @@ function updateRoomUI() {
         el.onclick = () => {
             if (unlocked) {
                 switchRoom(room.id);
-                playSongForRoom(room.id);
                 updateAllUI();
             } else if (canUnlock) {
                 if (unlockRoom(room.id)) {
                     playUnlock();
                     switchRoom(room.id);
-                    playSongForRoom(room.id);
                     updateAllUI();
                 }
             }
@@ -1302,7 +1327,11 @@ async function updateLeaderboardUI() {
         entries.push(localEntry);
     }
 
-    entries.sort((a, b) => b.vibes - a.vibes);
+    entries.sort((a, b) => {
+        if (b.prestige !== a.prestige) return b.prestige - a.prestige;
+        if (b.pp !== a.pp) return b.pp - a.pp;
+        return b.vibes - a.vibes;
+    });
     list.innerHTML = '';
     entries.slice(0, 50).forEach((entry, i) => {
         const isYou = entry.name === displayName || entry.name === G.username;
@@ -1319,10 +1348,12 @@ async function updateLeaderboardUI() {
                         <strong>Official Game Dev</strong>
                         <a href="https://adsdoctormelbourne.com.au" target="_blank" rel="noopener">🌐 Website</a>
                         <a href="https://github.com/DrGekoz" target="_blank" rel="noopener">🐙 GitHub</a>
+                        <a href="https://buymeacoffee.com/DrGekoz" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
                     </span>
                 </span>
                 <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
                 <span class="lb-pp">${entry.pp} PP</span>
+                <span class="lb-prestige">P${entry.prestige}</span>
             `;
         } else {
             el.innerHTML = `
@@ -1330,6 +1361,7 @@ async function updateLeaderboardUI() {
                 <span class="lb-name">${isYou ? '⭐ ' : ''}${entry.name}</span>
                 <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
                 <span class="lb-pp">${entry.pp} PP</span>
+                <span class="lb-prestige">P${entry.prestige}</span>
             `;
         }
         list.appendChild(el);
@@ -1358,23 +1390,6 @@ function updateLocalLeaderboardEntry() {
 }
 
 // ---- HELPER FUNCTIONS ----
-function playSongForRoom(roomId) {
-    const room = ROOMS[roomId];
-    if (!room) return;
-    stopSong();
-    // Pick a track matching the room's genre
-    const genreTracks = MIDI_FILES.filter(t => t.genre === room.musicGenre);
-    if (isShuffleOn()) {
-        const idx = Math.floor(Math.random() * genreTracks.length);
-        if (genreTracks[idx]) playSong(genreTracks[idx].genre, genreTracks[idx].name);
-    } else if (genreTracks.length > 0) {
-        playSong(genreTracks[0].genre, genreTracks[0].name);
-    }
-    dom.musicGenreDisplay.textContent = room.musicGenre.toUpperCase();
-    if (dom.musicGenreLabel) dom.musicGenreLabel.textContent = room.musicGenre.toUpperCase();
-    if (dom.musicGenreSelect) dom.musicGenreSelect.value = room.musicGenre;
-}
-
 // ---- ACHIEVEMENTS UI ----
 function updateAchievementsUI() {
     const list = dom.panelAchievements;
@@ -1452,8 +1467,7 @@ function showCredits() {
     const handler = () => {
         screen.classList.add('hidden');
         skip.removeEventListener('click', handler);
-        // Stop music if it was playing
-        stopSong();
+        // Reset room
     };
     skip.addEventListener('click', handler);
 
@@ -1489,6 +1503,31 @@ async function saveDisplayName() {
         const daysLeft = 30 - daysSince;
         dom.settingsNameError.textContent = `⚠️ ${daysLeft} DAY(S) REMAINING`;
         return;
+    }
+
+    // Check if name is already taken (skip if same as current)
+    if (name !== G.displayName && name !== G.username) {
+        dom.settingsSaveBtn.textContent = '⏳ CHECKING...';
+        dom.settingsSaveBtn.disabled = true;
+        try {
+            let taken = false;
+            if (G.auth_mode === 'firebase' && typeof fbCheckName === 'function') {
+                taken = await fbCheckName(name);
+            } else if (G.auth_token && G.server_online) {
+                const lb = await apiGetLeaderboard();
+                if (lb && lb.entries) {
+                    taken = lb.entries.some(e => e.name.toLowerCase() === name.toLowerCase());
+                }
+            }
+            if (taken) {
+                dom.settingsNameError.textContent = '⚠️ NAME ALREADY TAKEN';
+                dom.settingsSaveBtn.textContent = '▶ SAVE';
+                dom.settingsSaveBtn.disabled = false;
+                return;
+            }
+        } catch (_) {
+            // Server unreachable — allow save
+        }
     }
 
     G.displayName = name;
@@ -1536,10 +1575,13 @@ function openSettings(tab) {
     updateSettingsCooldown();
 
     // Sync volume sliders
-    if (dom.settingsMusicVolume) dom.settingsMusicVolume.value = G.settings.music_volume;
-    if (dom.settingsMusicVolLabel) dom.settingsMusicVolLabel.textContent = Math.round(G.settings.music_volume * 100) + '%';
     if (dom.settingsSfxVolume) dom.settingsSfxVolume.value = G.settings.sfx_volume;
-    if (dom.settingsSfxVolLabel) dom.settingsSfxVolLabel.textContent = Math.round(G.settings.sfx_volume * 100) + '%';
+    if (dom.settingsMusicVolume) dom.settingsMusicVolume.value = G.settings.music_volume || 0.5;
+    if (dom.settingsMusicVolLabel) dom.settingsMusicVolLabel.textContent = Math.round((G.settings.music_volume || 0.5) * 100) + '%';
+    // Sync sidebar position checkbox
+    if (dom.settingsSidebarPos) {
+        dom.settingsSidebarPos.checked = G.settings && G.settings.sidebar_position === 'right';
+    }
 
     dom.settingsTabName.classList.remove('active');
     dom.settingsTabAudio.classList.remove('active');
@@ -1562,6 +1604,151 @@ function openSettings(tab) {
 
 function closeSettings() {
     dom.settingsScreen.classList.add('hidden');
+}
+
+// ---- SHOP TOOLTIP ---- 
+function showShopTooltip(data, event) {
+    const tt = document.getElementById('shop-tooltip-main');
+    if (!tt) return;
+    
+    let html = '';
+    if (data.icon) html += `<img src="${data.icon}" class="tt-icon-img" onerror="this.style.display='none'">`;
+    if (data.name) html += `<div class="tt-name">${data.name}</div>`;
+    if (data.desc) html += `<div class="tt-desc">${data.desc}</div>`;
+    if (data.stats) {
+        data.stats.forEach(s => {
+            html += `<div class="tt-stat"><span class="tt-label">${s.label}</span><span class="tt-value ${s.cls || ''}">${s.value}</span></div>`;
+        });
+    }
+    if (data.owned) html += `<div class="tt-stat"><span class="tt-value green">✓ OWNED</span></div>`;
+    
+    tt.innerHTML = html;
+    tt.classList.remove('hidden');
+}
+
+function hideShopTooltip() {
+    const tt = document.getElementById('shop-tooltip-main');
+    if (tt) tt.classList.add('hidden');
+}
+
+function initTooltipDelegation() {
+    const panels = ['upgrade-list', 'prestige-upgrade-list', 'decor-list', 'gw-upgrade-list'];
+    panels.forEach(panelId => {
+        const panel = document.getElementById(panelId);
+        if (!panel) return;
+        
+        panel.addEventListener('mouseover', (e) => {
+            const item = e.target.closest('.shop-item');
+            if (!item) { hideShopTooltip(); return; }
+            const ttData = item._tooltipData;
+            if (ttData) showShopTooltip(ttData, e);
+        });
+        
+        panel.addEventListener('mouseout', (e) => {
+            const item = e.target.closest('.shop-item');
+            if (!item || !e.relatedTarget || !item.contains(e.relatedTarget)) {
+                hideShopTooltip();
+            }
+        });
+    });
+}
+
+// ---- CLICK & HOLD TO SPAM BUY ----
+let _holdTimer = null;
+let _holdSpamTimer = null;
+let _holdTarget = null;
+
+function initHoldToSpam() {
+    const list = document.getElementById('upgrade-list');
+    if (!list) return;
+
+    function stopHold() {
+        if (_holdTimer) { clearTimeout(_holdTimer); _holdTimer = null; }
+        if (_holdSpamTimer) { clearInterval(_holdSpamTimer); _holdSpamTimer = null; }
+        _holdTarget = null;
+    }
+
+    list.addEventListener('mousedown', (e) => {
+        const item = e.target.closest('.shop-item');
+        if (!item || item.classList.contains('locked')) return;
+        // Only allow on main button (left click)
+        if (e.button !== 0) return;
+
+        const tierId = item.dataset.tierId;
+        if (!tierId) return;
+
+        stopHold();
+        _holdTarget = item;
+
+        // First purchase immediately on click (normal behavior)
+        // But only if this wasn't already handled by the item's onclick
+        // The onclick fires anyway — we just layer hold-to-spam on top
+
+        // 500ms delay before spam starts
+        _holdTimer = setTimeout(() => {
+            if (_holdTarget !== item) return;
+            _holdSpamTimer = setInterval(() => {
+                if (!_holdTarget || _holdTarget !== item) {
+                    stopHold();
+                    return;
+                }
+                const id = _holdTarget.dataset.tierId;
+                if (!id) { stopHold(); return; }
+                const tier = AUTOCLICKERS.find(t => t.id === id);
+                if (!tier) { stopHold(); return; }
+                const count = G.autoclickers[id] || 0;
+                const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
+                if (G.vibes >= cost) {
+                    if (buyAutoclicker(tier.id)) {
+                        playPurchase();
+                        updateAllUI();
+                        // Update tooltip data for the item
+                        updateShopItemTooltip(item, id);
+                    } else {
+                        stopHold(); // Can't buy anymore
+                    }
+                } else {
+                    stopHold(); // Can't afford
+                }
+            }, 5);
+        }, 500);
+    });
+
+    // Stop on mouseup/leave anywhere on the list
+    list.addEventListener('mouseup', stopHold);
+    list.addEventListener('mouseleave', stopHold);
+}
+
+function updateShopItemTooltip(item, tierId) {
+    const tier = AUTOCLICKERS.find(t => t.id === tierId);
+    if (!tier) return;
+    const count = G.autoclickers[tierId] || 0;
+    const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
+    const canBuy = G.vibes >= cost;
+    item._tooltipData = {
+        name: tier.name,
+        desc: tier.desc,
+        icon: `sprites/images/icons/individual/${tier.id}_64.png`,
+        stats: [
+            { label: 'VPS each', value: '✦ ' + tier.vps, cls: 'cyan' },
+            { label: 'Owned', value: String(count), cls: '' },
+            { label: 'Cost', value: formatNumber(cost) + ' ✦', cls: canBuy ? 'green' : 'gold' }
+        ]
+    };
+}
+
+function applySidebarPosition() {
+    const gameScreen = dom.gameScreen || document.getElementById('game-screen');
+    if (!gameScreen) return;
+    if (G.settings && G.settings.sidebar_position === 'right') {
+        gameScreen.classList.add('sidebar-right');
+    } else {
+        gameScreen.classList.remove('sidebar-right');
+    }
+    // Sync checkbox
+    if (dom.settingsSidebarPos) {
+        dom.settingsSidebarPos.checked = G.settings && G.settings.sidebar_position === 'right';
+    }
 }
 
 // ---- BOOT ----

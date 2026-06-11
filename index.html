@@ -87,7 +87,8 @@
         <!-- Panel: Upgrades -->
         <div class="tab-panel active" id="panel-upgrades">
             <div style="font-size:7px;color:var(--text-secondary);margin-bottom:8px;">
-                ▼ AUTOCLICKERS — passive VPS generators
+                ▼ AUTOCLICKERS — passive VPS generators<br>
+                <span style="font-size:6px;color:var(--accent-gold);">🖱️ Click &amp; Hold to Spam Buy</span>
             </div>
             <div id="upgrade-list"></div>
         </div>
@@ -175,12 +176,25 @@
 
     <!-- MAIN AREA -->
     <div class="main-area">
+    <!-- MUSIC PLAYER (top-left of canvas) -->
+    <div id="music-player" class="music-player hidden">
+        <button id="music-toggle-btn" class="pixel-btn music-toggle" title="Music">♪</button>
+        <div id="music-panel" class="music-panel hidden">
+            <div class="music-now-playing" id="music-track-name">No track</div>
+            <div class="music-controls">
+                <button id="music-prev" class="pixel-btn-sm" title="Previous">◀◀</button>
+                <button id="music-play" class="pixel-btn-sm" title="Play/Pause">▶</button>
+                <button id="music-next" class="pixel-btn-sm" title="Next">▶▶</button>
+                <button id="music-shuffle" class="pixel-btn-sm" title="Shuffle">🔀</button>
+            </div>
+            <input type="range" id="music-volume" class="music-volume" min="0" max="1" step="0.05" value="0.5">
+        </div>
+    </div>
         <canvas id="game-canvas"></canvas>
 
         <!-- Room Overlay -->
         <div class="room-overlay">
             <div class="room-name" id="current-room">Campfire Grove</div>
-            <div class="room-genre" id="music-genre">CHILL</div>
         </div>
 
         <!-- Click Button -->
@@ -202,29 +216,6 @@
             </div>
             <div id="leaderboard-list">
                 <div class="lb-entry"><span style="color:#666;font-size:6px;">Loading...</span></div>
-            </div>
-        </div>
-
-        <!-- Music Player (top left, collapsible) -->
-        <div class="music-wrapper">
-            <button id="music-toggle" class="music-toggle-btn">🎵</button>
-            <div id="music-panel" class="music-panel hidden">
-                <div class="music-panel-header">
-                    <span id="music-now-playing" class="music-now-playing">—</span>
-                    <button id="music-btn">🔊</button>
-                    <button id="music-next-btn">⏭</button>
-                    <button id="music-shuffle-btn">🔀</button>
-                </div>
-                <div class="music-panel-row">
-                    <select id="music-genre-select">
-                        <option value="all">ALL</option>
-                        <option value="chill">CHILL</option>
-                        <option value="cyber">CYBER</option>
-                        <option value="jazz">JAZZ</option>
-                        <option value="nature">NATURE</option>
-                    </select>
-                    <input type="range" id="music-volume" min="0" max="1" step="0.1" value="0.5">
-                </div>
             </div>
         </div>
 
@@ -256,12 +247,6 @@
             <div class="credits-subtitle">Hermes IdleViber</div>
 
             <div class="credits-section">
-                <div class="credits-heading">🎵 MUSIC — PUBLIC DOMAIN MIDI</div>
-                <div class="credits-line">Erik Satie — Gymnopedies No.1-3 (Mutopia Project)</div>
-                <div class="credits-line">Claude Debussy — Arabesque No.1 & Clair de Lune (Mutopia Project)</div>
-                <div class="credits-line">J.S. Bach — Toccata & Fugue BWV565 & Fugue in G minor BWV542 (Mutopia Project)</div>
-                <div class="credits-line">Scott Joplin — The Entertainer & Maple Leaf Rag (Mutopia Project)</div>
-                <div class="credits-line">All MIDIs sourced from mutopiaproject.org — Public Domain / CC-BY</div>
             </div>
 
             <div class="credits-section">
@@ -366,15 +351,6 @@
         <!-- Tab: Audio -->
         <div id="settings-panel-audio" class="settings-panel hidden">
             <div class="settings-section">
-                <div class="settings-label">🎵 MUSIC VOLUME</div>
-                <div class="settings-volume-row">
-                    <input type="range" id="settings-music-volume" min="0" max="1" step="0.05" value="0.5"
-                           style="flex:1;height:4px;background:#333;accent-color:var(--accent-cyan);">
-                    <span id="settings-music-vol-label" class="settings-vol-label">50%</span>
-                </div>
-                <div class="settings-hint">Synced with the canvas music slider</div>
-            </div>
-            <div class="settings-section">
                 <div class="settings-label">🔊 SFX VOLUME</div>
                 <div class="settings-volume-row">
                     <input type="range" id="settings-sfx-volume" min="0" max="1" step="0.05" value="0.5"
@@ -382,6 +358,15 @@
                     <span id="settings-sfx-vol-label" class="settings-vol-label">50%</span>
                 </div>
                 <div class="settings-hint">8-bit UI clicks, chimes, and sound effects</div>
+            </div>
+            <div class="settings-section">
+                <div class="settings-label">🎵 MUSIC VOLUME</div>
+                <div class="settings-volume-row">
+                    <input type="range" id="settings-music-volume" min="0" max="1" step="0.05" value="0.5"
+                           style="flex:1;height:4px;background:#333;accent-color:#4af;">
+                    <span id="settings-music-vol-label" class="settings-vol-label">50%</span>
+                </div>
+                <div class="settings-hint">8-bit chiptune background music</div>
             </div>
         </div>
 
@@ -404,16 +389,7 @@
                 </div>
             </div>
 
-            <div class="settings-section">
-                <div class="settings-label">🎵 MUSIC — PUBLIC DOMAIN MIDI</div>
-                <div class="settings-credits-text">
-                    Erik Satie — Gymnopedies No.1-3 (Mutopia Project)<br>
-                    Claude Debussy — Arabesque No.1 &amp; Clair de Lune (Mutopia Project)<br>
-                    J.S. Bach — Toccata &amp; Fugue BWV565 &amp; Fugue in G minor BWV542 (Mutopia Project)<br>
-                    Scott Joplin — The Entertainer &amp; Maple Leaf Rag (Mutopia Project)<br>
-                    All MIDIs sourced from mutopiaproject.org — Public Domain / CC-BY
-                </div>
-            </div>
+
 
             <div class="settings-section">
                 <div class="settings-label">🎨 PIXEL ART</div>
@@ -464,8 +440,8 @@
     <script type="module" src="js/state.js?v=6"></script>
 <script type="module" src="js/gateway.js?v=6"></script>
 <script type="module" src="js/sprites.js?v=6"></script>
-<script type="module" src="js/music.js?v=6"></script>
 <script type="module" src="js/sfx.js?v=6"></script>
+    <script type="module" src="js/music.js?v=6"></script>
 <script type="module" src="js/app.js?v=6"></script>
 
 </body>

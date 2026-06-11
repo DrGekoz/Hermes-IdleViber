@@ -202,7 +202,7 @@ async function savePlayerData(gameState) {
             'vibes', 'lifetime_vibes', 'prestige_points', 'total_pp_earned',
             'total_prestiges', 'autoclickers', 'gateway_upgrades', 'decor',
             'current_room', 'unlocked_rooms', 'owned_decor', 'active_decor',
-            'music_enabled', 'music_genre', 'music_track',
+
             'gateway_history', 'placed_decor', 'gateway_bonus_active',
             'total_clicks', 'total_gateway_pings', 'achievements', 'settings',
             'displayName', 'display_name_last_changed',

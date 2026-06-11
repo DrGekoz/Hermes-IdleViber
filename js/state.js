@@ -10,7 +10,7 @@ const CONFIG = {
     SAVE_INTERVAL: 30000,      // Auto-save every 30s
     GATEWAY_POLL_INTERVAL: 5000, // Check gateway every 5s
     MAX_GATEWAY_LATENCY_HISTORY: 10,
-    PRESTIGE_THRESHOLD: 10_000_000_000_000, // 10T
+    PRESTIGE_THRESHOLD: 10_000_000_000_000, // 10T (legacy, use getPrestigeThreshold instead)
 };
 
 // ---------- ROOMS & THEMES ----------
@@ -18,73 +18,73 @@ const ROOMS = {
     campfire_grove: {
         id: 'campfire_grove',
         name: 'Campfire Grove',
+        bgImage: 'sprites/images/bg/bg_campfire.png',
         desc: 'A warm crackling fire under starry skies',
         cost: 0,
         unlocked: true,
         vpsMult: 1.0,
         bg: ['#1a0e0a', '#2b1a10', '#0f0806'],
         fg: ['#ff6b35', '#ffaa44', '#ffdd88'],
-        musicGenre: 'chill',
         sprites: ['campfire', 'trees', 'stars', 'smoke'],
     },
     cyber_den: {
         id: 'cyber_den',
         name: 'Cyber Den',
+        bgImage: 'sprites/images/bg/bg_cyber.png',
         desc: 'Neon-lit digital hideout',
         cost: 100_000_000,         // 100M
         unlocked: false,
         vpsMult: 1.5,
         bg: ['#0a001a', '#1a0033', '#000011'],
         fg: ['#ff00ff', '#00ffff', '#ff0066'],
-        musicGenre: 'cyber',
         sprites: ['server_rack', 'neon_sign', 'matrix_rain', 'hologram'],
     },
     zen_garden: {
         id: 'zen_garden',
         name: 'Zen Garden',
+        bgImage: 'sprites/images/bg/bg_zen_garden.png',
         desc: 'Peaceful bamboo grove with flowing water',
         cost: 1_000_000_000,       // 1B
         unlocked: false,
         vpsMult: 2.0,
         bg: ['#0a1a0a', '#1a2a1a', '#050f05'],
         fg: ['#66bb6a', '#a5d6a7', '#4db6ac'],
-        musicGenre: 'nature',
         sprites: ['bamboo', 'water_rock', 'cherry_blossom', 'lantern'],
     },
     star_deck: {
         id: 'star_deck',
         name: 'Star Deck',
+        bgImage: 'sprites/images/bg/bg_star_deck.png',
         desc: 'Cosmic observatory floating among galaxies',
         cost: 25_000_000_000,      // 25B
         unlocked: false,
         vpsMult: 2.5,
         bg: ['#000022', '#000044', '#001122'],
         fg: ['#ffffff', '#8888ff', '#ff88ff'],
-        musicGenre: 'jazz',
         sprites: ['telescope', 'aurora', 'planets', 'constellations'],
     },
     study_lounge: {
         id: 'study_lounge',
         name: 'Study Lounge',
+        bgImage: 'sprites/images/bg/bg_study_lounge.png',
         desc: 'Cozy den with bookshelves and warm lamplight',
         cost: 1_000_000_000_000,   // 1T
         unlocked: false,
         vpsMult: 3.0,
         bg: ['#1a1410', '#2a2018', '#0f0a08'],
         fg: ['#d4a574', '#c4956a', '#e8c8a8'],
-        musicGenre: 'jazz',
         sprites: ['bookshelf', 'desk', 'lamp', 'armchair'],
     },
     beach_cove: {
         id: 'beach_cove',
         name: 'Beach Cove',
+        bgImage: 'sprites/images/bg/bg_beach_cove.png',
         desc: 'Sunset waves lapping on pixel sand',
         cost: 10_000_000_000_000,  // 10T
         unlocked: false,
         vpsMult: 5.0,
         bg: ['#1a2233', '#2a3344', '#0a1520'],
         fg: ['#ffaa44', '#ff8833', '#66ccff'],
-        musicGenre: 'nature',
         sprites: ['palm_tree', 'waves', 'seashell', 'sunset'],
     },
 };
@@ -218,21 +218,21 @@ const AUTOCLICKERS = [
 
 // ---------- PRESTIGE UPGRADES (permanent, bought with prestige chips) ----------
 const PRESTIGE_UPGRADES = [
-    // Gateway buff stack
-    { id: 'gw_boost_1', name: 'Latency Amp',     cost: 5,  desc: 'Gateway buff +0.5×',   type: 'gw_add',   value: 0.5 },
-    { id: 'gw_boost_2', name: 'Pipeline Opt',     cost: 15, desc: 'Gateway buff +1.0×',   type: 'gw_add',   value: 1.0 },
-    { id: 'gw_boost_3', name: 'Quantum Pipe',     cost: 30, desc: 'Gateway buff +2.0×',   type: 'gw_add',   value: 2.0 },
-    { id: 'gw_boost_4', name: 'Neural Bridge',    cost: 50, desc: 'Gateway buff +3.0×',   type: 'gw_add',   value: 3.0 },
-    { id: 'gw_boost_5', name: 'Singularity Link', cost: 80, desc: 'Gateway buff +5.0×',   type: 'gw_add',   value: 5.0 },
-    // Click multipliers
-    { id: 'click_1',    name: 'Click Amplifier',  cost: 3,  desc: 'Click power ×2',       type: 'click_mult', value: 2 },
-    { id: 'click_2',    name: 'Turbo Click',      cost: 10, desc: 'Click power ×4',       type: 'click_mult', value: 4 },
-    { id: 'click_3',    name: 'Godlike Click',    cost: 25, desc: 'Click power ×10',      type: 'click_mult', value: 10 },
-    // Base VPS
-    { id: 'autobuy_1',  name: 'Auto Clicker',     cost: 10, desc: '+0.1 base VPS',        type: 'base_vps',  value: 0.1 },
-    { id: 'autobuy_2',  name: 'Micro Miner',      cost: 25, desc: '+1 base VPS',          type: 'base_vps',  value: 1 },
-    // NEW: Permanent VPS multiplier (×2)
-    { id: 'perma_mult', name: 'Perma Core',       cost: 100, desc: 'Permanent ×2 VPS',    type: 'perma_mult', value: 2 },
+    // Gateway buff stack — progressive (each purchase adds value to gw multiplier)
+    { id: 'gw_boost_1', name: 'Latency Amp',     baseCost: 5,  costMult: 2, desc: 'Gateway buff +0.5×',   type: 'gw_add',   value: 0.5 },
+    { id: 'gw_boost_2', name: 'Pipeline Opt',     baseCost: 15, costMult: 2, desc: 'Gateway buff +1.0×',   type: 'gw_add',   value: 1.0 },
+    { id: 'gw_boost_3', name: 'Quantum Pipe',     baseCost: 30, costMult: 2, desc: 'Gateway buff +2.0×',   type: 'gw_add',   value: 2.0 },
+    { id: 'gw_boost_4', name: 'Neural Bridge',    baseCost: 50, costMult: 2, desc: 'Gateway buff +3.0×',   type: 'gw_add',   value: 3.0 },
+    { id: 'gw_boost_5', name: 'Singularity Link', baseCost: 80, costMult: 2, desc: 'Gateway buff +5.0×',   type: 'gw_add',   value: 5.0 },
+    // Click multipliers — progressive (each purchase multiplies click by value)
+    { id: 'click_1',    name: 'Click Amplifier',  baseCost: 3,  costMult: 2, desc: 'Click power ×2',       type: 'click_mult', value: 2 },
+    { id: 'click_2',    name: 'Turbo Click',      baseCost: 10, costMult: 2, desc: 'Click power ×4',       type: 'click_mult', value: 4 },
+    { id: 'click_3',    name: 'Godlike Click',    baseCost: 25, costMult: 2, desc: 'Click power ×10',      type: 'click_mult', value: 10 },
+    // Base VPS — progressive (each purchase adds flat VPS)
+    { id: 'autobuy_1',  name: 'Auto Clicker',     baseCost: 10, costMult: 2, desc: '+0.1 base VPS',        type: 'base_vps',  value: 0.1 },
+    { id: 'autobuy_2',  name: 'Micro Miner',      baseCost: 25, costMult: 2, desc: '+1 base VPS',          type: 'base_vps',  value: 1 },
+    // Permanent VPS multiplier — progressive (each purchase doubles VPS)
+    { id: 'perma_mult', name: 'Perma Core',       baseCost: 100, costMult: 3, desc: 'Permanent ×2 VPS',    type: 'perma_mult', value: 2 },
 ];
 
 // ---------- TRANSCEND UPGRADES (deeper prestige layer) ----------
@@ -331,9 +331,6 @@ function getDefaultState() {
         unlocked_rooms: ['campfire_grove'],
         owned_decor: [],
         active_decor: {}, // flat: { decorId: true } — all equipped items, no type limit
-        music_enabled: true,
-        music_genre: 'chill',
-        music_track: 0,
         gateway_history: [],
         placed_decor: {}, // { decorId: [{ x: gridPos, y: gridPos }, ...] }
         gateway_bonus_active: false,
@@ -350,8 +347,11 @@ function getDefaultState() {
         server_online: false,
         achievements: [],
         settings: {
-            music_volume: 0.5,
             sfx_volume: 0.5,
+            music_volume: 0.5,
+            music_playing: true,
+            music_track_index: 0,
+            music_shuffle: true,
             particle_effects: true,
             show_float_text: true,
             sidebar_position: 'left', // 'left' | 'right'
@@ -584,20 +584,20 @@ function getVPS(state = G) {
     }
     // Gateway latency buff
     let gwMult = state.gateway_bonus_active ? (state._gwMult || 2.0) : 1.0;
-    // Apply prestige upgrades
-    for (const [upgId, owned] of Object.entries(state.prestige_upgrades)) {
+    // Apply prestige upgrades (count-based)
+    for (const [upgId, count] of Object.entries(state.prestige_upgrades)) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
-        if (!upg || !owned) continue;
-        if (upg.type === 'gw_add') gwMult += upg.value;
-        if (upg.type === 'base_vps') vps += upg.value;
+        if (!upg || !count) continue;
+        if (upg.type === 'gw_add') gwMult += upg.value * count;
+        if (upg.type === 'base_vps') vps += upg.value * count;
     }
     // Room VPS multiplier (resets on prestige)
     const roomMult = getRoomVpsMult(state);
-    // Permanent multiplier from prestige chips
+    // Permanent multiplier from prestige chips (count-based)
     let permaMult = 1;
-    for (const [upgId, owned] of Object.entries(state.prestige_upgrades)) {
+    for (const [upgId, count] of Object.entries(state.prestige_upgrades)) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
-        if (upg && upg.type === 'perma_mult' && owned) permaMult *= upg.value;
+        if (upg && upg.type === 'perma_mult' && count) permaMult *= Math.pow(upg.value, count);
     }
     // VPS boost from golden cookie
     const vpsBoost = getVpsBoostMult();
@@ -609,34 +609,43 @@ function getVPS(state = G) {
 function getClickValue(state = G) {
     let base = 1;
     let clickMult = 1;
-    for (const [upgId, owned] of Object.entries(state.prestige_upgrades)) {
+    for (const [upgId, count] of Object.entries(state.prestige_upgrades)) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
-        if (upg && upg.type === 'click_mult' && owned) clickMult *= upg.value;
+        if (upg && upg.type === 'click_mult' && count) clickMult *= Math.pow(upg.value, count);
     }
-    // Permanent multiplier from prestige chips
+    // Permanent multiplier from prestige chips (count-based)
     let permaMult = 1;
-    for (const [upgId, owned] of Object.entries(state.prestige_upgrades)) {
+    for (const [upgId, count] of Object.entries(state.prestige_upgrades)) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
-        if (upg && upg.type === 'perma_mult' && owned) permaMult *= upg.value;
+        if (upg && upg.type === 'perma_mult' && count) permaMult *= Math.pow(upg.value, count);
     }
     // Golden cookie click boost
     const gcBoost = getClickBoostMult();
     return Math.floor(base * clickMult * permaMult * gcBoost);
 }
 
+// Prestige threshold scales with prestige count: n*(n+9) trillion where n = next prestige #
+// 1st: 10T, 2nd: 22T, 3rd: 36T, 4th: 52T, 5th: 70T, 6th: 90T, 7th: 112T, ...
+function getPrestigeThreshold(state = G) {
+    const n = (state.total_prestiges || 0) + 1;
+    return n * (n + 9) * 1_000_000_000_000;
+}
+
 function getPrestigeGain(state = G) {
     // Must be unlocked first
     if (!state.prestige_unlocked) return 0;
-    if (state.lifetime_vibes < CONFIG.PRESTIGE_THRESHOLD) return 0;
+    const threshold = getPrestigeThreshold(state);
+    if (state.lifetime_vibes < threshold) return 0;
     return Math.floor(Math.sqrt(state.lifetime_vibes) / 100);
 }
 
 function isPrestigeUnlockable(state = G) {
-    // Check if lifetime vibes >= 10T
-    if (state.lifetime_vibes < CONFIG.PRESTIGE_THRESHOLD) return false;
-    // If total room cost > 10T, require all 6 rooms
+    const threshold = getPrestigeThreshold(state);
+    // Check if lifetime vibes >= threshold
+    if (state.lifetime_vibes < threshold) return false;
+    // If total room cost > threshold, require all 6 rooms
     const totalRoomCost = Object.values(ROOMS).reduce((sum, r) => sum + r.cost, 0);
-    if (totalRoomCost > CONFIG.PRESTIGE_THRESHOLD) {
+    if (totalRoomCost > threshold) {
         const allRoomIds = Object.keys(ROOMS);
         return allRoomIds.every(id => state.unlocked_rooms.includes(id));
     }
@@ -696,10 +705,11 @@ function buyAutoclicker(id, quantity = 1) {
 function buyPrestigeUpgrade(id) {
     const upg = PRESTIGE_UPGRADES.find(u => u.id === id);
     if (!upg) return false;
-    if (G.prestige_upgrades[id]) return false; // Already owned
-    if (G.prestige_points >= upg.cost) {
-        G.prestige_points -= upg.cost;
-        G.prestige_upgrades[id] = true;
+    const count = G.prestige_upgrades[id] || 0;
+    const cost = Math.floor(upg.baseCost * Math.pow(upg.costMult, count));
+    if (G.prestige_points >= cost) {
+        G.prestige_points -= cost;
+        G.prestige_upgrades[id] = count + 1;
         notifyStateChange('gateway_upgrades');
         return true;
     }
@@ -733,9 +743,13 @@ function activateDecor(id) {
     }
     if (!item) return false;
     if (!G.owned_decor.includes(id)) return false;
-    // Toggle: if already active, deactivate it; otherwise activate
+    // Toggle: if already active, deactivate it (and remove from canvas); otherwise activate
     if (G.active_decor[id]) {
         delete G.active_decor[id];
+        // Clear all placed instances from canvas to prevent duplicates
+        if (G.placed_decor[id]) {
+            delete G.placed_decor[id];
+        }
     } else {
         G.active_decor[id] = true;
     }
@@ -759,7 +773,6 @@ function unlockRoom(id) {
 function switchRoom(id) {
     if (!G.unlocked_rooms.includes(id)) return false;
     G.current_room = id;
-    G.music_genre = ROOMS[id].musicGenre;
     notifyStateChange('room_switch');
     return true;
 }
@@ -923,12 +936,19 @@ function loadGame() {
             Object.assign(G.prestige_upgrades, G.gateway_upgrades);
             delete G.gateway_upgrades;
         }
+        // Legacy: migrate boolean prestige_upgrades to count-based
+        for (const [key, val] of Object.entries(G.prestige_upgrades)) {
+            if (val === true) G.prestige_upgrades[key] = 1;
+        }
         if (!G.achievements) G.achievements = [];
         if (!G.placed_decor) G.placed_decor = {};
         if (G._gwMult === undefined) G._gwMult = 1.0;
         if (G._gwLabel === undefined) G._gwLabel = 'Disconnected';
         if (!G.settings) G.settings = defaults.settings;
         if (G.settings && G.settings.sidebar_position === undefined) G.settings.sidebar_position = 'left';
+        if (G.settings && G.settings.music_shuffle === undefined) G.settings.music_shuffle = true;
+        if (G.settings && G.settings.music_playing === undefined) G.settings.music_playing = true;
+        if (G.settings && G.settings.music_track_index === undefined) G.settings.music_track_index = 0;
         if (G.prestige_unlocked === undefined) G.prestige_unlocked = false;
         notifyStateChange('load');
         return true;
@@ -984,6 +1004,7 @@ export {
     getRoomVpsMult,
     getClickValue,
     getPrestigeGain,
+    getPrestigeThreshold,
     isPrestigeUnlockable,
     unlockPrestige,
     checkAchievements,

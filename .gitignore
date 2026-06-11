@@ -1,0 +1,12 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+
+# Server config
+.env
+*.env.local

@@ -20,8 +20,6 @@ const MIME_TYPES = {
     '.mp3': 'audio/mpeg',
     '.wav': 'audio/wav',
     '.ogg': 'audio/ogg',
-    '.mid': 'audio/midi',
-    '.midi': 'audio/midi',
 };
 
 // ---- DATA STORE (JSON file DB) ----
