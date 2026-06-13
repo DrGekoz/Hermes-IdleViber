@@ -1430,7 +1430,7 @@ input[type="range"]::-webkit-slider-thumb {
     accent-color: #4af;
     cursor: pointer;
 }
-.music-shuffle.active {
+#music-shuffle.active {
     color: #0f0;
     border-top-color: #0f0;
     border-left-color: #0f0;

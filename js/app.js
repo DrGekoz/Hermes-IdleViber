@@ -1593,12 +1593,12 @@ function updateAchievementsUI() {
         const earned = G.achievements.includes(ach.id);
         const el = document.createElement('div');
         el.className = `ach-item ${earned ? 'unlocked' : 'locked'}`;
-        el.innerHTML = `<div class="ach-icon">${earned ? ach.icon : '🔒'}</div>
-            <div class="ach-info">
-                <div class="ach-name">${earned ? ach.name : '???'}</div>
-                <div class="ach-desc">${earned ? ach.desc : '???'}</div>
-            </div>
-            <div class="ach-status">${earned ? '✓' : ''}</div>`;
+        el.innerHTML = '<div class="ach-icon">' + ach.icon + '</div>' +
+            '<div class="ach-info">' +
+                '<div class="ach-name">' + ach.name + '</div>' +
+                '<div class="ach-desc">' + ach.desc + '</div>' +
+            '</div>' +
+            '<div class="ach-status">' + (earned ? '&#10003;' : '&#128274;') + '</div>';
         list.appendChild(el);
     });
 }
