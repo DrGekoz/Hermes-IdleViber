@@ -260,6 +260,7 @@ function cacheDOM() {
         settingsGwConnect: $('settings-gw-connect'),
         settingsGwStatus: $('settings-gw-status'),
         settingsLogoutBtn: $('settings-logout-btn'),
+        settingsLinkGoogle: $('settings-link-google'),
         settingsTabName: $('settings-tab-name'),
         settingsTabAudio: $('settings-tab-audio'),
         settingsTabCredits: $('settings-tab-credits'),
@@ -379,6 +380,13 @@ function initUIEvents() {
         dom.settingsLogoutBtn.addEventListener('click', () => {
             closeSettings();
             doLogout();
+        });
+    }
+    // Settings: link Google account (upgrade guest to cloud)
+    if (dom.settingsLinkGoogle) {
+        dom.settingsLinkGoogle.addEventListener('click', () => {
+            closeSettings();
+            doGoogleLogin();
         });
     }
     // Settings tabs
@@ -1807,6 +1815,11 @@ function openSettings(tab) {
         const gw = getGatewayStatus();
         dom.settingsGwStatus.textContent = gw.connected ? '✅ Connected' : '⏸ Idle';
         dom.settingsGwStatus.style.color = gw.connected ? '#0f0' : 'var(--text-secondary)';
+    }
+    // Show "Link Google" button only for guest/local accounts
+    if (dom.settingsLinkGoogle) {
+        const isGuest = G.auth_mode === 'local' || G.auth_mode === 'guest' || G.auth_mode === 'local_api';
+        dom.settingsLinkGoogle.style.display = isGuest ? 'block' : 'none';
     }
 
     dom.settingsTabName.classList.remove('active');

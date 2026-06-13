@@ -1091,6 +1091,25 @@ body {
     border-color: #ff4444;
     color: #ff7777;
 }
+.settings-google-link-btn {
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    background: rgba(50, 100, 255, 0.08);
+    border: 1px solid #1a4a7a;
+    color: #85c1e9;
+    font-family: var(--pixel-font);
+    font-size: 8px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+}
+.settings-google-link-btn:hover {
+    background: rgba(50, 100, 255, 0.2);
+    border-color: #85c1e9;
+}
 .settings-logout-hint {
     font-size: 6px;
     color: #553333;
