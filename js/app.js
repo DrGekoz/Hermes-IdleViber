@@ -15,6 +15,7 @@ import {
     activateDecor, unlockRoom, switchRoom, doPrestige,
     isPrestigeUnlockable, unlockPrestige, checkAchievements,
     onStateChange, saveGame, loadGame, notifyStateChange,
+    getDefaultState,
 } from './state.js';
 
 import { discoverGateway, pingGateway, getLatencyMultiplier,
@@ -117,7 +118,13 @@ function checkAutoLogin() {
                     // Sanity check: detect bugged prestige values
                     if (cloudState.total_pp_earned > 50000 || cloudState.prestige_points > 50000) {
                         console.warn('Cloud save has bugged prestige — resetting');
-                        // Don't load it; let local fresh state take over
+                        // Reset G to default because loadGame() already loaded the bugged save
+                        Object.assign(G, getDefaultState());
+                        G.auth_mode = 'firebase';
+                        G.userId = fbUser.uid;
+                        G.username = fbUser.displayName || 'Player';
+                        dom.userDisplay.textContent = G.username;
+                        saveGame();
                     } else {
                         Object.assign(G, cloudState);
                         G.auth_mode = 'firebase';
@@ -878,6 +885,13 @@ async function doGoogleLoginAsync() {
             // Sanity check: detect bugged prestige values
             if (cloudState.total_pp_earned > 50000 || cloudState.prestige_points > 50000) {
                 console.warn('Cloud save has bugged prestige — resetting');
+                // Reset in-memory state since loadGame() already loaded bugged data
+                Object.assign(G, getDefaultState());
+                G.auth_mode = 'firebase';
+                G.userId = result.uid;
+                G.username = result.user.displayName || 'Player';
+                dom.userDisplay.textContent = G.username;
+                saveGame(); // persist clean state
             } else {
                 Object.assign(G, cloudState);
                 G.auth_mode = 'firebase';
