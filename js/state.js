@@ -214,6 +214,101 @@ const AUTOCLICKERS = [
     { id: 'dyson', name: 'Dyson Sphere', baseCost: 1e12, vps: 5000000, desc: 'Stellar compute.' },
 ];
 
+// ---- PER-ROOM UNIQUE AUTOCLICKERS ----
+// Each room has its own 13 themed upgrades matching the global VPS/cost curve
+const ROOM_AUTOCLICKERS = {
+  campfire_grove: [
+    { id: 'cg_spark', name: 'Spark Tinder', baseCost: 15, vps: 0.1, desc: 'Tiny sparks catch.' },
+    { id: 'cg_kindling', name: 'Kindling Pile', baseCost: 100, vps: 1, desc: 'Crackling warmth.' },
+    { id: 'cg_campfire', name: 'Campfire', baseCost: 500, vps: 5, desc: 'Dancing flames.' },
+    { id: 'cg_bonfire', name: 'Bonfire', baseCost: 2500, vps: 25, desc: 'Roaring blaze.' },
+    { id: 'cg_fire_pit', name: 'Fire Pit', baseCost: 12000, vps: 100, desc: 'Ring of stones.' },
+    { id: 'cg_watchtower', name: 'Watchtower', baseCost: 60000, vps: 400, desc: 'Wooden sentinel.' },
+    { id: 'cg_hunting', name: 'Hunting Lodge', baseCost: 300000, vps: 2000, desc: 'Rugged outpost.' },
+    { id: 'cg_forge', name: 'Forge', baseCost: 1500000, vps: 10000, desc: 'Hammer & anvil.' },
+    { id: 'cg_log_cabin', name: 'Log Cabin', baseCost: 8000000, vps: 50000, desc: 'Sturdy shelter.' },
+    { id: 'cg_sawmill', name: 'Sawmill', baseCost: 40000000, vps: 250000, desc: 'Whirring blade.' },
+    { id: 'cg_lumberyard', name: 'Lumber Yard', baseCost: 200000000, vps: 1000000, desc: 'Piles of timber.' },
+    { id: 'cg_tree_farm', name: 'Tree Farm', baseCost: 10000000000, vps: 2500000, desc: 'Endless grove.' },
+    { id: 'cg_forest_spirit', name: 'Forest Spirit', baseCost: 1e12, vps: 5000000, desc: 'Ancient guardian.' },
+  ],
+  cyber_den: [
+    { id: 'cd_led', name: 'LED Strip', baseCost: 15, vps: 0.1, desc: 'Neon glow.' },
+    { id: 'cd_pi', name: 'Raspberry Pi', baseCost: 100, vps: 1, desc: 'Tiny computer.' },
+    { id: 'cd_switch', name: 'Network Switch', baseCost: 500, vps: 5, desc: 'Packet routing.' },
+    { id: 'cd_gaming_pc', name: 'Gaming PC', baseCost: 2500, vps: 25, desc: 'RGB overload.' },
+    { id: 'cd_render', name: 'Render Farm', baseCost: 12000, vps: 100, desc: 'Frame by frame.' },
+    { id: 'cd_server', name: 'Server Rack', baseCost: 60000, vps: 400, desc: 'Blinking lights.' },
+    { id: 'cd_datacenter', name: 'Data Center', baseCost: 300000, vps: 2000, desc: 'Cooled aisles.' },
+    { id: 'cd_super', name: 'Supercomputer', baseCost: 1500000, vps: 10000, desc: 'Petaflops.' },
+    { id: 'cd_neural', name: 'Neural Net', baseCost: 8000000, vps: 50000, desc: 'Deep learning.' },
+    { id: 'cd_ai_core', name: 'AI Core', baseCost: 40000000, vps: 250000, desc: 'Singularity engine.' },
+    { id: 'cd_digital', name: 'Digital Realm', baseCost: 200000000, vps: 1000000, desc: 'Virtual world.' },
+    { id: 'cd_cyberspace', name: 'Cyberspace', baseCost: 10000000000, vps: 2500000, desc: 'Net horizon.' },
+    { id: 'cd_techno', name: 'Techno God', baseCost: 1e12, vps: 5000000, desc: 'Digital deity.' },
+  ],
+  zen_garden: [
+    { id: 'zg_mat', name: 'Meditation Mat', baseCost: 15, vps: 0.1, desc: 'Find your center.' },
+    { id: 'zg_chime', name: 'Wind Chime', baseCost: 100, vps: 1, desc: 'Gentle tones.' },
+    { id: 'zg_bamboo', name: 'Bamboo Grove', baseCost: 500, vps: 5, desc: 'Swaying stalks.' },
+    { id: 'zg_koi', name: 'Koi Pond', baseCost: 2500, vps: 25, desc: 'Gliding carp.' },
+    { id: 'zg_rock', name: 'Rock Garden', baseCost: 12000, vps: 100, desc: 'Raked pebbles.' },
+    { id: 'zg_tea', name: 'Tea House', baseCost: 60000, vps: 400, desc: 'Matcha ceremony.' },
+    { id: 'zg_temple', name: 'Zen Temple', baseCost: 300000, vps: 2000, desc: 'Wooden pagoda.' },
+    { id: 'zg_waterfall', name: 'Waterfall', baseCost: 1500000, vps: 10000, desc: 'Cascading water.' },
+    { id: 'zg_cherry', name: 'Cherry Grove', baseCost: 8000000, vps: 50000, desc: 'Blossom showers.' },
+    { id: 'zg_hall', name: 'Meditation Hall', baseCost: 40000000, vps: 250000, desc: 'Silent retreat.' },
+    { id: 'zg_mind', name: 'Enlightened Mind', baseCost: 200000000, vps: 1000000, desc: 'Inner peace.' },
+    { id: 'zg_cosmic', name: 'Cosmic Awareness', baseCost: 10000000000, vps: 2500000, desc: 'Universal oneness.' },
+    { id: 'zg_nirvana', name: 'Nirvana', baseCost: 1e12, vps: 5000000, desc: 'Transcendence.' },
+  ],
+  star_deck: [
+    { id: 'sd_chart', name: 'Star Chart', baseCost: 15, vps: 0.1, desc: 'Celestial map.' },
+    { id: 'sd_telescope', name: 'Telescope', baseCost: 100, vps: 1, desc: 'Lens focused.' },
+    { id: 'sd_observatory', name: 'Observatory', baseCost: 500, vps: 5, desc: 'Dome opening.' },
+    { id: 'sd_satellite', name: 'Satellite', baseCost: 2500, vps: 25, desc: 'Orbital relay.' },
+    { id: 'sd_station', name: 'Space Station', baseCost: 12000, vps: 100, desc: 'Zero gravity.' },
+    { id: 'sd_lunar', name: 'Lunar Base', baseCost: 60000, vps: 400, desc: 'Moon colony.' },
+    { id: 'sd_mars', name: 'Mars Colony', baseCost: 300000, vps: 2000, desc: 'Red dust.' },
+    { id: 'sd_asteroid', name: 'Asteroid Mine', baseCost: 1500000, vps: 10000, desc: 'Deep core.' },
+    { id: 'sd_starforge', name: 'Star Forge', baseCost: 8000000, vps: 50000, desc: 'Stellar furnace.' },
+    { id: 'sd_nebula', name: 'Nebula Harvester', baseCost: 40000000, vps: 250000, desc: 'Cosmic dust.' },
+    { id: 'sd_blackhole', name: 'Black Hole Core', baseCost: 200000000, vps: 1000000, desc: 'Event horizon.' },
+    { id: 'sd_galaxy', name: 'Galaxy Cluster', baseCost: 10000000000, vps: 2500000, desc: 'Supercluster.' },
+    { id: 'sd_cosmic_string', name: 'Cosmic String', baseCost: 1e12, vps: 5000000, desc: 'Spacetime thread.' },
+  ],
+  study_lounge: [
+    { id: 'sl_bookmark', name: 'Bookmark', baseCost: 15, vps: 0.1, desc: 'Save your page.' },
+    { id: 'sl_lamp', name: 'Reading Lamp', baseCost: 100, vps: 1, desc: 'Warm glow.' },
+    { id: 'sl_bookshelf', name: 'Bookshelf', baseCost: 500, vps: 5, desc: 'Tomes lined up.' },
+    { id: 'sl_desk', name: 'Study Desk', baseCost: 2500, vps: 25, desc: 'Oak surface.' },
+    { id: 'sl_typewriter', name: 'Typewriter', baseCost: 12000, vps: 100, desc: 'Click clack.' },
+    { id: 'sl_cart', name: 'Library Cart', baseCost: 60000, vps: 400, desc: 'Rolling shelves.' },
+    { id: 'sl_reading', name: 'Reading Room', baseCost: 300000, vps: 2000, desc: 'Quiet haven.' },
+    { id: 'sl_archive', name: 'Archive', baseCost: 1500000, vps: 10000, desc: 'Preserved history.' },
+    { id: 'sl_grand', name: 'Grand Library', baseCost: 8000000, vps: 50000, desc: 'Endless aisles.' },
+    { id: 'sl_vault', name: 'Knowledge Vault', baseCost: 40000000, vps: 250000, desc: 'Secret wisdom.' },
+    { id: 'sl_tome', name: 'Ancient Tome', baseCost: 200000000, vps: 1000000, desc: 'Forgotten lore.' },
+    { id: 'sl_well', name: 'Wisdom Well', baseCost: 10000000000, vps: 2500000, desc: 'Deep knowledge.' },
+    { id: 'sl_omni', name: 'Omniscience', baseCost: 1e12, vps: 5000000, desc: 'All knowing.' },
+  ],
+  beach_cove: [
+    { id: 'bc_castle', name: 'Sand Castle', baseCost: 15, vps: 0.1, desc: 'Moat & towers.' },
+    { id: 'bc_shell', name: 'Seashell', baseCost: 100, vps: 1, desc: 'Ocean echo.' },
+    { id: 'bc_towel', name: 'Beach Towel', baseCost: 500, vps: 5, desc: 'Striped fabric.' },
+    { id: 'bc_surfboard', name: 'Surfboard', baseCost: 2500, vps: 25, desc: 'Catching waves.' },
+    { id: 'bc_tiki', name: 'Tiki Torch', baseCost: 12000, vps: 100, desc: 'Flaming bamboo.' },
+    { id: 'bc_sailboat', name: 'Sailboat', baseCost: 60000, vps: 400, desc: 'White sails.' },
+    { id: 'bc_lighthouse', name: 'Lighthouse', baseCost: 300000, vps: 2000, desc: 'Guiding beam.' },
+    { id: 'bc_pier', name: 'Pier', baseCost: 1500000, vps: 10000, desc: 'Extending dock.' },
+    { id: 'bc_resort', name: 'Resort', baseCost: 8000000, vps: 50000, desc: 'Poolside cabana.' },
+    { id: 'bc_cruise', name: 'Cruise Ship', baseCost: 40000000, vps: 250000, desc: 'Luxury liner.' },
+    { id: 'bc_underwater', name: 'Underwater City', baseCost: 200000000, vps: 1000000, desc: 'Dome habitats.' },
+    { id: 'bc_reef', name: 'Coral Reef', baseCost: 10000000000, vps: 2500000, desc: 'Vibrant ecosystem.' },
+    { id: 'bc_ocean_spirit', name: 'Ocean Spirit', baseCost: 1e12, vps: 5000000, desc: 'Tidal force.' },
+  ],
+};
+
 // ---------- PRESTIGE UPGRADES (permanent, bought with prestige chips) ----------
 const PRESTIGE_UPGRADES = [
     // Gateway buff stack — progressive (each purchase adds value to gw multiplier)
@@ -583,25 +678,33 @@ function getSynergyBonus(autoclickerId, state = G) {
 function getVPS(state = G) {
     let vps = 0;
     // Sum autoclickers from ALL unlocked rooms
-    const roomAutos = state.room_autoclickers || {};
     const roomsToCheck = state.unlocked_rooms || [state.current_room || 'campfire_grove'];
-    const merged = {};
     for (const roomId of roomsToCheck) {
-        const clickers = roomAutos[roomId] || {};
-        for (const [id, count] of Object.entries(clickers)) {
-            merged[id] = (merged[id] || 0) + count;
+        const defs = ROOM_AUTOCLICKERS[roomId] || [];
+        const clickers = (state.room_autoclickers || {})[roomId] || {};
+        for (const def of defs) {
+            const count = clickers[def.id] || 0;
+            if (count > 0) {
+                let tierVps = def.vps * count;
+                // Apply synergy bonuses (use global synergy by finding matching global tier)
+                const globalTier = AUTOCLICKERS.find(t => t.id === def.id);
+                if (globalTier) {
+                    const synBonus = getSynergyBonus(def.id, state);
+                    tierVps *= (1 + synBonus);
+                }
+                vps += tierVps;
+            }
         }
-    }
-    // Fallback to global if no per-room data
-    const clickers = Object.keys(merged).length > 0 ? merged : (state.autoclickers || {});
-    for (const [id, count] of Object.entries(clickers)) {
-        const tier = AUTOCLICKERS.find(t => t.id === id);
-        if (tier) {
-            let tierVps = tier.vps * count;
-            // Apply synergy bonuses
-            const synBonus = getSynergyBonus(id, state);
-            tierVps *= (1 + synBonus);
-            vps += tierVps;
+        // Also include any legacy global autoclickers for backward compat
+        const globalClickers = state.autoclickers || {};
+        for (const [id, count] of Object.entries(globalClickers)) {
+            const tier = AUTOCLICKERS.find(t => t.id === id);
+            if (tier && !clickers[id]) { // Only if room doesn't already have this
+                let tierVps = tier.vps * count;
+                const synBonus = getSynergyBonus(id, state);
+                tierVps *= (1 + synBonus);
+                vps += tierVps;
+            }
         }
     }
     // Gateway latency buff
@@ -714,9 +817,10 @@ function addVibes(amount) {
 }
 
 function buyAutoclicker(id, quantity = 1) {
-    const tier = AUTOCLICKERS.find(t => t.id === id);
-    if (!tier) return false;
     const room = G.current_room || 'campfire_grove';
+    const roomDefs = ROOM_AUTOCLICKERS[room] || [];
+    const tier = roomDefs.find(t => t.id === id) || AUTOCLICKERS.find(t => t.id === id);
+    if (!tier) return false;
     if (!G.room_autoclickers[room]) G.room_autoclickers[room] = {};
     const count = G.room_autoclickers[room][id] || 0;
     
@@ -1046,6 +1150,7 @@ export {
     ROOM_DECOR,
     getDecorForRoom,
     AUTOCLICKERS,
+    ROOM_AUTOCLICKERS,
     PRESTIGE_UPGRADES,
     ACHIEVEMENTS,
     GOLDEN_COOKIE_TYPES,

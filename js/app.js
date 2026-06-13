@@ -3,7 +3,7 @@
 // ============================================================
 
 import {
-    G, CONFIG, ROOMS, ROOM_DECOR, getDecorForRoom, AUTOCLICKERS, PRESTIGE_UPGRADES, ACHIEVEMENTS,
+    G, CONFIG, ROOMS, ROOM_DECOR, getDecorForRoom, AUTOCLICKERS, ROOM_AUTOCLICKERS, PRESTIGE_UPGRADES, ACHIEVEMENTS,
     GOLDEN_COOKIE_TYPES, GOLDEN_COOKIE_INTERVAL_MIN, GOLDEN_COOKIE_INTERVAL_MAX, GOLDEN_COOKIE_DURATION,
     goldenCookieSystem, spawnGoldenCookie, collectGoldenCookie, getClickBoostMult, getVpsBoostMult,
     wrinklerSystem, SYNERGIES, getSynergyBonus, getWrinklerPenalty, getEffectiveVpsMultiplier,
@@ -1255,9 +1255,12 @@ function updatePrestigeUI() {
 }
 
 function updateShopUI() {
-    // Autoclickers
+    // Autoclickers - use room-specific definitions
     dom.upgradeList.innerHTML = '';
-    AUTOCLICKERS.forEach(tier => {
+    const curRoom = G.current_room || 'campfire_grove';
+    const roomDefs = typeof ROOM_AUTOCLICKERS !== 'undefined' ? (ROOM_AUTOCLICKERS[curRoom] || []) : [];
+    const upgradeDefs = roomDefs.length > 0 ? roomDefs : AUTOCLICKERS;
+    upgradeDefs.forEach(tier => {
         // Sum across all unlocked rooms
         const roomsToCheck = G.unlocked_rooms || [G.current_room || 'campfire_grove'];
         let totalCount = 0;
