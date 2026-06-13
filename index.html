@@ -332,6 +332,17 @@
                 </label>
                 <div class="settings-hint">Swap sidebar to the right side of the screen</div>
             </div>
+            <!-- Gateway Port -->
+            <div class="settings-section settings-gateway-section">
+                <div class="settings-label">🔗 HERMES GATEWAY PORT</div>
+                <div style="display:flex;gap:5px;align-items:center;">
+                    <input type="number" id="settings-gw-port" placeholder="4444" min="1" max="65535"
+                           style="flex:1;padding:4px;background:#000;border:1px solid #444;color:#0f0;font-family:var(--pixel-font);font-size:7px;">
+                    <button id="settings-gw-connect" style="padding:4px 8px;background:#333;border:1px solid #555;color:#0f0;font-family:var(--pixel-font);font-size:7px;cursor:pointer;">▶ Sync</button>
+                </div>
+                <div id="settings-gw-status" style="font-size:6px;color:var(--text-secondary);margin-top:4px;">⏸ Idle</div>
+                <div class="settings-hint">Enter your Hermes Gateway port to connect</div>
+            </div>
             <!-- Support Section -->
             <div class="settings-section settings-support-section">
                 <div class="settings-label">☕ SUPPORT</div>

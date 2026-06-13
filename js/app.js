@@ -248,6 +248,9 @@ function cacheDOM() {
         settingsClose: $('settings-close'),
         settingsBackdrop: $('settings-backdrop'),
         settingsSidebarPos: $('settings-sidebar-pos'),
+        settingsGwPort: $('settings-gw-port'),
+        settingsGwConnect: $('settings-gw-connect'),
+        settingsGwStatus: $('settings-gw-status'),
         settingsLogoutBtn: $('settings-logout-btn'),
         settingsTabName: $('settings-tab-name'),
         settingsTabAudio: $('settings-tab-audio'),
@@ -374,6 +377,34 @@ function initUIEvents() {
     if (dom.settingsTabName) dom.settingsTabName.addEventListener('click', () => openSettings('name'));
     if (dom.settingsTabAudio) dom.settingsTabAudio.addEventListener('click', () => { openSettings('audio'); playClick(); });
     if (dom.settingsTabCredits) dom.settingsTabCredits.addEventListener('click', () => openSettings('credits'));
+    // Settings: Gateway port sync
+    if (dom.settingsGwConnect && dom.settingsGwPort) {
+        dom.settingsGwConnect.addEventListener('click', () => {
+            const port = parseInt(dom.settingsGwPort.value);
+            if (!port || port < 1 || port > 65535) {
+                if (dom.settingsGwStatus) dom.settingsGwStatus.textContent = '⚠️ Enter a valid port (1-65535)';
+                return;
+            }
+            // Write to gateway cache
+            try {
+                localStorage.setItem('hermes_idleviber_gateway_port', JSON.stringify({ port, timestamp: Date.now() }));
+            } catch {}
+            // Sync to gateway tab input and connect
+            if (dom.gwPortInput) dom.gwPortInput.value = port;
+            if (dom.gwConnectBtn) dom.gwConnectBtn.click();
+            if (dom.settingsGwStatus) dom.settingsGwStatus.textContent = '✅ Synced — connecting...';
+            setTimeout(() => {
+                const gw = getGatewayStatus();
+                if (dom.settingsGwStatus) {
+                    dom.settingsGwStatus.textContent = gw.connected ? '✅ Connected' : '⛔ No gateway on that port';
+                    dom.settingsGwStatus.style.color = gw.connected ? '#0f0' : '#f44';
+                }
+            }, 2000);
+        });
+        dom.settingsGwPort.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') dom.settingsGwConnect.click();
+        });
+    }
     // Settings: Audio volume sliders
     if (dom.settingsSfxVolume) {
         dom.settingsSfxVolume.addEventListener('input', () => {
@@ -451,6 +482,8 @@ function initUIEvents() {
         } else {
             showToast(`⛔ No gateway on port ${port}`);
         }
+        // Sync port back to settings field
+        if (dom.settingsGwPort) dom.settingsGwPort.value = port;
     });
     dom.gwPortInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') dom.gwConnectBtn.click();
@@ -580,6 +613,12 @@ function initUIEvents() {
         if (type === 'gateway') {
             updateGatewayUI();
             updateResourceUI();
+            // Update settings gateway status if settings panel is open
+            if (dom.settingsGwStatus && !dom.settingsScreen.classList.contains('hidden')) {
+                const gw = getGatewayStatus();
+                dom.settingsGwStatus.textContent = gw.connected ? '✅ Connected' : '⏸ Idle';
+                dom.settingsGwStatus.style.color = gw.connected ? '#0f0' : 'var(--text-secondary)';
+            }
         }
     });
 
@@ -1665,6 +1704,21 @@ function openSettings(tab) {
     // Sync sidebar position checkbox
     if (dom.settingsSidebarPos) {
         dom.settingsSidebarPos.checked = G.settings && G.settings.sidebar_position === 'right';
+    }
+    // Sync gateway port from cache
+    if (dom.settingsGwPort) {
+        try {
+            const raw = localStorage.getItem('hermes_idleviber_gateway_port');
+            if (raw) {
+                const { port } = JSON.parse(raw);
+                if (port) dom.settingsGwPort.value = port;
+            }
+        } catch {}
+    }
+    if (dom.settingsGwStatus) {
+        const gw = getGatewayStatus();
+        dom.settingsGwStatus.textContent = gw.connected ? '✅ Connected' : '⏸ Idle';
+        dom.settingsGwStatus.style.color = gw.connected ? '#0f0' : 'var(--text-secondary)';
     }
 
     dom.settingsTabName.classList.remove('active');
