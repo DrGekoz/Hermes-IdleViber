@@ -598,35 +598,40 @@ function initUIEvents() {
     onStateChange((type) => {
         if (type === 'vibes') {
             updateResourceUI();
-            updateShopAffordability(); // Lightweight: just toggles locked class
-            updateLocalLeaderboardEntry(); // Realtime local score
+            updateShopAffordability();
+            updateLocalLeaderboardEntry();
+            processAchievements();
         }
         if (type === 'autoclickers' || type === 'gateway_upgrades') {
             updateResourceUI();
             updateShopUI();
             updatePrestigeAffordability();
+            processAchievements();
         }
         if (type === 'prestige' || type === 'reset' || type === 'load') {
             updateAllUI();
+            processAchievements();
         }
         if (type === 'rooms' || type === 'room_switch') {
             updateRoomUI();
             updateResourceUI();
             updateCanvas();
+            processAchievements();
         }
         if (type === 'decor' || type === 'decor_active') {
             updateDecorUI();
             updateCanvas();
+            processAchievements();
         }
         if (type === 'gateway') {
             updateGatewayUI();
             updateResourceUI();
-            // Update settings gateway status if settings panel is open
             if (dom.settingsGwStatus && !dom.settingsScreen.classList.contains('hidden')) {
                 const gw = getGatewayStatus();
                 dom.settingsGwStatus.textContent = gw.connected ? '✅ Connected' : '⏸ Idle';
                 dom.settingsGwStatus.style.color = gw.connected ? '#0f0' : 'var(--text-secondary)';
             }
+            processAchievements();
         }
     });
 
@@ -953,10 +958,13 @@ function initGameLoop() {
         }
         // Check prestige unlock every 1s (every 10 ticks)
         prestigeCheckCounter++;
-        if (prestigeCheckCounter >= 10 && !G.prestige_unlocked) {
+        if (prestigeCheckCounter >= 10) {
             prestigeCheckCounter = 0;
-            unlockPrestige();
-            updatePrestigeUI();
+            if (!G.prestige_unlocked) {
+                unlockPrestige();
+                updatePrestigeUI();
+            }
+            processAchievements(); // Periodic achievement check (catches VPS milestones)
         }
     }, CONFIG.TICK_INTERVAL);
 
@@ -1059,6 +1067,19 @@ function updateAllUI() {
     renderPrestigeUpgrades();
     updateLeaderboardUI();
     updateCanvas();
+}
+
+// ---- ACHIEVEMENT PROCESSING ----
+function processAchievements() {
+    const vps = getVPS();
+    const newUnlocks = checkAchievements(G, vps);
+    if (newUnlocks.length === 0) return;
+    for (const ach of newUnlocks) {
+        showToast(`🏆 ${ach.icon} ${ach.name}: ${ach.desc}`);
+        playUnlock();
+    }
+    // Update UI to show new achievements
+    updateLeaderboardUI();
 }
 
 function updateResourceUI() {
