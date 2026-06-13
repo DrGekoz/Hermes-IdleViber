@@ -140,7 +140,10 @@ async function logout() {
 
 // ---- LEADERBOARD ----
 async function submitScoreToLeaderboard(username, score, prestigeLevel, totalPp, displayName) {
-    if (!currentUser || !db) return { error: 'Not logged in' };
+    if (!currentUser || !db) {
+        console.warn('🔥 LB submit skipped: no user/db', {hasUser:!!currentUser, hasDb:!!db});
+        return { error: 'Not logged in' };
+    }
     const { doc, setDoc, Timestamp } = await import(`${FB_BASE}firebase-firestore.js`);
     try {
         const ref = doc(db, 'leaderboard', currentUser.uid);
@@ -154,6 +157,7 @@ async function submitScoreToLeaderboard(username, score, prestigeLevel, totalPp,
         }, { merge: true });
         return { success: true };
     } catch (e) {
+        console.error('🔥 LB submit FAILED:', e.message);
         return { error: e.message };
     }
 }
