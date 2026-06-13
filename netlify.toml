@@ -12,26 +12,14 @@
   to = "/index.html"
   status = 200
 
-# Security headers
+# Security headers (relaxed CSP to allow Firebase SDK)
 [[headers]]
   for = "/*"
   [headers.values]
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "DENY"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    # Allow localhost gateway scanning (no-cors fetches)
-    Content-Security-Policy = """
-      default-src 'self';
-      script-src 'self' 'unsafe-inline' https://www.gstatic.com https://fonts.googleapis.com;
-      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-      font-src 'self' https://fonts.gstatic.com;
-      connect-src 'self' https://*.firebaseio.com https://identitytoolkit.googleapis.com
-                   https://securetoken.googleapis.com https://firestore.googleapis.com
-                   https://www.googleapis.com https://*.googleapis.com
-                   http://localhost:* ws://localhost:*;
-      img-src 'self' data: blob:;
-      frame-src 'self' https://*.firebaseapp.com;
-    """
+    Content-Security-Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; connect-src http://localhost:* ws://localhost:* https:; img-src 'self' data: blob:;"
 
 # Cache static assets
 [[headers]]
