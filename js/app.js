@@ -114,11 +114,17 @@ function checkAutoLogin() {
             try {
                 const cloudState = await fbLoad();
                 if (cloudState) {
-                    Object.assign(G, cloudState);
-                    G.auth_mode = 'firebase';
-                    G.userId = fbUser.uid;
-                    G.username = fbUser.displayName || G.username;
-                    showToast('☁️ Cloud save loaded');
+                    // Sanity check: detect bugged prestige values
+                    if (cloudState.total_pp_earned > 50000 || cloudState.prestige_points > 50000) {
+                        console.warn('Cloud save has bugged prestige — resetting');
+                        // Don't load it; let local fresh state take over
+                    } else {
+                        Object.assign(G, cloudState);
+                        G.auth_mode = 'firebase';
+                        G.userId = fbUser.uid;
+                        G.username = fbUser.displayName || G.username;
+                        showToast('☁️ Cloud save loaded');
+                    }
                 }
             } catch (_) {}
             enterGame();
@@ -1178,19 +1184,23 @@ function renderPrestigeUpgrades() {
     // Calculate and display prestige stats
     let clickMult = 1;
     let vpsMult = 1;
+    let gwAdd = 0;
     let baseVps = 0;
     for (const upg of PRESTIGE_UPGRADES) {
         const count = G.prestige_upgrades[upg.id] || 0;
         if (count === 0) continue;
         if (upg.type === 'click_mult') clickMult *= Math.pow(upg.value, count);
         if (upg.type === 'perma_mult') vpsMult *= Math.pow(upg.value, count);
+        if (upg.type === 'gw_add') gwAdd += upg.value * count;
         if (upg.type === 'base_vps') baseVps += upg.value * count;
     }
     const statClick = document.getElementById('prestige-stat-click');
     const statVps = document.getElementById('prestige-stat-vps');
+    const statGw = document.getElementById('prestige-stat-gw');
     const statBase = document.getElementById('prestige-stat-base');
     if (statClick) statClick.textContent = formatNumber(clickMult) + '×';
     if (statVps) statVps.textContent = formatNumber(vpsMult) + '×';
+    if (statGw) statGw.textContent = gwAdd > 0 ? '+' + formatNumber(gwAdd) + '×' : '0×';
     if (statBase) statBase.textContent = formatNumber(baseVps);
 
     list.innerHTML = '';

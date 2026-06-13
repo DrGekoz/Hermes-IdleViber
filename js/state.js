@@ -217,11 +217,11 @@ const AUTOCLICKERS = [
 // ---------- PRESTIGE UPGRADES (permanent, bought with prestige chips) ----------
 const PRESTIGE_UPGRADES = [
     // Gateway buff stack — progressive (each purchase adds value to gw multiplier)
-    { id: 'gw_boost_1', name: '⚡ Latency Amp',     baseCost: 5,  costMult: 2, desc: 'Gateway buff +0.5×',   type: 'gw_add',   value: 0.5 },
-    { id: 'gw_boost_2', name: '⚡ Pipeline Opt',     baseCost: 15, costMult: 2, desc: 'Gateway buff +1.0×',   type: 'gw_add',   value: 1.0 },
-    { id: 'gw_boost_3', name: '⚡ Quantum Pipe',     baseCost: 30, costMult: 2, desc: 'Gateway buff +2.0×',   type: 'gw_add',   value: 2.0 },
-    { id: 'gw_boost_4', name: '⚡ Neural Bridge',    baseCost: 50, costMult: 2, desc: 'Gateway buff +3.0×',   type: 'gw_add',   value: 3.0 },
-    { id: 'gw_boost_5', name: '⚡ Singularity Link', baseCost: 80, costMult: 2, desc: 'Gateway buff +5.0×',   type: 'gw_add',   value: 5.0 },
+    { id: 'gw_boost_1', name: '⚡ Latency Amp',     baseCost: 20,  costMult: 2, desc: 'Gateway buff +0.5×',   type: 'gw_add',   value: 0.5 },
+    { id: 'gw_boost_2', name: '⚡ Pipeline Opt',     baseCost: 50,  costMult: 2, desc: 'Gateway buff +1.0×',   type: 'gw_add',   value: 1.0 },
+    { id: 'gw_boost_3', name: '⚡ Quantum Pipe',     baseCost: 125, costMult: 2, desc: 'Gateway buff +2.0×',   type: 'gw_add',   value: 2.0 },
+    { id: 'gw_boost_4', name: '⚡ Neural Bridge',    baseCost: 250, costMult: 2, desc: 'Gateway buff +3.0×',   type: 'gw_add',   value: 3.0 },
+    { id: 'gw_boost_5', name: '⚡ Singularity Link', baseCost: 500, costMult: 2, desc: 'Gateway buff +5.0×',   type: 'gw_add',   value: 5.0 },
     // Click multipliers — progressive (each purchase multiplies click by value)
     { id: 'click_1',    name: '👆 Click Amplifier',  baseCost: 3,  costMult: 2, desc: 'Click power ×2',       type: 'click_mult', value: 2 },
     { id: 'click_2',    name: '👆 Turbo Click',      baseCost: 10, costMult: 2, desc: 'Click power ×4',       type: 'click_mult', value: 4 },
@@ -891,6 +891,11 @@ function applyOfflineProgress() {
 }
 
 function saveGame() {
+    // Sanity check: don't save bugged prestige values
+    if (G.total_pp_earned > 50000 || G.prestige_points > 50000) {
+        console.warn('Blocked save of bugged prestige values');
+        return false;
+    }
     G.last_save = Date.now();
     try {
         const data = JSON.stringify(G);
@@ -910,6 +915,13 @@ function loadGame() {
             return false;
         }
         const data = JSON.parse(raw);
+        // Sanity check: detect impossibly high prestige from old bugged formula
+        if (data.total_pp_earned > 50000 || data.prestige_points > 50000) {
+            console.warn('Save has bugged prestige values (' + data.total_pp_earned + ' PP) — resetting');
+            localStorage.removeItem(CONFIG.SAVE_KEY);
+            resetGame();
+            return false;
+        }
         // Merge carefully to handle new fields
         const defaults = getDefaultState();
         for (const key of Object.keys(defaults)) {
