@@ -384,9 +384,43 @@ function initUIEvents() {
     }
     // Settings: link Google account (upgrade guest to cloud)
     if (dom.settingsLinkGoogle) {
-        dom.settingsLinkGoogle.addEventListener('click', () => {
+        dom.settingsLinkGoogle.addEventListener('click', async () => {
             closeSettings();
-            doGoogleLogin();
+            // Trigger Google login directly, keeping existing game state
+            if (!fbReady) {
+                showToast('⚠️ Firebase not ready');
+                return;
+            }
+            showToast('⏳ Signing in with Google...');
+            const result = await loginWithGoogle();
+            if (result && result.success) {
+                G.userId = result.uid;
+                G.username = result.user.displayName || 'Player';
+                G.auth_mode = 'firebase';
+                dom.userDisplay.textContent = G.username;
+                // Check for existing cloud save
+                const cloudState = await fbLoad();
+                if (cloudState) {
+                    if (cloudState.total_pp_earned > 50000 || cloudState.prestige_points > 50000) {
+                        console.warn('Cloud save has bugged prestige — resetting');
+                    } else {
+                        Object.assign(G, cloudState);
+                        G.auth_mode = 'firebase';
+                        G.userId = result.uid;
+                        G.username = result.user.displayName || 'Player';
+                        showToast('☁️ Cloud save loaded');
+                    }
+                } else {
+                    // First login — upload current guest save
+                    await fbSave(G);
+                    await fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName);
+                    showToast('✅ Google account linked! Progress saved to cloud');
+                }
+                updateAllUI();
+                saveGame();
+            } else {
+                showToast('⚠️ Google sign-in failed or cancelled');
+            }
         });
     }
     // Settings tabs
