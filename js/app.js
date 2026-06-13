@@ -454,11 +454,11 @@ function initUIEvents() {
     dom.prestigeBtn.addEventListener('click', () => {
         const gain = getPrestigeGain();
         if (gain <= 0) return;
-        const msg = "Reset for " + gain + " Prestige Chips?\n\nYou'll keep:\n• Prestige Chips (" + (G.total_pp_earned + gain) + " total)\n• All Prestige Upgrades\n\nYou'll lose:\n• All vibes\n• Rooms & room VPS multipliers\n• All autoclickers\n• All decor";
+        const msg = "Reset for " + formatNumber(gain) + " Prestige Chips?\n\nYou'll keep:\n• Prestige Chips (" + formatNumber(G.total_pp_earned + gain) + " total)\n• All Prestige Upgrades\n\nYou'll lose:\n• All vibes\n• Rooms & room VPS multipliers\n• All autoclickers\n• All decor";
         showPopup('\u2728 Prestige', msg, () => {
             if (doPrestige()) {
                 updateAllUI();
-                showToast(`✨ Prestiged! +${gain} PP`);
+                showToast('✨ Prestiged! +' + formatNumber(gain) + ' PP');
                 playSfxPrestige();
                 showCredits();
             }
@@ -1052,9 +1052,9 @@ function updateResourceUI() {
 function updatePrestigeUI() {
     const gain = getPrestigeGain();
     const threshold = getPrestigeThreshold();
-    dom.ppDisplay.textContent = G.prestige_points;
+    dom.ppDisplay.textContent = formatNumber(G.prestige_points);
     dom.lifetimeDisplay.textContent = formatNumber(G.lifetime_vibes);
-    dom.prestigeCount.textContent = G.total_prestiges;
+    dom.prestigeCount.textContent = formatNumber(G.total_prestiges);
 
     let needMsg;
     if (gain > 0) {
@@ -1067,19 +1067,19 @@ function updatePrestigeUI() {
             const locked = allRoomIds.filter(id => !G.unlocked_rooms.includes(id));
             needMsg = `🔒 Unlock all rooms first (${locked.length} left) — then ${formatNumber(threshold)} vibes`;
         } else if (G.lifetime_vibes < threshold) {
-            needMsg = `Need ${formatNumber(threshold)} lifetime vibes (${formatNumber(G.lifetime_vibes)} / ${formatNumber(threshold)})`;
+            needMsg = `Need ${formatNumber(threshold)} Total This Round (${formatNumber(G.lifetime_vibes)} / ${formatNumber(threshold)})`;
         } else {
-            needMsg = `Need ${formatNumber(threshold)} lifetime vibes to unlock`;
+            needMsg = `Need ${formatNumber(threshold)} Total This Round to unlock`;
         }
     } else {
         // Already unlocked, just not enough vibes
-        needMsg = `Need ${formatNumber(threshold)} lifetime vibes to prestige again (${formatNumber(G.lifetime_vibes)} / ${formatNumber(threshold)})`;
+        needMsg = `Need ${formatNumber(threshold)} Total This Round to prestige again (${formatNumber(G.lifetime_vibes)} / ${formatNumber(threshold)})`;
     }
     dom.prestigeGain.textContent = needMsg;
     dom.prestigeBtn.disabled = gain <= 0;
     dom.prestigeBtn.style.opacity = gain > 0 ? 1 : 0.5;
     const chipGain = document.getElementById('prestige-chip-gain');
-    if (chipGain) chipGain.textContent = gain;
+    if (chipGain) chipGain.textContent = formatNumber(gain);
     // Update affordability of chip upgrades
     document.querySelectorAll('#prestige-upgrade-list .shop-item').forEach(el => {
         const id = el.dataset.upgId;
@@ -1255,7 +1255,7 @@ function updateDecorUI() {
             desc: item.type + ' decor',
             icon: `sprites/images/room_decor/icons/${item.id}.png`,
             stats: [
-                { label: 'Type', value: item.type, cls: '' },
+                { label: 'VPS', value: `+${((item.vpsMult - 1) * 100).toFixed(1).replace(/\.0$/, '')}%`, cls: 'green' },
                 { label: 'Status', value: owned ? (active ? 'ACTIVE' : 'OWNED') : 'LOCKED', cls: active ? 'green' : (owned ? 'gold' : '') },
                 { label: 'Cost', value: owned ? '—' : formatNumber(item.cost) + ' ✦', cls: owned ? '' : 'gold' }
             ],

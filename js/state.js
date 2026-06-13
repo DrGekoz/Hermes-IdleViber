@@ -642,7 +642,8 @@ function getPrestigeGain(state = G) {
     if (!state.prestige_unlocked) return 0;
     const threshold = getPrestigeThreshold(state);
     if (state.lifetime_vibes < threshold) return 0;
-    return Math.floor(Math.sqrt(state.lifetime_vibes) / 100);
+    // Base 50 chips + 1 per 1T lifetime vibes
+    return 50 + Math.floor(state.lifetime_vibes / 1_000_000_000_000);
 }
 
 function isPrestigeUnlockable(state = G) {
