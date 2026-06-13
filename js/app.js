@@ -233,6 +233,7 @@ function cacheDOM() {
         ppDisplayTotal: $('pp-display-total'),
         clickValueOverlay: $('click-value-display-overlay'),
         roomMultDisplay: $('room-mult-display'),
+        offlineRateDisplay: $('offline-rate-display'),
         popup: $('popup'),
         popupTitle: $('popup-title'),
         popupText: $('popup-text'),
@@ -1070,6 +1071,14 @@ function updateResourceUI() {
         dom.roomMultDisplay.textContent = rm > 1.0 ? rm.toFixed(2) + '×' : '1.0×';
         dom.roomMultDisplay.style.color = rm > 1.0 ? 'var(--accent-cyan)' : 'var(--text-secondary)';
     }
+    // Offline rate
+    if (dom.offlineRateDisplay) {
+        let rate = 0.01; // base 1%
+        if (G.prestige_upgrades) {
+            rate += 0.01 * (G.prestige_upgrades.offline_amp || 0);
+        }
+        dom.offlineRateDisplay.textContent = Math.round(rate * 100) + '%';
+    }
 }
 
 function updatePrestigeUI() {
@@ -1526,7 +1535,7 @@ async function updateLeaderboardUI(externalEntries) {
             } else {
                 el.innerHTML = `
                     <span class="lb-rank">#${i + 1}</span>
-                    <span class="lb-name">${isYou ? '⭐ ' : ''}${entry.name}</span>
+                    <span class="lb-name">${isYou ? `<img src="sprites/images/icons/vibe_icon.png" class="vibe-icon-sm" alt=""> ` : ''}${entry.name}</span>
                     <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
                     <span class="lb-pp">${formatNumber(entry.pp)} PP</span>
                     <span class="lb-prestige">P${entry.prestige}</span>

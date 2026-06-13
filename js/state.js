@@ -869,17 +869,24 @@ function notifyStateChange(type) {
 
 // ---------- SAVE / LOAD ----------
 const MAX_OFFLINE_SECONDS = 86400; // Max 24h of offline progress
+const BASE_OFFLINE_RATE = 0.01; // 1% base offline earnings
 
 function calculateOfflineProgress(state = G) {
     const now = Date.now();
     const lastSave = state.last_save || now;
     const elapsedMs = Math.min(now - lastSave, MAX_OFFLINE_SECONDS * 1000);
-    if (elapsedMs < 5000) return 0; // Less than 5s — not worth showing
+    if (elapsedMs < 5000) return { seconds: 0, vps: 0, earned: 0, rate: 0 };
     
     const elapsedSec = elapsedMs / 1000;
     const vps = getVPS(state);
-    const earned = vps * elapsedSec;
-    return { seconds: elapsedSec, vps, earned };
+    // Offline rate: base 1% + upgrades
+    let rate = BASE_OFFLINE_RATE;
+    if (state.prestige_upgrades) {
+        const ampCount = state.prestige_upgrades.offline_amp || 0;
+        rate += 0.01 * ampCount;
+    }
+    const earned = vps * elapsedSec * rate;
+    return { seconds: elapsedSec, vps, earned, rate };
 }
 
 function applyOfflineProgress() {
