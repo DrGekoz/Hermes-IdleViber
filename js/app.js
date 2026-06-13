@@ -656,6 +656,10 @@ async function doLogin() {
                 G.userId = result.uid;
                 G.username = result.user.displayName || username;
                 showToast('☁️ Cloud save loaded');
+            } else {
+                // First login — upload local save data to Firebase
+                fbSave(G).catch(() => {});
+                fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned).catch(() => {});
             }
 
             enterGame();
@@ -670,7 +674,13 @@ async function doLogin() {
                 G.auth_mode = 'firebase';
                 dom.userDisplay.textContent = G.username;
                 const cloudState = await fbLoad();
-                if (cloudState) Object.assign(G, cloudState);
+                if (cloudState) {
+                    Object.assign(G, cloudState);
+                } else {
+                    // First login — upload local save
+                    fbSave(G).catch(() => {});
+                    fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned).catch(() => {});
+                }
                 enterGame();
                 return;
             }
@@ -766,6 +776,10 @@ async function doGoogleLoginAsync() {
             G.userId = result.uid;
             G.username = result.user.displayName || 'Player';
             showToast('☁️ Cloud save loaded');
+        } else {
+            // First login — upload local save
+            fbSave(G).catch(() => {});
+            fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned).catch(() => {});
         }
 
         enterGame();
@@ -1558,6 +1572,11 @@ async function saveDisplayName() {
                 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js'
             );
             await updateProfile(fbUser, { displayName: name });
+        } catch (_) {}
+        // Upload local save to Firebase
+        try {
+            await fbSave(G);
+            await fbSubmitScore(name, G.lifetime_vibes, G.total_prestiges, G.total_pp_earned);
         } catch (_) {}
     }
 }

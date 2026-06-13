@@ -1353,10 +1353,6 @@ function renderRoom(roomId, canvas, state) {
                         sprite = generateSprite(spriteId, 2);
                         if (!sprite) continue;
                         const snapped = snapToGrid(p.x, p.y);
-                        ctx.save();
-                        ctx.fillStyle = 'rgba(0,0,0,0.2)';
-                        ctx.fillRect(snapped.x + 2, snapped.y + 2, sprite.width, sprite.height);
-                        ctx.restore();
                         if (dragState.active && dragState.decorKey === decorKey && dragState.index === i) {
                             ctx.save();
                             ctx.translate(dragState.currentX + sprite.width/2, dragState.currentY + sprite.height/2);
@@ -1375,10 +1371,6 @@ function renderRoom(roomId, canvas, state) {
             for (const r of results) {
                 if (!r || !r.sprite || !r.sprite.width) continue;
                 const snapped = snapToGrid(r.p.x, r.p.y);
-                ctx.save();
-                ctx.fillStyle = 'rgba(0,0,0,0.2)';
-                ctx.fillRect(snapped.x + 2, snapped.y + 2, r.sprite.width, r.sprite.height);
-                ctx.restore();
                 if (dragState.active && dragState.decorKey === r.decorKey && dragState.index === r.index) {
                     ctx.save();
                     ctx.translate(dragState.currentX + r.sprite.width/2, dragState.currentY + r.sprite.height/2);

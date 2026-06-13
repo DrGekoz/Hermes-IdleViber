@@ -182,12 +182,31 @@ async function getLeaderboard(limitCount = 50) {
 }
 
 // Real-time leaderboard listener (for live updates)
+// Returns unsubscribe function
 function subscribeLeaderboard(callback, limitCount = 50) {
-    if (!db) return;
-    const { collection, query, orderBy, limit, onSnapshot } = 
-        // Need dynamic import... but onSnapshot needs cleanup
-        null;
-    // We'll call this manually for now, but can upgrade to real-time later
+    if (!db) return null;
+    let unsub = () => {};
+    import(`${FB_BASE}firebase-firestore.js`).then(({ collection, query, orderBy, limit, onSnapshot }) => {
+        const q = query(
+            collection(db, 'leaderboard'),
+            orderBy('score', 'desc'),
+            limit(limitCount)
+        );
+        unsub = onSnapshot(q, (snapshot) => {
+            const entries = snapshot.docs.map((d, i) => ({
+                uid: d.id,
+                rank: i + 1,
+                username: d.data().username || 'Unknown',
+                score: d.data().score || 0,
+                prestige_level: d.data().prestige_level || 0,
+                total_pp: d.data().total_pp || 0,
+            }));
+            try { callback(entries); } catch (_) {}
+        }, (err) => {
+            console.warn('🔥 Leaderboard listener error:', err.message);
+        });
+    });
+    return () => unsub();
 }
 
 // ---- SAVES ----
@@ -296,6 +315,7 @@ export {
     logout,
     submitScoreToLeaderboard,
     getLeaderboard,
+    subscribeLeaderboard,
     savePlayerData,
     loadPlayerData,
     checkDisplayNameAvailable,
