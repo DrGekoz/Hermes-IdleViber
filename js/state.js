@@ -232,6 +232,8 @@ const PRESTIGE_UPGRADES = [
     { id: 'autobuy_3',  name: '🏭 Turbo Node',       baseCost: 40, costMult: 2, desc: '+10K base VPS',        type: 'base_vps',  value: 10000 },
     // Permanent VPS multiplier — progressive, expensive (each purchase doubles VPS)
     { id: 'perma_mult', name: '💠 Perma Core',       baseCost: 200, costMult: 3, desc: 'Permanent ×2 VPS',    type: 'perma_mult', value: 2 },
+    // Offline earnings — each purchase adds +1% offline rate
+    { id: 'offline_amp', name: '💤 Offline Amp',       baseCost: 50,  costMult: 2, desc: 'Offline earn +1%',    type: 'offline_pct', value: 1 },
 ];
 
 // ---------- TRANSCEND UPGRADES (deeper prestige layer) ----------
