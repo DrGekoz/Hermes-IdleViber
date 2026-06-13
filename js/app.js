@@ -751,7 +751,7 @@ async function doLogin() {
         console.warn('Firebase login failed:', result?.error);
     }
 
-    // Try local server API (dev mode)
+    // Try local server API (dev mode — fails silently on Netlify)
     dom.loginMsg.textContent = '⏳ Authenticating (local)...';
     const result = await apiLogin(username, password);
     if (result && result.success) {
@@ -1154,7 +1154,7 @@ function updateShopUI() {
         const el = document.createElement('div');
         el.className = `shop-item ${canBuy ? '' : 'locked'}`;
         el.dataset.tierId = tier.id;
-        const iconHtml = `<img src="sprites/images/icons/individual/${tier.id}_64.png" alt="${tier.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">💻</span>`;
+        const iconHtml = `<img src="sprites/images/icons/individual/${tier.id}_64.webp" alt="${tier.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">💻</span>`;
         el.innerHTML = `
             <div class="shop-item-icon">${iconHtml}</div>
             <div class="shop-item-info">
@@ -1171,7 +1171,7 @@ function updateShopUI() {
         el._tooltipData = {
             name: tier.name,
             desc: tier.desc,
-            icon: `sprites/images/icons/individual/${tier.id}_64.png`,
+            icon: `sprites/images/icons/individual/${tier.id}_64.webp`,
             stats: [
                 { label: 'VPS each', value: '✦ ' + tier.vps, cls: 'cyan' },
                 { label: 'Tier VPS', value: '✦ ' + formatNumber(tier.vps * count), cls: 'green' },
@@ -1265,7 +1265,7 @@ function renderPrestigeUpgrades() {
         const el = document.createElement('div');
         el.className = `shop-item ${canBuy ? 'affordable' : 'locked'} ${count > 0 ? 'owned' : ''}`;
         el.dataset.upgId = upg.id;
-        const iconName = `individual/${upg.id}_64.png`;
+        const iconName = `individual/${upg.id}_64.webp`;
         const iconHtml = `<img src="sprites/images/icons/${iconName}" alt="${upg.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">🔶</span>`;
         el.innerHTML = `
             <div class="shop-item-icon">${iconHtml}</div>
@@ -1287,7 +1287,7 @@ function renderPrestigeUpgrades() {
         el._tooltipData = {
             name: upg.name,
             desc: upg.desc,
-            icon: `sprites/images/icons/individual/${upg.id}_64.png`,
+            icon: `sprites/images/icons/individual/${upg.id}_64.webp`,
             stats: [
                 { label: 'Effect', value: upg.desc, cls: 'cyan' },
                 { label: 'Owned', value: String(count), cls: '' },
@@ -1308,9 +1308,9 @@ function updateDecorUI() {
         const el = document.createElement('div');
         el.className = `shop-item ${canBuy ? '' : 'locked'} ${active ? 'active' : ''}`;
         el.dataset.decorId = item.id;
-        const decorIcon = `<img src="sprites/images/room_decor/icons/${item.id}.png" alt="${item.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">${owned ? (active ? '⭐' : '✨') : '🔒'}</span>`;
+        const di = `<img src="sprites/images/room_decor/icons/${item.id}.webp" alt="${item.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">${owned ? (active ? '⭐' : '✨') : '🔒'}</span>`;
         el.innerHTML = `
-            <div class="shop-item-icon">${decorIcon}</div>
+            <div class="shop-item-icon">${di}</div>
             <div class="shop-item-info">
                 <div class="shop-item-name">${item.name}</div>
                 <div class="shop-item-desc">${item.type} decor</div>
@@ -1341,7 +1341,7 @@ function updateDecorUI() {
         el._tooltipData = {
             name: item.name,
             desc: item.type + ' decor',
-            icon: `sprites/images/room_decor/icons/${item.id}.png`,
+            icon: `sprites/images/room_decor/icons/${item.id}.webp`,
             stats: [
                 { label: 'VPS', value: `+${((item.vpsMult - 1) * 100).toFixed(1).replace(/\.0$/, '')}%`, cls: 'green' },
                 { label: 'Status', value: owned ? (active ? 'ACTIVE' : 'OWNED') : 'LOCKED', cls: active ? 'green' : (owned ? 'gold' : '') },
@@ -1556,7 +1556,7 @@ async function updateLeaderboardUI(externalEntries) {
             } else {
                 el.innerHTML = `
                     <span class="lb-rank">#${i + 1}</span>
-                    <span class="lb-name">${isYou ? `<img src="sprites/images/icons/vibe_icon.png" class="vibe-icon-sm" alt=""> ` : ''}${entry.name}</span>
+                    <span class="lb-name">${isYou ? `<img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon-sm" alt=""> ` : ''}${entry.name}</span>
                     <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
                     <span class="lb-pp">${formatNumber(entry.pp)} PP</span>
                     <span class="lb-prestige">P${entry.prestige}</span>
@@ -1954,7 +1954,7 @@ function updateShopItemTooltip(item, tierId) {
     item._tooltipData = {
         name: tier.name,
         desc: tier.desc,
-        icon: `sprites/images/icons/individual/${tier.id}_64.png`,
+        icon: `sprites/images/icons/individual/${tier.id}_64.webp`,
         stats: [
             { label: 'VPS each', value: '✦ ' + tier.vps, cls: 'cyan' },
             { label: 'Owned', value: String(count), cls: '' },

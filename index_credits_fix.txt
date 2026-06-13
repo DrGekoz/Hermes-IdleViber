@@ -1,8 +1,0 @@
-            <div class="credits-section">
-                <div class="credits-heading">🎵 MUSIC — PUBLIC DOMAIN MIDI</div>
-                <div class="credits-line">Erik Satie — Gymnopedies No.1-3 (Mutopia Project)</div>
-                <div class="credits-line">Claude Debussy — Arabesque No.1 &amp; Clair de Lune (Mutopia Project)</div>
-                <div class="credits-line">J.S. Bach — Toccata &amp; Fugue BWV565 &amp; Fugue in G minor BWV542 (Mutopia Project)</div>
-                <div class="credits-line">Scott Joplin — The Entertainer &amp; Maple Leaf Rag (Mutopia Project)</div>
-                <div class="credits-line">All MIDIs sourced from mutopiaproject.org — Public Domain / CC-BY</div>
-            </div>

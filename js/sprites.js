@@ -1169,15 +1169,28 @@ function loadExternalSprite(path) {
     
     const promise = new Promise((resolve) => {
         const img = new Image();
+        // Try webp first, fall back to png
+        const webpPath = path.replace(/\.png$/, '.webp');
         img.onload = () => {
             externalSprites[path] = img;
+            // Cache webp variant too for future lookups by path
+            if (webpPath !== path) externalSprites[webpPath] = img;
             resolve(img);
         };
         img.onerror = () => {
-            externalSprites[path] = true; // mark failed so we don't retry
-            resolve(null);
+            if (webpPath !== path) {
+                // webp failed, try original png
+                img.onerror = () => {
+                    externalSprites[path] = true; // mark failed
+                    resolve(null);
+                };
+                img.src = path;
+            } else {
+                externalSprites[path] = true; // mark failed so we don't retry
+                resolve(null);
+            }
         };
-        img.src = path;
+        img.src = webpPath;
     });
     externalSprites[path] = promise;
     return promise;
