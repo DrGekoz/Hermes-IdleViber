@@ -268,6 +268,13 @@ function cacheDOM() {
         settingsGwStatus: $('settings-gw-status'),
         settingsLogoutBtn: $('settings-logout-btn'),
         settingsLinkGoogle: $('settings-link-google'),
+        settingsAccountStatus: $('settings-account-status'),
+        settingsAccountUpgrade: $('settings-account-upgrade'),
+        settingsUpgradeGoogle: $('settings-upgrade-google'),
+        settingsUpgradeEmail: $('settings-upgrade-email'),
+        settingsUpgradePassword: $('settings-upgrade-password'),
+        settingsUpgradeEmailBtn: $('settings-upgrade-email-btn'),
+        settingsUpgradeMsg: $('settings-upgrade-msg'),
         settingsTabName: $('settings-tab-name'),
         settingsTabAudio: $('settings-tab-audio'),
         settingsTabCredits: $('settings-tab-credits'),
@@ -389,44 +396,69 @@ function initUIEvents() {
             doLogout();
         });
     }
-    // Settings: link Google account (upgrade guest to cloud)
-    if (dom.settingsLinkGoogle) {
-        dom.settingsLinkGoogle.addEventListener('click', async () => {
-            closeSettings();
-            // Trigger Google login directly, keeping existing game state
-            if (!fbReady) {
-                showToast('⚠️ Firebase not ready');
-                return;
-            }
-            showToast('⏳ Signing in with Google...');
+    // Settings: upgrade guest account (Google)
+    if (dom.settingsUpgradeGoogle) {
+        dom.settingsUpgradeGoogle.addEventListener('click', async () => {
+            if (!fbReady) { dom.settingsUpgradeMsg.textContent = '⚠️ Firebase not ready'; return; }
+            dom.settingsUpgradeMsg.textContent = '⏳ Signing in with Google...';
             const result = await loginWithGoogle();
             if (result && result.success) {
                 G.userId = result.uid;
                 G.username = result.user.displayName || 'Player';
                 G.auth_mode = 'firebase';
                 dom.userDisplay.textContent = G.username;
-                // Check for existing cloud save
                 const cloudState = await fbLoad();
                 if (cloudState) {
                     if (cloudState.total_pp_earned > 50000 || cloudState.prestige_points > 50000) {
-                        console.warn('Cloud save has bugged prestige — resetting');
+                        Object.assign(G, getDefaultState());
+                        G.auth_mode = 'firebase';
+                        G.userId = result.uid;
+                        G.username = result.user.displayName || 'Player';
+                        dom.userDisplay.textContent = G.username;
+                        saveGame();
+                        dom.settingsUpgradeMsg.textContent = '✅ Fresh cloud account created';
                     } else {
                         Object.assign(G, cloudState);
                         G.auth_mode = 'firebase';
                         G.userId = result.uid;
                         G.username = result.user.displayName || 'Player';
-                        showToast('☁️ Cloud save loaded');
+                        dom.settingsUpgradeMsg.textContent = '☁️ Cloud save loaded';
                     }
                 } else {
-                    // First login — upload current guest save
                     await fbSave(G);
                     await fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName);
-                    showToast('✅ Google account linked! Progress saved to cloud');
+                    dom.settingsUpgradeMsg.textContent = '✅ Google linked! Progress saved to cloud';
                 }
                 updateAllUI();
                 saveGame();
+                setTimeout(closeSettings, 1500);
             } else {
-                showToast('⚠️ Google sign-in failed or cancelled');
+                dom.settingsUpgradeMsg.textContent = '⚠️ Google sign-in cancelled';
+            }
+        });
+    }
+    // Settings: upgrade guest account (Email)
+    if (dom.settingsUpgradeEmailBtn) {
+        dom.settingsUpgradeEmailBtn.addEventListener('click', async () => {
+            const email = dom.settingsUpgradeEmail.value.trim();
+            const pw = dom.settingsUpgradePassword.value.trim();
+            if (!email || !pw) { dom.settingsUpgradeMsg.textContent = '⚠️ Enter email and password'; return; }
+            if (!fbReady) { dom.settingsUpgradeMsg.textContent = '⚠️ Firebase not ready'; return; }
+            dom.settingsUpgradeMsg.textContent = '⏳ Registering...';
+            const result = await registerWithEmail(email, pw);
+            if (result && result.success) {
+                G.userId = result.uid;
+                G.username = email.split('@')[0];
+                G.auth_mode = 'firebase';
+                dom.userDisplay.textContent = G.username;
+                await fbSave(G);
+                await fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName);
+                dom.settingsUpgradeMsg.textContent = '✅ Email linked! Progress saved to cloud';
+                updateAllUI();
+                saveGame();
+                setTimeout(closeSettings, 1500);
+            } else {
+                dom.settingsUpgradeMsg.textContent = result?.error === 'EMAIL_EXISTS' ? '⚠️ Email already registered — use login' : '⚠️ ' + (result?.error || 'Registration failed');
             }
         });
     }
@@ -1864,11 +1896,17 @@ function openSettings(tab) {
         dom.settingsGwStatus.textContent = gw.connected ? '✅ Connected' : '⏸ Idle';
         dom.settingsGwStatus.style.color = gw.connected ? '#0f0' : 'var(--text-secondary)';
     }
-    // Show "Link Google" button only for guest/local accounts
-    if (dom.settingsLinkGoogle) {
-        const isGuest = G.auth_mode === 'local' || G.auth_mode === 'guest' || G.auth_mode === 'local_api';
-        dom.settingsLinkGoogle.style.display = isGuest ? 'block' : 'none';
+    // Show account upgrade section only for guest/local accounts
+    const isGuest = G.auth_mode === 'local' || G.auth_mode === 'guest' || G.auth_mode === 'local_api';
+    if (dom.settingsAccountStatus) {
+        dom.settingsAccountStatus.textContent = isGuest ? 'Playing as Guest' : 'Logged in with ' + G.auth_mode.toUpperCase();
     }
+    if (dom.settingsAccountUpgrade) {
+        dom.settingsAccountUpgrade.style.display = isGuest ? 'block' : 'none';
+    }
+    if (dom.settingsUpgradeMsg) dom.settingsUpgradeMsg.textContent = '';
+    if (dom.settingsUpgradeEmail) dom.settingsUpgradeEmail.value = '';
+    if (dom.settingsUpgradePassword) dom.settingsUpgradePassword.value = '';
 
     dom.settingsTabName.classList.remove('active');
     dom.settingsTabAudio.classList.remove('active');

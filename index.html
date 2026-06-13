@@ -344,12 +344,23 @@
                 <div id="settings-name-error" class="settings-error"></div>
                 <button id="settings-save-btn" class="settings-save-btn">▶ SAVE</button>
             </div>
-            <!-- Logout Section -->
-            <div class="settings-section settings-logout-section">
+            <!-- Account / Link Section -->
+            <div class="settings-section settings-account-section">
                 <div class="settings-label">ACCOUNT</div>
-                <button id="settings-link-google" class="settings-google-link-btn" style="display:none;">🔗 LINK GOOGLE ACCOUNT</button>
+                <div id="settings-account-status" class="settings-account-status">Playing as Guest</div>
+                <div id="settings-account-upgrade" class="settings-account-upgrade">
+                    <div class="settings-upgrade-title">🔗 Link to save progress to the cloud</div>
+                    <button id="settings-upgrade-google" class="settings-upgrade-btn google">▶ CONTINUE WITH GOOGLE</button>
+                    <div class="settings-upgrade-divider">— or —</div>
+                    <div class="settings-upgrade-email-row">
+                        <input type="text" id="settings-upgrade-email" placeholder="EMAIL" autocomplete="off">
+                        <input type="password" id="settings-upgrade-password" placeholder="PASSWORD">
+                        <button id="settings-upgrade-email-btn" class="settings-upgrade-btn email">▶ REGISTER / LINK</button>
+                    </div>
+                    <div id="settings-upgrade-msg" class="settings-upgrade-msg"></div>
+                </div>
                 <button id="settings-logout-btn" class="settings-logout-btn">✕ LOGOUT</button>
-                <div class="settings-logout-hint">Link Google to save progress to the cloud</div>
+                <div class="settings-logout-hint">Logs out — you'll need to sign in again</div>
             </div>
             <!-- Sidebar Position -->
             <div class="settings-section settings-sidebar-section">

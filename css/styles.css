@@ -1110,6 +1110,83 @@ body {
     background: rgba(50, 100, 255, 0.2);
     border-color: #85c1e9;
 }
+.settings-account-status {
+    font-size: 8px;
+    color: var(--accent-gold);
+    margin-bottom: 8px;
+}
+.settings-account-upgrade {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid #333;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 2px;
+}
+.settings-upgrade-title {
+    font-size: 7px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    text-align: center;
+}
+.settings-upgrade-btn {
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    font-family: var(--pixel-font);
+    font-size: 7px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+    text-align: center;
+    border: 1px solid;
+}
+.settings-upgrade-btn.google {
+    background: rgba(50, 100, 255, 0.1);
+    border-color: #1a4a7a;
+    color: #85c1e9;
+    margin-bottom: 6px;
+}
+.settings-upgrade-btn.google:hover {
+    background: rgba(50, 100, 255, 0.25);
+    border-color: #85c1e9;
+}
+.settings-upgrade-btn.email {
+    background: rgba(50, 200, 100, 0.1);
+    border-color: #1a6a3a;
+    color: #6f9;
+    margin-top: 4px;
+}
+.settings-upgrade-btn.email:hover {
+    background: rgba(50, 200, 100, 0.25);
+    border-color: #6f9;
+}
+.settings-upgrade-divider {
+    font-size: 6px;
+    color: #444;
+    text-align: center;
+    margin: 6px 0;
+}
+.settings-upgrade-email-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.settings-upgrade-email-row input {
+    padding: 6px 8px;
+    background: #000;
+    border: 1px solid #444;
+    color: var(--text-primary);
+    font-family: var(--pixel-font);
+    font-size: 7px;
+}
+.settings-upgrade-msg {
+    font-size: 6px;
+    color: var(--accent-gold);
+    margin-top: 6px;
+    text-align: center;
+    min-height: 10px;
+}
 .settings-logout-hint {
     font-size: 6px;
     color: #553333;
