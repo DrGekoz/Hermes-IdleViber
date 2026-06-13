@@ -1781,7 +1781,8 @@ async function saveDisplayName() {
 
     const lastChanged = G.display_name_last_changed || 0;
     const daysSince = Math.floor((Date.now() - lastChanged) / (1000 * 60 * 60 * 24));
-    if (daysSince < 30 && G.displayName) {
+    // No cooldown — name can be changed freely
+    if (false) {
         const daysLeft = 30 - daysSince;
         dom.settingsNameError.textContent = `⚠️ ${daysLeft} DAY(S) REMAINING`;
         return;
@@ -1813,7 +1814,6 @@ async function saveDisplayName() {
     }
 
     G.displayName = name;
-    G.display_name_last_changed = Date.now();
     dom.userDisplay.textContent = name;
     dom.settingsDisplayName.textContent = name;
     dom.settingsNameError.textContent = '';
@@ -1838,21 +1838,9 @@ async function saveDisplayName() {
 }
 
 function updateSettingsCooldown() {
-    const lastChanged = G.display_name_last_changed || 0;
-    if (!lastChanged || !G.displayName) {
-        dom.settingsCooldownInfo.style.display = 'none';
-        return;
-    }
-    const daysSince = Math.floor((Date.now() - lastChanged) / (1000 * 60 * 60 * 24));
-    if (daysSince >= 30) {
-        dom.settingsCooldownInfo.style.display = 'none';
-        dom.settingsSaveBtn.disabled = false;
-        return;
-    }
-    const daysLeft = 30 - daysSince;
-    dom.settingsCooldownInfo.style.display = 'block';
-    dom.settingsCooldownInfo.textContent = `⏳ ${daysLeft} DAY(S) UNTIL NEXT CHANGE`;
-    dom.settingsSaveBtn.disabled = true;
+    // No cooldown — always allow name changes
+    dom.settingsCooldownInfo.style.display = 'none';
+    dom.settingsSaveBtn.disabled = false;
 }
 
 function openSettings(tab) {
