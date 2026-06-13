@@ -391,8 +391,8 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 10px;
-    margin-bottom: 4px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
     background: rgba(255,255,255,0.03);
     border: 1px solid #1a1a1a;
     cursor: pointer;
@@ -410,9 +410,9 @@ body {
 .shop-icon-img { width: 28px; height: 28px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0; }
 .shop-icon-fallback { font-size: 14px; }
 .shop-item-info { flex: 1; min-width: 0; overflow: hidden; }
-.shop-item-name { font-size: 8px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.shop-item-desc { font-size: 6px; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.shop-item-vps { font-size: 6px; color: var(--accent-cyan); margin-top: 1px; white-space: nowrap; }
+.shop-item-name { font-size: 8px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+.shop-item-desc { font-size: 6px; color: var(--text-secondary); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shop-item-vps { font-size: 6px; color: var(--accent-cyan); margin-top: 4px; white-space: nowrap; }
 .shop-item-right { text-align: right; min-width: 55px; flex-shrink: 0; }
 .shop-item-count { font-size: 10px; color: var(--accent-cyan); white-space: nowrap; }
 .shop-item-cost { font-size: 7px; color: var(--accent-gold); white-space: nowrap; }
@@ -421,8 +421,8 @@ body {
 .room-card {
     display: flex;
     gap: 10px;
-    padding: 8px;
-    margin-bottom: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
     background: rgba(255,255,255,0.03);
     border: 1px solid #1a1a1a;
     cursor: pointer;
@@ -448,18 +448,18 @@ body {
 }
 .room-card-icon { font-size: 20px; }
 .room-card-info { flex: 1; min-width: 0; overflow: hidden; }
-.room-card-name { font-size: 9px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.room-card-desc { font-size: 6px; color: var(--text-secondary); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.room-card-name { font-size: 9px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.room-card-desc { font-size: 6px; color: var(--text-secondary); margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .room-card-cost { font-size: 7px; color: var(--accent-gold); white-space: nowrap; }
-.room-card-mult { font-size: 8px; color: var(--accent-cyan); margin-top: 2px; font-weight: bold; white-space: nowrap; }
+.room-card-mult { font-size: 8px; color: var(--accent-cyan); margin-top: 3px; font-weight: bold; white-space: nowrap; }
 
 /* --- ACHIEVEMENTS --- */
 .ach-item {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 8px;
-    margin-bottom: 4px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
     background: rgba(255,255,255,0.03);
     border: 1px solid #1a1a1a;
     transition: all 0.15s;
