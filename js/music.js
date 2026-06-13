@@ -204,13 +204,11 @@ function initMusicPlayer() {
     // ---- Shuffle toggle ----
     function updateShuffleButton(btn) {
         if (!btn) return;
+        // Keep the SVG icon, just toggle the glow and title
+        btn.title = musicShuffle ? 'Shuffle ON — click to disable' : 'Shuffle OFF — click to enable';
         if (musicShuffle) {
-            btn.textContent = '🔀';
-            btn.title = 'Shuffle ON — click to disable';
             btn.classList.add('active');
         } else {
-            btn.textContent = '🔁';
-            btn.title = 'Shuffle OFF — click to enable';
             btn.classList.remove('active');
         }
     }

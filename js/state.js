@@ -941,7 +941,11 @@ function loadGame() {
         // Legacy support: ensure all expected keys exist
         if (!G.unlocked_rooms) G.unlocked_rooms = ['campfire_grove'];
         if (!G.owned_decor) G.owned_decor = [];
-        if (!G.active_decor || typeof G.active_decor === 'object' && (G.active_decor.lighting !== undefined || Object.keys(G.active_decor).length === 5)) {
+        if (!G.active_decor || typeof G.active_decor === 'object' && (
+            G.active_decor.lighting !== undefined ||
+            G.active_decor.plant !== undefined ||
+            G.active_decor.furniture !== undefined
+        )) {
             // Migrate from old type-map format to flat set
             const old = G.active_decor || {};
             G.active_decor = {};
