@@ -217,20 +217,21 @@ const AUTOCLICKERS = [
 // ---------- PRESTIGE UPGRADES (permanent, bought with prestige chips) ----------
 const PRESTIGE_UPGRADES = [
     // Gateway buff stack — progressive (each purchase adds value to gw multiplier)
-    { id: 'gw_boost_1', name: 'Latency Amp',     baseCost: 5,  costMult: 2, desc: 'Gateway buff +0.5×',   type: 'gw_add',   value: 0.5 },
-    { id: 'gw_boost_2', name: 'Pipeline Opt',     baseCost: 15, costMult: 2, desc: 'Gateway buff +1.0×',   type: 'gw_add',   value: 1.0 },
-    { id: 'gw_boost_3', name: 'Quantum Pipe',     baseCost: 30, costMult: 2, desc: 'Gateway buff +2.0×',   type: 'gw_add',   value: 2.0 },
-    { id: 'gw_boost_4', name: 'Neural Bridge',    baseCost: 50, costMult: 2, desc: 'Gateway buff +3.0×',   type: 'gw_add',   value: 3.0 },
-    { id: 'gw_boost_5', name: 'Singularity Link', baseCost: 80, costMult: 2, desc: 'Gateway buff +5.0×',   type: 'gw_add',   value: 5.0 },
+    { id: 'gw_boost_1', name: '⚡ Latency Amp',     baseCost: 5,  costMult: 2, desc: 'Gateway buff +0.5×',   type: 'gw_add',   value: 0.5 },
+    { id: 'gw_boost_2', name: '⚡ Pipeline Opt',     baseCost: 15, costMult: 2, desc: 'Gateway buff +1.0×',   type: 'gw_add',   value: 1.0 },
+    { id: 'gw_boost_3', name: '⚡ Quantum Pipe',     baseCost: 30, costMult: 2, desc: 'Gateway buff +2.0×',   type: 'gw_add',   value: 2.0 },
+    { id: 'gw_boost_4', name: '⚡ Neural Bridge',    baseCost: 50, costMult: 2, desc: 'Gateway buff +3.0×',   type: 'gw_add',   value: 3.0 },
+    { id: 'gw_boost_5', name: '⚡ Singularity Link', baseCost: 80, costMult: 2, desc: 'Gateway buff +5.0×',   type: 'gw_add',   value: 5.0 },
     // Click multipliers — progressive (each purchase multiplies click by value)
-    { id: 'click_1',    name: 'Click Amplifier',  baseCost: 3,  costMult: 2, desc: 'Click power ×2',       type: 'click_mult', value: 2 },
-    { id: 'click_2',    name: 'Turbo Click',      baseCost: 10, costMult: 2, desc: 'Click power ×4',       type: 'click_mult', value: 4 },
-    { id: 'click_3',    name: 'Godlike Click',    baseCost: 25, costMult: 2, desc: 'Click power ×10',      type: 'click_mult', value: 10 },
-    // Base VPS — progressive (each purchase adds flat VPS)
-    { id: 'autobuy_1',  name: 'Auto Clicker',     baseCost: 10, costMult: 2, desc: '+0.1 base VPS',        type: 'base_vps',  value: 0.1 },
-    { id: 'autobuy_2',  name: 'Micro Miner',      baseCost: 25, costMult: 2, desc: '+1 base VPS',          type: 'base_vps',  value: 1 },
-    // Permanent VPS multiplier — progressive (each purchase doubles VPS)
-    { id: 'perma_mult', name: 'Perma Core',       baseCost: 100, costMult: 3, desc: 'Permanent ×2 VPS',    type: 'perma_mult', value: 2 },
+    { id: 'click_1',    name: '👆 Click Amplifier',  baseCost: 3,  costMult: 2, desc: 'Click power ×2',       type: 'click_mult', value: 2 },
+    { id: 'click_2',    name: '👆 Turbo Click',      baseCost: 10, costMult: 2, desc: 'Click power ×4',       type: 'click_mult', value: 4 },
+    { id: 'click_3',    name: '👆 Godlike Click',    baseCost: 25, costMult: 2, desc: 'Click power ×10',      type: 'click_mult', value: 10 },
+    // Base VPS — progressive (each purchase adds flat VPS, multiplied by all multipliers)
+    { id: 'autobuy_1',  name: '🏭 Auto Clicker',     baseCost: 5,  costMult: 2, desc: '+100 base VPS',        type: 'base_vps',  value: 100 },
+    { id: 'autobuy_2',  name: '🏭 Micro Miner',      baseCost: 15, costMult: 2, desc: '+1K base VPS',         type: 'base_vps',  value: 1000 },
+    { id: 'autobuy_3',  name: '🏭 Turbo Node',       baseCost: 40, costMult: 2, desc: '+10K base VPS',        type: 'base_vps',  value: 10000 },
+    // Permanent VPS multiplier — progressive, expensive (each purchase doubles VPS)
+    { id: 'perma_mult', name: '💠 Perma Core',       baseCost: 200, costMult: 3, desc: 'Permanent ×2 VPS',    type: 'perma_mult', value: 2 },
 ];
 
 // ---------- TRANSCEND UPGRADES (deeper prestige layer) ----------

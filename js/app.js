@@ -1174,6 +1174,25 @@ function updateShopAffordability() {
 function renderPrestigeUpgrades() {
     const list = dom.prestigeUpgradeList;
     if (!list) return;
+
+    // Calculate and display prestige stats
+    let clickMult = 1;
+    let vpsMult = 1;
+    let baseVps = 0;
+    for (const upg of PRESTIGE_UPGRADES) {
+        const count = G.prestige_upgrades[upg.id] || 0;
+        if (count === 0) continue;
+        if (upg.type === 'click_mult') clickMult *= Math.pow(upg.value, count);
+        if (upg.type === 'perma_mult') vpsMult *= Math.pow(upg.value, count);
+        if (upg.type === 'base_vps') baseVps += upg.value * count;
+    }
+    const statClick = document.getElementById('prestige-stat-click');
+    const statVps = document.getElementById('prestige-stat-vps');
+    const statBase = document.getElementById('prestige-stat-base');
+    if (statClick) statClick.textContent = formatNumber(clickMult) + '×';
+    if (statVps) statVps.textContent = formatNumber(vpsMult) + '×';
+    if (statBase) statBase.textContent = formatNumber(baseVps);
+
     list.innerHTML = '';
     PRESTIGE_UPGRADES.forEach(upg => {
         const count = G.prestige_upgrades[upg.id] || 0;
