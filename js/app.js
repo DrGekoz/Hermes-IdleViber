@@ -702,11 +702,16 @@ async function doLogin() {
             // Load cloud save from Firestore
             const cloudState = await fbLoad();
             if (cloudState) {
-                Object.assign(G, cloudState);
-                G.auth_mode = 'firebase';
-                G.userId = result.uid;
-                G.username = result.user.displayName || username;
-                showToast('☁️ Cloud save loaded');
+                // Sanity check: detect bugged prestige values
+                if (cloudState.total_pp_earned > 50000 || cloudState.prestige_points > 50000) {
+                    console.warn('Cloud save has bugged prestige — resetting');
+                } else {
+                    Object.assign(G, cloudState);
+                    G.auth_mode = 'firebase';
+                    G.userId = result.uid;
+                    G.username = result.user.displayName || username;
+                    showToast('☁️ Cloud save loaded');
+                }
             } else {
                 // First login — upload local save data to Firebase
                 fbSave(G).catch(() => {});
@@ -1204,7 +1209,12 @@ function renderPrestigeUpgrades() {
     if (statBase) statBase.textContent = formatNumber(baseVps);
 
     list.innerHTML = '';
-    PRESTIGE_UPGRADES.forEach(upg => {
+    const sorted = [...PRESTIGE_UPGRADES].sort((a, b) => {
+        const costA = Math.floor(a.baseCost * Math.pow(a.costMult, G.prestige_upgrades[a.id] || 0));
+        const costB = Math.floor(b.baseCost * Math.pow(b.costMult, G.prestige_upgrades[b.id] || 0));
+        return costA - costB;
+    });
+    sorted.forEach(upg => {
         const count = G.prestige_upgrades[upg.id] || 0;
         const cost = Math.floor(upg.baseCost * Math.pow(upg.costMult, count));
         const canBuy = G.prestige_points >= cost;
