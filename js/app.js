@@ -1121,6 +1121,7 @@ function updateShopUI() {
             icon: `sprites/images/icons/individual/${tier.id}_64.png`,
             stats: [
                 { label: 'VPS each', value: '✦ ' + tier.vps, cls: 'cyan' },
+                { label: 'Total VPS', value: '✦ ' + formatNumber(getVPS()), cls: 'green' },
                 { label: 'Owned', value: String(count), cls: '' },
                 { label: 'Cost', value: formatNumber(cost) + ' ✦', cls: canBuy ? 'green' : 'gold' }
             ]
