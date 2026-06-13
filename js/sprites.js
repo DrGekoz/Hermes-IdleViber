@@ -3,6 +3,8 @@
 // + Decor Grid Placement & Drag System
 // ============================================================
 
+import { PRESTIGE_UPGRADES } from './state.js';
+
 // --- FREE PLACEMENT (no grid snap) ---
 const PLACEMENT_SNAP = 1;  // Pixel-perfect placement
 
@@ -1274,36 +1276,60 @@ function drawPlacementGhost(ctx, state) {
 function drawGatewayHUD(ctx, w, h, state) {
     ctx.save();
     const connected = state.gateway_bonus_active;
-    const mult = state._gwMult || 1.0;
+    const baseMult = state._gwMult || 1.0;
     const label = state._gwLabel || (connected ? 'Connected' : 'Disconnected');
     const icon = connected ? '🔗' : '⛔';
     const color = connected ? '#00ff88' : '#ff4444';
 
+    // Calculate combined multiplier: latency + prestige gw_add upgrades
+    let totalGwMult = connected ? baseMult : 1.0;
+    let prestigeBonus = 0;
+    if (state.prestige_upgrades) {
+        for (const [upgId, count] of Object.entries(state.prestige_upgrades)) {
+            const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
+            if (!upg || !count || upg.type !== 'gw_add') continue;
+            prestigeBonus += upg.value * count;
+        }
+    }
+    if (connected) totalGwMult += prestigeBonus;
+
     // Background panel
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    const panelW = 170;
-    const panelH = 50;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    const panelW = 195;
+    const panelH = 62;
     const padX = 10;
     const padY = 8;
     ctx.fillRect(w - panelW - padX, padY, panelW, panelH);
 
     // Connection dot
     ctx.fillStyle = color;
-    ctx.fillRect(w - panelW - padX + 8, padY + 6, 6, 6);
+    ctx.fillRect(w - panelW - padX + 8, padY + 7, 7, 7);
 
     // Status line
     ctx.fillStyle = PAL.white;
-    ctx.font = '9px monospace';
-    ctx.fillText(`${icon} ${label}`, w - panelW - padX + 20, padY + 13);
+    ctx.font = '11px monospace';
+    ctx.fillText(`${icon} ${label}`, w - panelW - padX + 22, padY + 15);
 
-    // Latency and multiplier
+    // Latency
     ctx.fillStyle = PAL.lt_gray;
-    ctx.font = '9px monospace';
+    ctx.font = '10px monospace';
     const latency = state._gwLatency || 0;
-    ctx.fillText(`Latency: ${latency}ms`, w - panelW - padX + 8, padY + 28);
+    ctx.fillText(`Latency: ${latency}ms`, w - panelW - padX + 8, padY + 30);
 
+    // Combined VPS multiplier
     ctx.fillStyle = connected ? PAL.neGrn : PAL.lt_gray;
-    ctx.fillText(`VPS ×${mult.toFixed(1)}`, w - panelW - padX + 8, padY + 42);
+    ctx.font = '11px monospace';
+    const detail = prestigeBonus > 0 ? ` (lat ${baseMult.toFixed(1)} + pr${prestigeBonus.toFixed(1)})` : '';
+    ctx.fillText(`VPS ×${totalGwMult.toFixed(1)}${detail}`, w - panelW - padX + 8, padY + 46);
+
+    // Prestige boost bar
+    if (prestigeBonus > 0) {
+        ctx.fillStyle = 'rgba(255,215,0,0.15)';
+        ctx.fillRect(w - panelW - padX + 8, padY + 50, panelW - 16, 3);
+        ctx.fillStyle = 'rgba(255,215,0,0.6)';
+        const boostRatio = Math.min(prestigeBonus / 10, 1);
+        ctx.fillRect(w - panelW - padX + 8, padY + 50, (panelW - 16) * boostRatio, 3);
+    }
 
     ctx.restore();
 }
