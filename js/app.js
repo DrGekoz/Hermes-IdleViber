@@ -139,11 +139,11 @@ function checkAutoLogin() {
         return;
     }
 
-    // Local / guest / local_api mode
-    if (cookie.authMode === 'local' || cookie.authMode === 'local_api' || cookie.authMode === 'guest') {
+    // Local server API mode only (guest/local accounts disabled)
+    if (cookie.authMode === 'local_api') {
         G.userId = cookie.userId;
         G.username = cookie.username || 'Player';
-        G.auth_mode = cookie.authMode;
+        G.auth_mode = 'local_api';
         G.displayName = cookie.displayName || '';
         dom.userDisplay.textContent = G.displayName || G.username;
         loadGame();
@@ -374,7 +374,7 @@ async function initAPI() {
 function initUIEvents() {
     // Auth
     dom.loginBtn.addEventListener('click', () => { playClick(); doLogin(); });
-    dom.guestBtn.addEventListener('click', () => { playClick(); doGuest(); });
+    if (dom.guestBtn) dom.guestBtn.addEventListener('click', () => { playClick(); doGuest(); });
     dom.logoutBtn.addEventListener('click', () => { playClick(); doLogout(); });
     if (dom.settingsBtn) dom.settingsBtn.addEventListener('click', () => { playClick(); openSettings('name'); });
     if (dom.settingsClose) dom.settingsClose.addEventListener('click', () => { playClick(); closeSettings(); });
@@ -882,16 +882,8 @@ async function doLogin() {
         }
     }
 
-    // Last resort: local mode (works offline, no cloud saves)
-    dom.loginMsg.textContent = '';
-    G.userId = `local_${username}`;
-    G.username = username;
-    G.auth_token = null;
-    G.auth_mode = 'local';
-    dom.userDisplay.textContent = username;
-    showToast('🔌 Offline mode (local save only)');
-    loadGame();
-    enterGame();
+    // Block local mode fallback — Firebase auth required
+    dom.loginMsg.textContent = '⚠️ Sign in with Google or create an account above';
 }
 
 function doGoogleLogin() {
@@ -946,12 +938,7 @@ async function doGoogleLoginAsync() {
 }
 
 function doGuest() {
-    G.userId = 'local_guest';
-    G.username = 'Guest';
-    G.auth_mode = 'local';
-    dom.userDisplay.textContent = 'Guest';
-    loadGame();
-    enterGame();
+    showToast('⚠️ Guest accounts disabled — sign in with Google or Email');
 }
 
 function doLogout() {
