@@ -18,7 +18,7 @@ const ROOMS = {
     campfire_grove: {
         id: 'campfire_grove',
         name: 'Campfire Grove',
-        bgImage: 'sprites/images/bg/bg_campfire.png',
+        bgImage: 'sprites/images/bg/bg_campfire.webp',
         desc: 'A warm crackling fire under starry skies',
         cost: 0,
         unlocked: true,
@@ -29,7 +29,7 @@ const ROOMS = {
     cyber_den: {
         id: 'cyber_den',
         name: 'Cyber Den',
-        bgImage: 'sprites/images/bg/bg_cyber.png',
+        bgImage: 'sprites/images/bg/bg_cyber.webp',
         desc: 'Neon-lit digital hideout',
         cost: 100_000_000,         // 100M
         unlocked: false,
@@ -40,7 +40,7 @@ const ROOMS = {
     zen_garden: {
         id: 'zen_garden',
         name: 'Zen Garden',
-        bgImage: 'sprites/images/bg/bg_zen_garden.png',
+        bgImage: 'sprites/images/bg/bg_zen_garden.webp',
         desc: 'Peaceful bamboo grove with flowing water',
         cost: 1_000_000_000,       // 1B
         unlocked: false,
@@ -51,7 +51,7 @@ const ROOMS = {
     star_deck: {
         id: 'star_deck',
         name: 'Star Deck',
-        bgImage: 'sprites/images/bg/bg_star_deck.png',
+        bgImage: 'sprites/images/bg/bg_star_deck.webp',
         desc: 'Cosmic observatory floating among galaxies',
         cost: 25_000_000_000,      // 25B
         unlocked: false,
@@ -62,7 +62,7 @@ const ROOMS = {
     study_lounge: {
         id: 'study_lounge',
         name: 'Study Lounge',
-        bgImage: 'sprites/images/bg/bg_study_lounge.png',
+        bgImage: 'sprites/images/bg/bg_study_lounge.webp',
         desc: 'Cozy den with bookshelves and warm lamplight',
         cost: 1_000_000_000_000,   // 1T
         unlocked: false,
@@ -73,7 +73,7 @@ const ROOMS = {
     beach_cove: {
         id: 'beach_cove',
         name: 'Beach Cove',
-        bgImage: 'sprites/images/bg/bg_beach_cove.png',
+        bgImage: 'sprites/images/bg/bg_beach_cove.webp',
         desc: 'Sunset waves lapping on pixel sand',
         cost: 10_000_000_000_000,  // 10T
         unlocked: false,
