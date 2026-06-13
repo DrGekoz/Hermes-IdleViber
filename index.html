@@ -201,7 +201,7 @@
     <div class="main-area">
     <!-- MUSIC PLAYER (top-left of canvas) -->
     <div id="music-player" class="music-player hidden">
-        <button id="music-toggle-btn" class="pixel-btn music-toggle" title="Music"><img src="sprites/images/icons/music_note.png" alt="♫" style="width:24px;height:24px;object-fit:contain;image-rendering:auto;display:block;"></button>
+        <button id="music-toggle-btn" class="pixel-btn music-toggle" title="Music"><img src="sprites/images/icons/music_note.webp" alt="♫" style="width:22px;height:22px;object-fit:contain;image-rendering:auto;display:flex;margin:auto;"></button>
         <div id="music-panel" class="music-panel hidden">
             <div class="music-now-playing" id="music-track-name">No track</div>
             <div class="music-controls">
@@ -342,23 +342,12 @@
                 <div id="settings-name-error" class="settings-error"></div>
                 <button id="settings-save-btn" class="settings-save-btn">▶ SAVE</button>
             </div>
-            <!-- Account / Link Section -->
+            <!-- Account Section -->
             <div class="settings-section settings-account-section">
                 <div class="settings-label">ACCOUNT</div>
-                <div id="settings-account-status" class="settings-account-status">Playing as Guest</div>
-                <div id="settings-account-upgrade" class="settings-account-upgrade">
-                    <div class="settings-upgrade-title">🔗 Link to save progress to the cloud</div>
-                    <button id="settings-upgrade-google" class="settings-upgrade-btn google">▶ CONTINUE WITH GOOGLE</button>
-                    <div class="settings-upgrade-divider">— or —</div>
-                    <div class="settings-upgrade-email-row">
-                        <input type="text" id="settings-upgrade-email" placeholder="EMAIL" autocomplete="off">
-                        <input type="password" id="settings-upgrade-password" placeholder="PASSWORD">
-                        <button id="settings-upgrade-email-btn" class="settings-upgrade-btn email">▶ REGISTER / LINK</button>
-                    </div>
-                    <div id="settings-upgrade-msg" class="settings-upgrade-msg"></div>
-                </div>
+                <div id="settings-account-status" class="settings-account-status">Signed in</div>
                 <button id="settings-logout-btn" class="settings-logout-btn">✕ LOGOUT</button>
-                <div class="settings-logout-hint">Logs out — you'll need to sign in again</div>
+                <div class="settings-logout-hint">Sign out of your account</div>
             </div>
             <!-- Sidebar Position -->
             <div class="settings-section settings-sidebar-section">
@@ -409,7 +398,7 @@
                 <div class="settings-hint">8-bit UI clicks, chimes, and sound effects</div>
             </div>
             <div class="settings-section">
-                <div class="settings-label"><img src="sprites/images/icons/music_note.png" alt="🎵" style="width:14px;height:14px;object-fit:contain;image-rendering:auto;vertical-align:middle;"> MUSIC VOLUME</div>
+                <div class="settings-label"><img src="sprites/images/icons/music_note.webp" alt="🎵" style="width:14px;height:14px;object-fit:contain;image-rendering:auto;vertical-align:middle;"> MUSIC VOLUME</div>
                 <div class="settings-volume-row">
                     <input type="range" id="settings-music-volume" min="0" max="1" step="0.05" value="0.5"
                            style="flex:1;height:4px;background:#333;accent-color:#4af;">

@@ -1883,17 +1883,11 @@ function openSettings(tab) {
         dom.settingsGwStatus.textContent = gw.connected ? '✅ Connected' : '⏸ Idle';
         dom.settingsGwStatus.style.color = gw.connected ? '#0f0' : 'var(--text-secondary)';
     }
-    // Show account upgrade section only for guest/local accounts
-    const isGuest = G.auth_mode === 'local' || G.auth_mode === 'guest' || G.auth_mode === 'local_api';
+    // Show account status
     if (dom.settingsAccountStatus) {
-        dom.settingsAccountStatus.textContent = isGuest ? 'Playing as Guest' : 'Logged in with ' + G.auth_mode.toUpperCase();
+        const mode = G.auth_mode === 'firebase' ? (G.displayName || G.username || 'Signed in').toUpperCase() : 'NOT SIGNED IN';
+        dom.settingsAccountStatus.textContent = mode;
     }
-    if (dom.settingsAccountUpgrade) {
-        dom.settingsAccountUpgrade.style.display = isGuest ? 'block' : 'none';
-    }
-    if (dom.settingsUpgradeMsg) dom.settingsUpgradeMsg.textContent = '';
-    if (dom.settingsUpgradeEmail) dom.settingsUpgradeEmail.value = '';
-    if (dom.settingsUpgradePassword) dom.settingsUpgradePassword.value = '';
 
     dom.settingsTabName.classList.remove('active');
     dom.settingsTabAudio.classList.remove('active');
