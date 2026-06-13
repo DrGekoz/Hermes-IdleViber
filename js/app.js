@@ -420,7 +420,7 @@ function initUIEvents() {
             G.settings.sfx_volume = vol;
             setSfxVolume(vol);
             if (dom.settingsSfxVolLabel) dom.settingsSfxVolLabel.textContent = Math.round(vol * 100) + '%';
-            playClick();
+            saveGame();
         });
     }
     if (dom.settingsMusicVolume) {
