@@ -241,6 +241,7 @@ function cacheDOM() {
         clickValueOverlay: $('click-value-display-overlay'),
         roomMultDisplay: $('room-mult-display'),
         offlineRateDisplay: $('offline-rate-display'),
+        currentRoomUpgradeLabel: $('current-room-upgrade-label'),
         popup: $('popup'),
         popupTitle: $('popup-title'),
         popupText: $('popup-text'),
@@ -1072,6 +1073,39 @@ function initGameLoop() {
     let lastBgRoom = null;
     let bgCanvas = null;
     let lastFrameTime = 0;
+    
+    // --- EVENT BATCHING: batch clicks and send to server every 1s ---
+    let eventQueue = [];
+    let clickBatchCount = 0;
+    let lastEventFlush = Date.now();
+    
+    // Override the click handler to also batch events
+    const origClickHandler = dom.clickBtn.onclick;
+    dom.clickBtn.onclick = (e) => {
+        clickBatchCount++;
+        if (origClickHandler) origClickHandler.call(dom.clickBtn, e);
+    };
+    
+    setInterval(() => {
+        const now = Date.now();
+        if (clickBatchCount > 0 || eventQueue.length > 0) {
+            const batch = {
+                ts: now,
+                events: [...eventQueue],
+                clicks: clickBatchCount,
+                session: G.userId || G.auth_mode || 'local',
+                vps: Math.round(getVPS())
+            };
+            eventQueue = [];
+            clickBatchCount = 0;
+            // Send to server (fire-and-forget)
+            fetch('/api/events', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(batch)
+            }).catch(() => {});
+        }
+    }, 1000);
 
     function renderFrame(timestamp) {
         const canvas = dom.canvas;
@@ -1224,7 +1258,9 @@ function updateShopUI() {
     // Autoclickers
     dom.upgradeList.innerHTML = '';
     AUTOCLICKERS.forEach(tier => {
-        const count = G.autoclickers[tier.id] || 0;
+        const room = G.current_room || 'campfire_grove';
+        const roomClickers = G.room_autoclickers[room] || {};
+        const count = roomClickers[tier.id] || 0;
         const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
         const canBuy = G.vibes >= cost;
         const el = document.createElement('div');
@@ -1270,7 +1306,9 @@ function updateShopAffordability() {
         if (!id) return;
         const tier = AUTOCLICKERS.find(t => t.id === id);
         if (!tier) return;
-        const count = G.autoclickers[id] || 0;
+        const room = G.current_room || 'campfire_grove';
+        const roomClickers = G.room_autoclickers[room] || {};
+        const count = roomClickers[id] || 0;
         const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
         el.classList.toggle('locked', vibes < cost);
     });
@@ -1431,6 +1469,9 @@ function updateDecorUI() {
 
 function updateRoomUI() {
     dom.roomDisplay.textContent = ROOMS[G.current_room]?.name || 'Unknown';
+    if (dom.currentRoomUpgradeLabel) {
+        dom.currentRoomUpgradeLabel.textContent = ROOMS[G.current_room]?.name || 'Campfire Grove';
+    }
     dom.roomList.innerHTML = '';
     Object.values(ROOMS).forEach(room => {
         const unlocked = G.unlocked_rooms.includes(room.id);
@@ -1991,7 +2032,9 @@ function initHoldToSpam() {
                 if (!id) { stopHold(); return; }
                 const tier = AUTOCLICKERS.find(t => t.id === id);
                 if (!tier) { stopHold(); return; }
-                const count = G.autoclickers[id] || 0;
+                const room = G.current_room || 'campfire_grove';
+                const roomClickers = G.room_autoclickers[room] || {};
+                const count = roomClickers[id] || 0;
                 const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
                 if (G.vibes >= cost) {
                     if (buyAutoclicker(tier.id)) {

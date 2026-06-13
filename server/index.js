@@ -358,6 +358,16 @@ async function handleAPI(req, res, url) {
         return;
     }
 
+    // ---- POST /api/events (batched client events) ----
+    if (url === '/api/events' && req.method === 'POST') {
+        const body = await parseBody(req);
+        if (!body) { jsonResponse(res, 400, { error: 'Invalid body' }); return; }
+        console.log(`[Events] ${body.session}: ${body.clicks || 0} clicks, ${(body.events || []).length} events, VPS=${body.vps || 0}`);
+        // In production, validate HMAC, store to DB, process game logic
+        jsonResponse(res, 200, { ok: true, received: body.clicks || 0 });
+        return;
+    }
+
     // ---- 404 for unknown API routes ----
     jsonResponse(res, 404, { error: 'API route not found' });
 }

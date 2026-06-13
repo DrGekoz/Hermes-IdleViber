@@ -326,6 +326,7 @@ function getDefaultState() {
         transcend_points: 0,
         transcend_upgrades: {},
         autoclickers: {},
+        room_autoclickers: {}, // { roomId: { tierId: count } } — per-room
         prestige_upgrades: {},
         decor: {},
         current_room: 'campfire_grove',
@@ -581,7 +582,11 @@ function getSynergyBonus(autoclickerId, state = G) {
 
 function getVPS(state = G) {
     let vps = 0;
-    for (const [id, count] of Object.entries(state.autoclickers)) {
+    // Use per-room autoclickers if available, fall back to global
+    const clickers = (state.room_autoclickers && state.room_autoclickers[state.current_room])
+        ? state.room_autoclickers[state.current_room]
+        : state.autoclickers || {};
+    for (const [id, count] of Object.entries(clickers)) {
         const tier = AUTOCLICKERS.find(t => t.id === id);
         if (tier) {
             let tierVps = tier.vps * count;
@@ -695,7 +700,9 @@ function addVibes(amount) {
 function buyAutoclicker(id, quantity = 1) {
     const tier = AUTOCLICKERS.find(t => t.id === id);
     if (!tier) return false;
-    const count = G.autoclickers[id] || 0;
+    const room = G.current_room || 'campfire_grove';
+    if (!G.room_autoclickers[room]) G.room_autoclickers[room] = {};
+    const count = G.room_autoclickers[room][id] || 0;
     
     if (quantity === 'max') {
         quantity = getMaxBuyable(tier.baseCost, count, G.vibes);
@@ -705,7 +712,7 @@ function buyAutoclicker(id, quantity = 1) {
     const totalCost = getBulkCost(tier.baseCost, count, quantity);
     if (G.vibes >= totalCost) {
         G.vibes -= totalCost;
-        G.autoclickers[id] = count + quantity;
+        G.room_autoclickers[room][id] = count + quantity;
         notifyStateChange('autoclickers');
         return quantity;
     }
@@ -798,6 +805,7 @@ function doPrestige() {
     G.lifetime_vibes = 0;        // Reset lifetime — must earn 10T again
     G.prestige_unlocked = false; // Must re-unlock prestige next run
     G.autoclickers = {};
+    G.room_autoclickers = {};
     G.owned_decor = [];
     G.active_decor = {};
     G.placed_decor = {};
@@ -976,6 +984,17 @@ function loadGame() {
         }
         if (!G.achievements) G.achievements = [];
         if (!G.placed_decor) G.placed_decor = {};
+        // Per-room autoclickers migration
+        if (!G.room_autoclickers) {
+            G.room_autoclickers = {};
+        }
+        // Migrate old global autoclickers into current room if room is empty but global has data
+        if (G.autoclickers && Object.keys(G.autoclickers).length > 0) {
+            const room = G.current_room || 'campfire_grove';
+            if (!G.room_autoclickers[room] || Object.keys(G.room_autoclickers[room]).length === 0) {
+                G.room_autoclickers[room] = { ...G.autoclickers };
+            }
+        }
         if (G._gwMult === undefined) G._gwMult = 1.0;
         if (G._gwLabel === undefined) G._gwLabel = 'Disconnected';
         if (!G.settings) G.settings = defaults.settings;
