@@ -913,9 +913,12 @@ function enterGame() {
         setTimeout(() => showToast(`⏰ Welcome back! +${formatNumber(Math.floor(offline.earned))} ✦ while away`), 500);
     }
 
-    // Prompt for display name if not set
+    // Prompt for display name if not set (only on first login, not on page refresh)
     if (!G.displayName && G.auth_mode !== 'local') {
-        setTimeout(() => showDisplayNamePrompt(), 800);
+        if (!localStorage.getItem('hermes_idleviber_np')) {
+            localStorage.setItem('hermes_idleviber_np', '1');
+            setTimeout(() => showDisplayNamePrompt(), 800);
+        }
     }
 }
 
