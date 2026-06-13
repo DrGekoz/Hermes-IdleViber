@@ -347,10 +347,11 @@ async function initGateway() {
     gwPollerRef = setInterval(async () => {
         await pingGateway();
         // Also check if Hermes is busy processing a task
-        if (gatewayStatus.connected && (gatewayStatus.checkCount || 0) % 3 === 0) {
+        const gs = getGatewayStatus();
+        if (gs.connected && (gs.checkCount || 0) % 3 === 0) {
             checkGatewayBusy().then(() => updateGatewayUI());
         }
-        gatewayStatus.checkCount = (gatewayStatus.checkCount || 0) + 1;
+        gs.checkCount = (gs.checkCount || 0) + 1;
         updateGatewayUI();
     }, CONFIG.GATEWAY_POLL_INTERVAL);
 
