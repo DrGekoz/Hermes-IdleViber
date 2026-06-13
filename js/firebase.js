@@ -139,16 +139,17 @@ async function logout() {
 }
 
 // ---- LEADERBOARD ----
-async function submitScoreToLeaderboard(username, score, prestigeLevel, totalPp) {
+async function submitScoreToLeaderboard(username, score, prestigeLevel, totalPp, displayName) {
     if (!currentUser || !db) return { error: 'Not logged in' };
     const { doc, setDoc, Timestamp } = await import(`${FB_BASE}firebase-firestore.js`);
     try {
         const ref = doc(db, 'leaderboard', currentUser.uid);
         await setDoc(ref, {
-            username: username || currentUser.displayName || 'Player',
+            username: displayName || username || currentUser.displayName || 'Player',
             score: Math.floor(score) || 0,
             prestige_level: prestigeLevel || 0,
             total_pp: totalPp || 0,
+            display_name: displayName || '',
             updated_at: Timestamp.now(),
         }, { merge: true });
         return { success: true };
@@ -170,7 +171,7 @@ async function getLeaderboard(limitCount = 50) {
         return snap.docs.map((d, i) => ({
             uid: d.id,
             rank: i + 1,
-            username: d.data().username || 'Unknown',
+            username: d.data().display_name || d.data().username || 'Unknown',
             score: d.data().score || 0,
             prestige_level: d.data().prestige_level || 0,
             total_pp: d.data().total_pp || 0,
@@ -187,16 +188,17 @@ function subscribeLeaderboard(callback, limitCount = 50) {
     if (!db) return null;
     let unsub = () => {};
     import(`${FB_BASE}firebase-firestore.js`).then(({ collection, query, orderBy, limit, onSnapshot }) => {
+        if (!db) return;
         const q = query(
             collection(db, 'leaderboard'),
             orderBy('score', 'desc'),
             limit(limitCount)
         );
-        unsub = onSnapshot(q, (snapshot) => {
+        const realUnsub = onSnapshot(q, (snapshot) => {
             const entries = snapshot.docs.map((d, i) => ({
                 uid: d.id,
                 rank: i + 1,
-                username: d.data().username || 'Unknown',
+                username: d.data().display_name || d.data().username || 'Unknown',
                 score: d.data().score || 0,
                 prestige_level: d.data().prestige_level || 0,
                 total_pp: d.data().total_pp || 0,
@@ -205,6 +207,9 @@ function subscribeLeaderboard(callback, limitCount = 50) {
         }, (err) => {
             console.warn('🔥 Leaderboard listener error:', err.message);
         });
+        unsub = realUnsub;
+    }).catch(err => {
+        console.error('🔥 Failed to load Firestore:', err);
     });
     return () => unsub();
 }

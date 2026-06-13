@@ -9,7 +9,7 @@ import {
     wrinklerSystem, SYNERGIES, getSynergyBonus, getWrinklerPenalty, getEffectiveVpsMultiplier,
     updateWrinklers, popWrinkler, popAllWrinklers,
     getVPS, getClickValue, getPrestigeGain, getPrestigeThreshold, formatNumber,
-    getRoomVpsMult, calculateOfflineProgress, applyOfflineProgress,
+    getActiveDecorVpsMult, calculateOfflineProgress, applyOfflineProgress,
     getBulkCost, getMaxBuyable,
     addVibes, buyAutoclicker, buyPrestigeUpgrade, buyDecor,
     activateDecor, unlockRoom, switchRoom, doPrestige,
@@ -38,6 +38,7 @@ import { initFirebase, onAuthChanged, getCurrentUser, isConfigured,
          registerWithEmail, loginWithEmail, loginWithGoogle, logout as fbLogout,
          submitScoreToLeaderboard as fbSubmitScore,
          getLeaderboard as fbGetLeaderboard,
+         subscribeLeaderboard as fbSubscribeLeaderboard,
          savePlayerData as fbSave, loadPlayerData as fbLoad } from './firebase.js';
 
 // ---- DOM REFS ----
@@ -50,6 +51,7 @@ let ticker = null;
 let saver = null;
 let gwPoller = null;
 let lbUpdater = null;
+let lbUnsub = null;
 let frameCount = 0;
 let fbReady = false;       // Firebase initialized successfully
 let fbUser = null;         // Firebase auth user object (when logged in via Firebase)
@@ -659,7 +661,7 @@ async function doLogin() {
             } else {
                 // First login — upload local save data to Firebase
                 fbSave(G).catch(() => {});
-                fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned).catch(() => {});
+                fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName).catch(() => {});
             }
 
             enterGame();
@@ -679,7 +681,7 @@ async function doLogin() {
                 } else {
                     // First login — upload local save
                     fbSave(G).catch(() => {});
-                    fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned).catch(() => {});
+                    fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName).catch(() => {});
                 }
                 enterGame();
                 return;
@@ -779,7 +781,7 @@ async function doGoogleLoginAsync() {
         } else {
             // First login — upload local save
             fbSave(G).catch(() => {});
-            fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned).catch(() => {});
+            fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName).catch(() => {});
         }
 
         enterGame();
@@ -901,15 +903,23 @@ function initGameLoop() {
         // Cloud save + leaderboard submit if authenticated
         if (G.auth_mode === 'firebase' && fbUser) {
             fbSave(G).catch(() => {});
-            fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned).catch(() => {});
+            fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName).catch(() => {});
         } else if (G.auth_token && G.server_online) {
             apiSave(G.auth_token, G).catch(() => {});
             apiSubmitScore(G.auth_token, G.lifetime_vibes, G.total_pp_earned).catch(() => {});
         }
     }, CONFIG.SAVE_INTERVAL);
 
-    // Leaderboard refresh every 15s
-    lbUpdater = setInterval(updateLeaderboardUI, 15000);
+    // Leaderboard — real-time Firebase subscription (no polling flicker)
+    if (fbReady) {
+        const unsub = fbSubscribeLeaderboard((entries) => {
+            updateLeaderboardUI(entries);
+        }, 50);
+        if (typeof unsub === 'function') lbUnsub = unsub;
+    } else {
+        // Fallback: poll local API every 15s
+        lbUpdater = setInterval(updateLeaderboardUI, 15000);
+    }
 
     // --- RENDER LOOP: 60fps via requestAnimationFrame ---
     let lastBgRoom = null;
@@ -957,6 +967,7 @@ function clearGameLoop() {
     clearInterval(ticker);
     clearInterval(saver);
     clearInterval(lbUpdater);
+    if (typeof lbUnsub === 'function') { lbUnsub(); lbUnsub = null; }
     if (animFrame) cancelAnimationFrame(animFrame);
     if (gwPollerRef) { clearInterval(gwPollerRef); gwPollerRef = null; }
     stopSong();
@@ -993,7 +1004,7 @@ function updateResourceUI() {
     dom.clickValueDisplay.textContent = formatNumber(getClickValue());
     if (dom.clickValueOverlay) dom.clickValueOverlay.textContent = formatNumber(getClickValue());
     if (dom.roomMultDisplay) {
-        const rm = getRoomVpsMult();
+        const rm = getActiveDecorVpsMult();
         dom.roomMultDisplay.textContent = rm > 1.0 ? rm.toFixed(2) + '×' : '1.0×';
         dom.roomMultDisplay.style.color = rm > 1.0 ? 'var(--accent-cyan)' : 'var(--text-secondary)';
     }
@@ -1290,57 +1301,60 @@ function updateGatewayUI() {
     }
 }
 
-async function updateLeaderboardUI() {
+async function updateLeaderboardUI(externalEntries) {
     const list = dom.leaderboardList;
     if (!list) return;
-    list.innerHTML = '<div class="lb-entry"><span style="color:#666;font-size:6px;">Loading...</span></div>';
 
-    let entries = [];
+    let entries = externalEntries ? [...externalEntries] : [];
     let fbHadData = false;
 
-    // Try Firebase leaderboard first (production)
-    if (fbReady) {
-        const fbEntries = await fbGetLeaderboard(50);
-        if (fbEntries && fbEntries.length > 0) {
-            fbHadData = true;
-            entries = fbEntries.map(e => ({
-                name: e.username,
-                vibes: e.score,
-                pp: e.total_pp || e.prestige_level || 0,
-                prestige: e.prestige_level || 0,
-            }));
+    // If no external data provided, fetch it ourselves (poll fallback)
+    if (!externalEntries) {
+        // Try Firebase leaderboard first (production)
+        if (fbReady) {
+            const fbEntries = await fbGetLeaderboard(50);
+            if (fbEntries && fbEntries.length > 0) {
+                fbHadData = true;
+                entries = fbEntries.map(e => ({
+                    name: e.username,
+                    vibes: e.score,
+                    pp: e.total_pp || e.prestige_level || 0,
+                    prestige: e.prestige_level || 0,
+                }));
+            }
         }
-    }
 
-    // Fallback to local server API (only if Firebase isn't available)
-    if (!fbReady && entries.length === 0) {
-        const lbResult = await apiGetLeaderboard(50);
-        if (lbResult && lbResult.entries && lbResult.entries.length > 0) {
-            entries = lbResult.entries.map(e => ({
-                name: e.username,
-                vibes: e.score,
-                pp: e.prestige_level || 0,
-                prestige: e.prestige_level || 0,
-            }));
+        // Fallback to local server API (only if Firebase isn't available)
+        if (!fbReady && entries.length === 0) {
+            const lbResult = await apiGetLeaderboard(50);
+            if (lbResult && lbResult.entries && lbResult.entries.length > 0) {
+                entries = lbResult.entries.map(e => ({
+                    name: e.username,
+                    vibes: e.score,
+                    pp: e.prestige_level || 0,
+                    prestige: e.prestige_level || 0,
+                }));
+            }
         }
-    }
 
-    // Fallback to local + mock data (only if no backend at all)
-    if (!fbReady && entries.length === 0) {
-        entries = [
-            { name: G.username || 'You', vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges },
-            { name: 'Zoops', vibes: 252_000_000_000_000, pp: 1_183_807, prestige: 12 },
-            { name: 'CipherZero', vibes: 136_000_000_000_000, pp: 611_620, prestige: 8 },
-            { name: 'PixelWarden', vibes: 70_000_000_000_000, pp: 294_303, prestige: 5 },
-        ];
+        // Fallback to local + mock data (only if no backend at all)
+        if (!fbReady && entries.length === 0) {
+            entries = [
+                { name: G.username || 'You', vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges },
+                { name: 'Zoops', vibes: 252_000_000_000_000, pp: 1_183_807, prestige: 12 },
+                { name: 'CipherZero', vibes: 136_000_000_000_000, pp: 611_620, prestige: 8 },
+                { name: 'PixelWarden', vibes: 70_000_000_000_000, pp: 294_303, prestige: 5 },
+            ];
+        }
+    } else {
+        fbHadData = true;
     }
 
     // Always include local player if not in list (even with Firebase)
     const displayName = G.displayName || G.username || 'You';
-    const localEntry = { name: displayName + (fbReady ? '' : ''), vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges };
+    const localEntry = { name: displayName, vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges };
     if (!entries.find(e => e.name === displayName || e.name === G.username)) {
-        if (fbHadData || !fbReady) {
-            // Only add local player if Firebase has data or Firebase isn't in use
+        if (entries.length === 0 || externalEntries || fbHadData || !fbReady) {
             entries.push(localEntry);
         }
     }
@@ -1350,48 +1364,90 @@ async function updateLeaderboardUI() {
         if (b.pp !== a.pp) return b.pp - a.pp;
         return b.vibes - a.vibes;
     });
-    list.innerHTML = '';
-    if (entries.length === 0 && fbReady) {
-        const el = document.createElement('div');
-        el.className = 'lb-entry';
-        el.style.cssText = 'justify-content:center;color:#666;font-size:7px;padding:12px 5px;border:none;';
-        el.textContent = '✨ No entries yet — log in and play to be first!';
-        list.appendChild(el);
+
+    // DOM diffing: update in-place without flicker
+    const maxRows = 50;
+    const oldRows = list.querySelectorAll('.lb-entry');
+    const nameField = (n) => n.replace('◆ ', '').replace('⭐ ', '').trim();
+
+    // Build lookup of old rows by name
+    const oldRowMap = new Map();
+    oldRows.forEach(row => {
+        const nameEl = row.querySelector('.lb-name');
+        if (nameEl) oldRowMap.set(nameField(nameEl.textContent), row);
+    });
+
+    // Handle empty state
+    if (entries.length === 0 && externalEntries) {
+        let empty = list.querySelector('.lb-empty');
+        if (!empty) {
+            list.innerHTML = '';
+            empty = document.createElement('div');
+            empty.className = 'lb-entry lb-empty';
+            empty.style.cssText = 'justify-content:center;color:#666;font-size:7px;padding:12px 5px;border:none;';
+            empty.textContent = '✨ No entries yet — log in and play to be first!';
+            list.appendChild(empty);
+        }
         return;
     }
-    entries.slice(0, 50).forEach((entry, i) => {
-        const isYou = entry.name === displayName || entry.name === G.username;
-        const isDev = /^drgekoz$/i.test(entry.name);
-        const el = document.createElement('div');
-        el.className = `lb-entry ${isYou ? 'you' : ''} ${isDev ? 'dev' : ''}`;
-        if (isDev) {
-            // DrGekoz — game dev with diamond, (DEV) badge, tooltip popup
-            el.innerHTML = `
-                <span class="lb-rank">#${i + 1}</span>
-                <span class="lb-name dev">◆ ${entry.name}</span>
-                <span class="lb-dev-badge">(DEV)
-                    <span class="dev-tooltip">
-                        <strong>Official Game Dev</strong>
-                        <a href="https://adsdoctormelbourne.com.au" target="_blank" rel="noopener">🌐 Website</a>
-                        <a href="https://github.com/DrGekoz" target="_blank" rel="noopener">🐙 GitHub</a>
-                        <a href="https://buymeacoffee.com/DrGekoz" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
-                    </span>
-                </span>
-                <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
-                <span class="lb-pp">${formatNumber(entry.pp)} PP</span>
-                <span class="lb-prestige">P${entry.prestige}</span>
-            `;
+
+    const fragment = document.createDocumentFragment();
+    entries.slice(0, maxRows).forEach((entry, i) => {
+        const rowName = nameField(entry.name);
+        let el = oldRowMap.get(rowName);
+
+        if (el) {
+            // Update existing row in-place
+            oldRowMap.delete(rowName);
+            const rankEl = el.querySelector('.lb-rank');
+            const vibeEl = el.querySelector('.lb-vibes');
+            const ppEl = el.querySelector('.lb-pp');
+            const prestigeEl = el.querySelector('.lb-prestige');
+            if (rankEl) rankEl.textContent = '#' + (i + 1);
+            if (vibeEl) vibeEl.textContent = formatNumber(entry.vibes);
+            if (ppEl) ppEl.textContent = formatNumber(entry.pp) + ' PP';
+            if (prestigeEl) prestigeEl.textContent = 'P' + entry.prestige;
         } else {
-            el.innerHTML = `
-                <span class="lb-rank">#${i + 1}</span>
-                <span class="lb-name">${isYou ? '⭐ ' : ''}${entry.name}</span>
-                <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
-                <span class="lb-pp">${formatNumber(entry.pp)} PP</span>
-                <span class="lb-prestige">P${entry.prestige}</span>
-            `;
+            // Create new row
+            const isYou = entry.name === displayName || entry.name === G.username;
+            const isDev = /^drgekoz$/i.test(entry.name);
+            el = document.createElement('div');
+            el.className = `lb-entry ${isYou ? 'you' : ''} ${isDev ? 'dev' : ''}`;
+            if (isDev) {
+                el.innerHTML = `
+                    <span class="lb-rank">#${i + 1}</span>
+                    <span class="lb-name dev">◆ ${entry.name}</span>
+                    <span class="lb-dev-badge">(DEV)
+                        <span class="dev-tooltip">
+                            <strong>Official Game Dev</strong>
+                            <a href="https://adsdoctormelbourne.com.au" target="_blank" rel="noopener">🌐 Website</a>
+                            <a href="https://github.com/DrGekoz" target="_blank" rel="noopener">🐙 GitHub</a>
+                            <a href="https://buymeacoffee.com/DrGekoz" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
+                        </span>
+                    </span>
+                    <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
+                    <span class="lb-pp">${formatNumber(entry.pp)} PP</span>
+                    <span class="lb-prestige">P${entry.prestige}</span>
+                `;
+            } else {
+                el.innerHTML = `
+                    <span class="lb-rank">#${i + 1}</span>
+                    <span class="lb-name">${isYou ? '⭐ ' : ''}${entry.name}</span>
+                    <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
+                    <span class="lb-pp">${formatNumber(entry.pp)} PP</span>
+                    <span class="lb-prestige">P${entry.prestige}</span>
+                `;
+            }
         }
-        list.appendChild(el);
+        fragment.appendChild(el);
     });
+
+    // Remove rows that no longer exist in data
+    oldRowMap.forEach(row => row.remove());
+
+    // Replace list content atomically
+    list.innerHTML = '';
+    list.appendChild(fragment);
 }
 
 // ---- REALTIME LOCAL LEADERBOARD UPDATE ----
@@ -1576,7 +1632,7 @@ async function saveDisplayName() {
         // Upload local save to Firebase
         try {
             await fbSave(G);
-            await fbSubmitScore(name, G.lifetime_vibes, G.total_prestiges, G.total_pp_earned);
+            await fbSubmitScore(name, G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, name);
         } catch (_) {}
     }
 }

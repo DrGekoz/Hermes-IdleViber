@@ -22,7 +22,6 @@ const ROOMS = {
         desc: 'A warm crackling fire under starry skies',
         cost: 0,
         unlocked: true,
-        vpsMult: 1.0,
         bg: ['#1a0e0a', '#2b1a10', '#0f0806'],
         fg: ['#ff6b35', '#ffaa44', '#ffdd88'],
         sprites: ['campfire', 'trees', 'stars', 'smoke'],
@@ -34,7 +33,6 @@ const ROOMS = {
         desc: 'Neon-lit digital hideout',
         cost: 100_000_000,         // 100M
         unlocked: false,
-        vpsMult: 1.5,
         bg: ['#0a001a', '#1a0033', '#000011'],
         fg: ['#ff00ff', '#00ffff', '#ff0066'],
         sprites: ['server_rack', 'neon_sign', 'matrix_rain', 'hologram'],
@@ -46,7 +44,6 @@ const ROOMS = {
         desc: 'Peaceful bamboo grove with flowing water',
         cost: 1_000_000_000,       // 1B
         unlocked: false,
-        vpsMult: 2.0,
         bg: ['#0a1a0a', '#1a2a1a', '#050f05'],
         fg: ['#66bb6a', '#a5d6a7', '#4db6ac'],
         sprites: ['bamboo', 'water_rock', 'cherry_blossom', 'lantern'],
@@ -58,7 +55,6 @@ const ROOMS = {
         desc: 'Cosmic observatory floating among galaxies',
         cost: 25_000_000_000,      // 25B
         unlocked: false,
-        vpsMult: 2.5,
         bg: ['#000022', '#000044', '#001122'],
         fg: ['#ffffff', '#8888ff', '#ff88ff'],
         sprites: ['telescope', 'aurora', 'planets', 'constellations'],
@@ -70,7 +66,6 @@ const ROOMS = {
         desc: 'Cozy den with bookshelves and warm lamplight',
         cost: 1_000_000_000_000,   // 1T
         unlocked: false,
-        vpsMult: 3.0,
         bg: ['#1a1410', '#2a2018', '#0f0a08'],
         fg: ['#d4a574', '#c4956a', '#e8c8a8'],
         sprites: ['bookshelf', 'desk', 'lamp', 'armchair'],
@@ -82,7 +77,6 @@ const ROOMS = {
         desc: 'Sunset waves lapping on pixel sand',
         cost: 10_000_000_000_000,  // 10T
         unlocked: false,
-        vpsMult: 5.0,
         bg: ['#1a2233', '#2a3344', '#0a1520'],
         fg: ['#ffaa44', '#ff8833', '#66ccff'],
         sprites: ['palm_tree', 'waves', 'seashell', 'sunset'],
@@ -96,106 +90,106 @@ const ROOMS = {
 //   11:5B  12:25B 13:100B 14:500B  15:2T
 const ROOM_DECOR = {
     campfire_grove: [
-        { id: 'cg_log_stool',        name: 'Log Stool',        cost: 1_000,           icon: 'cg_log_stool' },
-        { id: 'cg_compass',          name: 'Compass',           cost: 5_000,           icon: 'cg_compass' },
-        { id: 'cg_canteen',          name: 'Canteen',           cost: 25_000,          icon: 'cg_canteen' },
-        { id: 'cg_whittle_figure',   name: 'Whittle Figure',    cost: 100_000,         icon: 'cg_whittle_figure' },
-        { id: 'cg_star_chart',       name: 'Star Chart',        cost: 500_000,         icon: 'cg_star_chart' },
-        { id: 'cg_map_stand',        name: 'Map Stand',         cost: 2_000_000,       icon: 'cg_map_stand' },
-        { id: 'cg_wildflower',       name: 'Wildflower Patch',  cost: 10_000_000,      icon: 'cg_wildflower' },
-        { id: 'cg_berry_bush',       name: 'Berry Bush',        cost: 50_000_000,      icon: 'cg_berry_bush' },
-        { id: 'cg_birdhouse',        name: 'Birdhouse',         cost: 200_000_000,     icon: 'cg_birdhouse' },
-        { id: 'cg_fishing_rod',      name: 'Fishing Rod',       cost: 1_000_000_000,   icon: 'cg_fishing_rod' },
-        { id: 'cg_axe_block',        name: 'Axe Block',         cost: 5_000_000_000,   icon: 'cg_axe_block' },
-        { id: 'cg_wood_pile',        name: 'Wood Pile',         cost: 25_000_000_000,  icon: 'cg_wood_pile' },
-        { id: 'cg_bedroll',          name: 'Bedroll',           cost: 100_000_000_000, icon: 'cg_bedroll' },
-        { id: 'cg_lantern_post',     name: 'Lantern Post',      cost: 500_000_000_000, icon: 'cg_lantern_post' },
-        { id: 'cg_fire_ring',        name: 'Fire Ring',         cost: 2_000_000_000_000, icon: 'cg_fire_ring' },
+        { id: 'cg_log_stool',        name: 'Log Stool',        cost: 1_000,           vpsMult: 1.002, icon: 'cg_log_stool' },
+        { id: 'cg_compass',          name: 'Compass',           cost: 5_000,           vpsMult: 1.005, icon: 'cg_compass' },
+        { id: 'cg_canteen',          name: 'Canteen',           cost: 25_000,          vpsMult: 1.01,  icon: 'cg_canteen' },
+        { id: 'cg_whittle_figure',   name: 'Whittle Figure',    cost: 100_000,         vpsMult: 1.015, icon: 'cg_whittle_figure' },
+        { id: 'cg_star_chart',       name: 'Star Chart',        cost: 500_000,         vpsMult: 1.02,  icon: 'cg_star_chart' },
+        { id: 'cg_map_stand',        name: 'Map Stand',         cost: 2_000_000,       vpsMult: 1.025, icon: 'cg_map_stand' },
+        { id: 'cg_wildflower',       name: 'Wildflower Patch',  cost: 10_000_000,      vpsMult: 1.03,  icon: 'cg_wildflower' },
+        { id: 'cg_berry_bush',       name: 'Berry Bush',        cost: 50_000_000,      vpsMult: 1.04,  icon: 'cg_berry_bush' },
+        { id: 'cg_birdhouse',        name: 'Birdhouse',         cost: 200_000_000,     vpsMult: 1.05,  icon: 'cg_birdhouse' },
+        { id: 'cg_fishing_rod',      name: 'Fishing Rod',       cost: 1_000_000_000,   vpsMult: 1.06,  icon: 'cg_fishing_rod' },
+        { id: 'cg_axe_block',        name: 'Axe Block',         cost: 5_000_000_000,   vpsMult: 1.07,  icon: 'cg_axe_block' },
+        { id: 'cg_wood_pile',        name: 'Wood Pile',         cost: 25_000_000_000,  vpsMult: 1.08,  icon: 'cg_wood_pile' },
+        { id: 'cg_bedroll',          name: 'Bedroll',           cost: 100_000_000_000, vpsMult: 1.10,  icon: 'cg_bedroll' },
+        { id: 'cg_lantern_post',     name: 'Lantern Post',      cost: 500_000_000_000, vpsMult: 1.12,  icon: 'cg_lantern_post' },
+        { id: 'cg_fire_ring',        name: 'Fire Ring',         cost: 2_000_000_000_000, vpsMult: 1.15, icon: 'cg_fire_ring' },
     ],
     cyber_den: [
-        { id: 'cd_digital_clock',    name: 'Digital Clock',     cost: 1_000,           icon: 'cd_digital_clock' },
-        { id: 'cd_glitch_art',       name: 'Glitch Art',        cost: 5_000,           icon: 'cd_glitch_art' },
-        { id: 'cd_circuit_board',    name: 'Circuit Board',     cost: 25_000,          icon: 'cd_circuit_board' },
-        { id: 'cd_cooling_fan',      name: 'Cooling Fan',       cost: 100_000,         icon: 'cd_cooling_fan' },
-        { id: 'cd_data_crystal',     name: 'Data Crystal',      cost: 500_000,         icon: 'cd_data_crystal' },
-        { id: 'cd_rgb_panel',        name: 'RGB Panel',         cost: 2_000_000,       icon: 'cd_rgb_panel' },
-        { id: 'cd_vr_headset',       name: 'VR Headset',        cost: 10_000_000,      icon: 'cd_vr_headset' },
-        { id: 'cd_keyboard_rig',     name: 'Keyboard Rig',      cost: 50_000_000,      icon: 'cd_keyboard_rig' },
-        { id: 'cd_cable_spaghetti',  name: 'Cable Spaghetti',   cost: 200_000_000,     icon: 'cd_cable_spaghetti' },
-        { id: 'cd_server_tower',     name: 'Server Tower',      cost: 1_000_000_000,   icon: 'cd_server_tower' },
-        { id: 'cd_power_core',       name: 'Power Core',        cost: 5_000_000_000,   icon: 'cd_power_core' },
-        { id: 'cd_access_terminal',  name: 'Access Terminal',   cost: 25_000_000_000,  icon: 'cd_access_terminal' },
-        { id: 'cd_projector_screen', name: 'Projector Screen',  cost: 100_000_000_000, icon: 'cd_projector_screen' },
-        { id: 'cd_robot_arm',        name: 'Robot Arm',         cost: 500_000_000_000, icon: 'cd_robot_arm' },
-        { id: 'cd_holographic_display', name: 'Hologram Display', cost: 2_000_000_000_000, icon: 'cd_holographic_display' },
+        { id: 'cd_digital_clock',    name: 'Digital Clock',     cost: 1_000,           vpsMult: 1.002, icon: 'cd_digital_clock' },
+        { id: 'cd_glitch_art',       name: 'Glitch Art',        cost: 5_000,           vpsMult: 1.005, icon: 'cd_glitch_art' },
+        { id: 'cd_circuit_board',    name: 'Circuit Board',     cost: 25_000,          vpsMult: 1.01,  icon: 'cd_circuit_board' },
+        { id: 'cd_cooling_fan',      name: 'Cooling Fan',       cost: 100_000,         vpsMult: 1.015, icon: 'cd_cooling_fan' },
+        { id: 'cd_data_crystal',     name: 'Data Crystal',      cost: 500_000,         vpsMult: 1.02,  icon: 'cd_data_crystal' },
+        { id: 'cd_rgb_panel',        name: 'RGB Panel',         cost: 2_000_000,       vpsMult: 1.025, icon: 'cd_rgb_panel' },
+        { id: 'cd_vr_headset',       name: 'VR Headset',        cost: 10_000_000,      vpsMult: 1.03,  icon: 'cd_vr_headset' },
+        { id: 'cd_keyboard_rig',     name: 'Keyboard Rig',      cost: 50_000_000,      vpsMult: 1.04,  icon: 'cd_keyboard_rig' },
+        { id: 'cd_cable_spaghetti',  name: 'Cable Spaghetti',   cost: 200_000_000,     vpsMult: 1.05,  icon: 'cd_cable_spaghetti' },
+        { id: 'cd_server_tower',     name: 'Server Tower',      cost: 1_000_000_000,   vpsMult: 1.06,  icon: 'cd_server_tower' },
+        { id: 'cd_power_core',       name: 'Power Core',        cost: 5_000_000_000,   vpsMult: 1.07,  icon: 'cd_power_core' },
+        { id: 'cd_access_terminal',  name: 'Access Terminal',   cost: 25_000_000_000,  vpsMult: 1.08,  icon: 'cd_access_terminal' },
+        { id: 'cd_projector_screen', name: 'Projector Screen',  cost: 100_000_000_000, vpsMult: 1.10,  icon: 'cd_projector_screen' },
+        { id: 'cd_robot_arm',        name: 'Robot Arm',         cost: 500_000_000_000, vpsMult: 1.12,  icon: 'cd_robot_arm' },
+        { id: 'cd_holographic_display', name: 'Hologram Display', cost: 2_000_000_000_000, vpsMult: 1.15, icon: 'cd_holographic_display' },
     ],
     zen_garden: [
-        { id: 'zg_tea_set',          name: 'Tea Set',           cost: 1_000,           icon: 'zg_tea_set' },
-        { id: 'zg_water_dipper',     name: 'Water Dipper',      cost: 5_000,           icon: 'zg_water_dipper' },
-        { id: 'zg_incense_burner',   name: 'Incense Burner',    cost: 25_000,          icon: 'zg_incense_burner' },
-        { id: 'zg_lotus_flower',     name: 'Lotus Flower',      cost: 100_000,         icon: 'zg_lotus_flower' },
-        { id: 'zg_wind_chime',       name: 'Wind Chime',        cost: 500_000,         icon: 'zg_wind_chime' },
-        { id: 'zg_meditation_cush',  name: 'Meditation Cushion',cost: 2_000_000,       icon: 'zg_meditation_cush' },
-        { id: 'zg_moss_rock',        name: 'Moss Rock',         cost: 10_000_000,      icon: 'zg_moss_rock' },
-        { id: 'zg_cherry_bonsai',    name: 'Cherry Bonsai',     cost: 50_000_000,      icon: 'zg_cherry_bonsai' },
-        { id: 'zg_bamboo_fence',     name: 'Bamboo Fence',      cost: 200_000_000,     icon: 'zg_bamboo_fence' },
-        { id: 'zg_stone_path',       name: 'Stone Path',        cost: 1_000_000_000,   icon: 'zg_stone_path' },
-        { id: 'zg_koi_pond',         name: 'Koi Pond',          cost: 5_000_000_000,   icon: 'zg_koi_pond' },
-        { id: 'zg_sand_garden',      name: 'Sand Garden',       cost: 25_000_000_000,  icon: 'zg_sand_garden' },
-        { id: 'zg_rain_chain',       name: 'Rain Chain',        cost: 100_000_000_000, icon: 'zg_rain_chain' },
-        { id: 'zg_bamboo_fountain',  name: 'Bamboo Fountain',   cost: 500_000_000_000, icon: 'zg_bamboo_fountain' },
-        { id: 'zg_stone_lantern',    name: 'Stone Lantern',     cost: 2_000_000_000_000, icon: 'zg_stone_lantern' },
+        { id: 'zg_tea_set',          name: 'Tea Set',           cost: 1_000,           vpsMult: 1.002, icon: 'zg_tea_set' },
+        { id: 'zg_water_dipper',     name: 'Water Dipper',      cost: 5_000,           vpsMult: 1.005, icon: 'zg_water_dipper' },
+        { id: 'zg_incense_burner',   name: 'Incense Burner',    cost: 25_000,          vpsMult: 1.01,  icon: 'zg_incense_burner' },
+        { id: 'zg_lotus_flower',     name: 'Lotus Flower',      cost: 100_000,         vpsMult: 1.015, icon: 'zg_lotus_flower' },
+        { id: 'zg_wind_chime',       name: 'Wind Chime',        cost: 500_000,         vpsMult: 1.02,  icon: 'zg_wind_chime' },
+        { id: 'zg_meditation_cush',  name: 'Meditation Cushion',cost: 2_000_000,       vpsMult: 1.025, icon: 'zg_meditation_cush' },
+        { id: 'zg_moss_rock',        name: 'Moss Rock',         cost: 10_000_000,      vpsMult: 1.03,  icon: 'zg_moss_rock' },
+        { id: 'zg_cherry_bonsai',    name: 'Cherry Bonsai',     cost: 50_000_000,      vpsMult: 1.04,  icon: 'zg_cherry_bonsai' },
+        { id: 'zg_bamboo_fence',     name: 'Bamboo Fence',      cost: 200_000_000,     vpsMult: 1.05,  icon: 'zg_bamboo_fence' },
+        { id: 'zg_stone_path',       name: 'Stone Path',        cost: 1_000_000_000,   vpsMult: 1.06,  icon: 'zg_stone_path' },
+        { id: 'zg_koi_pond',         name: 'Koi Pond',          cost: 5_000_000_000,   vpsMult: 1.07,  icon: 'zg_koi_pond' },
+        { id: 'zg_sand_garden',      name: 'Sand Garden',       cost: 25_000_000_000,  vpsMult: 1.08,  icon: 'zg_sand_garden' },
+        { id: 'zg_rain_chain',       name: 'Rain Chain',        cost: 100_000_000_000, vpsMult: 1.10,  icon: 'zg_rain_chain' },
+        { id: 'zg_bamboo_fountain',  name: 'Bamboo Fountain',   cost: 500_000_000_000, vpsMult: 1.12,  icon: 'zg_bamboo_fountain' },
+        { id: 'zg_stone_lantern',    name: 'Stone Lantern',     cost: 2_000_000_000_000, vpsMult: 1.15, icon: 'zg_stone_lantern' },
     ],
     star_deck: [
-        { id: 'sd_moon_globe',       name: 'Moon Globe',        cost: 1_000,           icon: 'sd_moon_globe' },
-        { id: 'sd_constellation_map',name: 'Constellation Map', cost: 5_000,           icon: 'sd_constellation_map' },
-        { id: 'sd_meteor_stone',     name: 'Meteor Stone',      cost: 25_000,          icon: 'sd_meteor_stone' },
-        { id: 'sd_orbit_diagram',    name: 'Orbit Diagram',     cost: 100_000,         icon: 'sd_orbit_diagram' },
-        { id: 'sd_astrolabe',        name: 'Astrolabe',         cost: 500_000,         icon: 'sd_astrolabe' },
-        { id: 'sd_galaxy_painting',  name: 'Galaxy Painting',   cost: 2_000_000,       icon: 'sd_galaxy_painting' },
-        { id: 'sd_observatory_chair',name: 'Observatory Chair', cost: 10_000_000,      icon: 'sd_observatory_chair' },
-        { id: 'sd_star_projector',   name: 'Star Projector',    cost: 50_000_000,      icon: 'sd_star_projector' },
-        { id: 'sd_lunar_lamp',       name: 'Lunar Lamp',        cost: 200_000_000,     icon: 'sd_lunar_lamp' },
-        { id: 'sd_cosmic_map',       name: 'Cosmic Map',        cost: 1_000_000_000,   icon: 'sd_cosmic_map' },
-        { id: 'sd_nebula_art',       name: 'Nebula Art',        cost: 5_000_000_000,   icon: 'sd_nebula_art' },
-        { id: 'sd_planet_model',     name: 'Planet Model',      cost: 25_000_000_000,  icon: 'sd_planet_model' },
-        { id: 'sd_rocket_model',     name: 'Rocket Model',      cost: 100_000_000_000, icon: 'sd_rocket_model' },
-        { id: 'sd_satellite_dish',   name: 'Satellite Dish',    cost: 500_000_000_000, icon: 'sd_satellite_dish' },
-        { id: 'sd_telescope',        name: 'Telescope',         cost: 2_000_000_000_000, icon: 'sd_telescope' },
+        { id: 'sd_moon_globe',       name: 'Moon Globe',        cost: 1_000,           vpsMult: 1.002, icon: 'sd_moon_globe' },
+        { id: 'sd_constellation_map',name: 'Constellation Map', cost: 5_000,           vpsMult: 1.005, icon: 'sd_constellation_map' },
+        { id: 'sd_meteor_stone',     name: 'Meteor Stone',      cost: 25_000,          vpsMult: 1.01,  icon: 'sd_meteor_stone' },
+        { id: 'sd_orbit_diagram',    name: 'Orbit Diagram',     cost: 100_000,         vpsMult: 1.015, icon: 'sd_orbit_diagram' },
+        { id: 'sd_astrolabe',        name: 'Astrolabe',         cost: 500_000,         vpsMult: 1.02,  icon: 'sd_astrolabe' },
+        { id: 'sd_galaxy_painting',  name: 'Galaxy Painting',   cost: 2_000_000,       vpsMult: 1.025, icon: 'sd_galaxy_painting' },
+        { id: 'sd_observatory_chair',name: 'Observatory Chair', cost: 10_000_000,      vpsMult: 1.03,  icon: 'sd_observatory_chair' },
+        { id: 'sd_star_projector',   name: 'Star Projector',    cost: 50_000_000,      vpsMult: 1.04,  icon: 'sd_star_projector' },
+        { id: 'sd_lunar_lamp',       name: 'Lunar Lamp',        cost: 200_000_000,     vpsMult: 1.05,  icon: 'sd_lunar_lamp' },
+        { id: 'sd_cosmic_map',       name: 'Cosmic Map',        cost: 1_000_000_000,   vpsMult: 1.06,  icon: 'sd_cosmic_map' },
+        { id: 'sd_nebula_art',       name: 'Nebula Art',        cost: 5_000_000_000,   vpsMult: 1.07,  icon: 'sd_nebula_art' },
+        { id: 'sd_planet_model',     name: 'Planet Model',      cost: 25_000_000_000,  vpsMult: 1.08,  icon: 'sd_planet_model' },
+        { id: 'sd_rocket_model',     name: 'Rocket Model',      cost: 100_000_000_000, vpsMult: 1.10,  icon: 'sd_rocket_model' },
+        { id: 'sd_satellite_dish',   name: 'Satellite Dish',    cost: 500_000_000_000, vpsMult: 1.12,  icon: 'sd_satellite_dish' },
+        { id: 'sd_telescope',        name: 'Telescope',         cost: 2_000_000_000_000, vpsMult: 1.15, icon: 'sd_telescope' },
     ],
     study_lounge: [
-        { id: 'sl_coffee_mug',       name: 'Coffee Mug',        cost: 1_000,           icon: 'sl_coffee_mug' },
-        { id: 'sl_candle_holder',    name: 'Candle Holder',     cost: 5_000,           icon: 'sl_candle_holder' },
-        { id: 'sl_plant_pot',        name: 'Plant Pot',         cost: 25_000,          icon: 'sl_plant_pot' },
-        { id: 'sl_wall_clock',       name: 'Wall Clock',        cost: 100_000,         icon: 'sl_wall_clock' },
-        { id: 'sl_typewriter',       name: 'Typewriter',        cost: 500_000,         icon: 'sl_typewriter' },
-        { id: 'sl_globe',            name: 'Globe',             cost: 2_000_000,       icon: 'sl_globe' },
-        { id: 'sl_throw_pillow',     name: 'Throw Pillow',      cost: 10_000_000,      icon: 'sl_throw_pillow' },
-        { id: 'sl_magazine_rack',    name: 'Magazine Rack',     cost: 50_000_000,      icon: 'sl_magazine_rack' },
-        { id: 'sl_picture_frame',    name: 'Picture Frame',     cost: 200_000_000,     icon: 'sl_picture_frame' },
-        { id: 'sl_reading_lamp',     name: 'Reading Lamp',      cost: 1_000_000_000,   icon: 'sl_reading_lamp' },
-        { id: 'sl_floor_lamp',       name: 'Floor Lamp',        cost: 5_000_000_000,   icon: 'sl_floor_lamp' },
-        { id: 'sl_record_player',    name: 'Record Player',     cost: 25_000_000_000,  icon: 'sl_record_player' },
-        { id: 'sl_writing_desk',     name: 'Writing Desk',      cost: 100_000_000_000, icon: 'sl_writing_desk' },
-        { id: 'sl_armchair',         name: 'Armchair',          cost: 500_000_000_000, icon: 'sl_armchair' },
-        { id: 'sl_bookshelf',        name: 'Bookshelf',         cost: 2_000_000_000_000, icon: 'sl_bookshelf' },
+        { id: 'sl_coffee_mug',       name: 'Coffee Mug',        cost: 1_000,           vpsMult: 1.002, icon: 'sl_coffee_mug' },
+        { id: 'sl_candle_holder',    name: 'Candle Holder',     cost: 5_000,           vpsMult: 1.005, icon: 'sl_candle_holder' },
+        { id: 'sl_plant_pot',        name: 'Plant Pot',         cost: 25_000,          vpsMult: 1.01,  icon: 'sl_plant_pot' },
+        { id: 'sl_wall_clock',       name: 'Wall Clock',        cost: 100_000,         vpsMult: 1.015, icon: 'sl_wall_clock' },
+        { id: 'sl_typewriter',       name: 'Typewriter',        cost: 500_000,         vpsMult: 1.02,  icon: 'sl_typewriter' },
+        { id: 'sl_globe',            name: 'Globe',             cost: 2_000_000,       vpsMult: 1.025, icon: 'sl_globe' },
+        { id: 'sl_throw_pillow',     name: 'Throw Pillow',      cost: 10_000_000,      vpsMult: 1.03,  icon: 'sl_throw_pillow' },
+        { id: 'sl_magazine_rack',    name: 'Magazine Rack',     cost: 50_000_000,      vpsMult: 1.04,  icon: 'sl_magazine_rack' },
+        { id: 'sl_picture_frame',    name: 'Picture Frame',     cost: 200_000_000,     vpsMult: 1.05,  icon: 'sl_picture_frame' },
+        { id: 'sl_reading_lamp',     name: 'Reading Lamp',      cost: 1_000_000_000,   vpsMult: 1.06,  icon: 'sl_reading_lamp' },
+        { id: 'sl_floor_lamp',       name: 'Floor Lamp',        cost: 5_000_000_000,   vpsMult: 1.07,  icon: 'sl_floor_lamp' },
+        { id: 'sl_record_player',    name: 'Record Player',     cost: 25_000_000_000,  vpsMult: 1.08,  icon: 'sl_record_player' },
+        { id: 'sl_writing_desk',     name: 'Writing Desk',      cost: 100_000_000_000, vpsMult: 1.10,  icon: 'sl_writing_desk' },
+        { id: 'sl_armchair',         name: 'Armchair',          cost: 500_000_000_000, vpsMult: 1.12,  icon: 'sl_armchair' },
+        { id: 'sl_bookshelf',        name: 'Bookshelf',         cost: 2_000_000_000_000, vpsMult: 1.15, icon: 'sl_bookshelf' },
     ],
     beach_cove: [
-        { id: 'bc_seashell',         name: 'Seashell',          cost: 1_000,           icon: 'bc_seashell' },
-        { id: 'bc_starfish',         name: 'Starfish',          cost: 5_000,           icon: 'bc_starfish' },
-        { id: 'bc_sand_bucket',      name: 'Sand Bucket',       cost: 25_000,          icon: 'bc_sand_bucket' },
-        { id: 'bc_flip_flops',       name: 'Flip Flops',        cost: 100_000,         icon: 'bc_flip_flops' },
-        { id: 'bc_beach_ball',       name: 'Beach Ball',        cost: 500_000,         icon: 'bc_beach_ball' },
-        { id: 'bc_driftwood',        name: 'Driftwood',         cost: 2_000_000,       icon: 'bc_driftwood' },
-        { id: 'bc_sandcastle',       name: 'Sandcastle',        cost: 10_000_000,      icon: 'bc_sandcastle' },
-        { id: 'bc_coral_piece',      name: 'Coral Piece',       cost: 50_000_000,      icon: 'bc_coral_piece' },
-        { id: 'bc_tiki_torch',       name: 'Tiki Torch',        cost: 200_000_000,     icon: 'bc_tiki_torch' },
-        { id: 'bc_cooler',           name: 'Cooler',            cost: 1_000_000_000,   icon: 'bc_cooler' },
-        { id: 'bc_beach_towel',      name: 'Beach Towel',       cost: 5_000_000_000,   icon: 'bc_beach_towel' },
-        { id: 'bc_surfboard',        name: 'Surfboard',         cost: 25_000_000_000,  icon: 'bc_surfboard' },
-        { id: 'bc_beach_umbrella',   name: 'Beach Umbrella',    cost: 100_000_000_000, icon: 'bc_beach_umbrella' },
-        { id: 'bc_hammock',          name: 'Hammock',           cost: 500_000_000_000, icon: 'bc_hammock' },
-        { id: 'bc_palm_tree',        name: 'Palm Tree',         cost: 2_000_000_000_000, icon: 'bc_palm_tree' },
+        { id: 'bc_seashell',         name: 'Seashell',          cost: 1_000,           vpsMult: 1.002, icon: 'bc_seashell' },
+        { id: 'bc_starfish',         name: 'Starfish',          cost: 5_000,           vpsMult: 1.005, icon: 'bc_starfish' },
+        { id: 'bc_sand_bucket',      name: 'Sand Bucket',       cost: 25_000,          vpsMult: 1.01,  icon: 'bc_sand_bucket' },
+        { id: 'bc_flip_flops',       name: 'Flip Flops',        cost: 100_000,         vpsMult: 1.015, icon: 'bc_flip_flops' },
+        { id: 'bc_beach_ball',       name: 'Beach Ball',        cost: 500_000,         vpsMult: 1.02,  icon: 'bc_beach_ball' },
+        { id: 'bc_driftwood',        name: 'Driftwood',         cost: 2_000_000,       vpsMult: 1.025, icon: 'bc_driftwood' },
+        { id: 'bc_sandcastle',       name: 'Sandcastle',        cost: 10_000_000,      vpsMult: 1.03,  icon: 'bc_sandcastle' },
+        { id: 'bc_coral_piece',      name: 'Coral Piece',       cost: 50_000_000,      vpsMult: 1.04,  icon: 'bc_coral_piece' },
+        { id: 'bc_tiki_torch',       name: 'Tiki Torch',        cost: 200_000_000,     vpsMult: 1.05,  icon: 'bc_tiki_torch' },
+        { id: 'bc_cooler',           name: 'Cooler',            cost: 1_000_000_000,   vpsMult: 1.06,  icon: 'bc_cooler' },
+        { id: 'bc_beach_towel',      name: 'Beach Towel',       cost: 5_000_000_000,   vpsMult: 1.07,  icon: 'bc_beach_towel' },
+        { id: 'bc_surfboard',        name: 'Surfboard',         cost: 25_000_000_000,  vpsMult: 1.08,  icon: 'bc_surfboard' },
+        { id: 'bc_beach_umbrella',   name: 'Beach Umbrella',    cost: 100_000_000_000, vpsMult: 1.10,  icon: 'bc_beach_umbrella' },
+        { id: 'bc_hammock',          name: 'Hammock',           cost: 500_000_000_000, vpsMult: 1.12,  icon: 'bc_hammock' },
+        { id: 'bc_palm_tree',        name: 'Palm Tree',         cost: 2_000_000_000_000, vpsMult: 1.15, icon: 'bc_palm_tree' },
     ],
 };
 
@@ -393,12 +387,21 @@ function getMaxBuyable(baseCost, currentCount, availableVibes) {
     return Math.floor(Math.log(ratio) / Math.log(r));
 }
 
-// Calculate the combined VPS multiplier from all unlocked rooms
-function getRoomVpsMult(state = G) {
+// Calculate the combined VPS multiplier from all active decor items (finds item by ID across all rooms)
+function getActiveDecorVpsMult(state = G) {
     let mult = 1.0;
-    for (const roomId of state.unlocked_rooms) {
-        const room = ROOMS[roomId];
-        if (room && room.vpsMult) mult *= room.vpsMult;
+    const activeDecor = state.active_decor || {};
+    const decorIds = Object.keys(activeDecor);
+    if (decorIds.length === 0) return mult;
+    // Build a quick lookup: id -> vpsMult across all rooms
+    const lookup = {};
+    for (const roomId of Object.keys(ROOM_DECOR)) {
+        for (const item of ROOM_DECOR[roomId]) {
+            lookup[item.id] = item.vpsMult || 1.0;
+        }
+    }
+    for (const id of decorIds) {
+        if (lookup[id]) mult *= lookup[id];
     }
     return mult;
 }
@@ -594,8 +597,8 @@ function getVPS(state = G) {
         if (upg.type === 'gw_add') gwMult += upg.value * count;
         if (upg.type === 'base_vps') vps += upg.value * count;
     }
-    // Room VPS multiplier (resets on prestige)
-    const roomMult = getRoomVpsMult(state);
+    // Decor VPS multiplier (from active decor items)
+    const roomMult = getActiveDecorVpsMult(state);
     // Permanent multiplier from prestige chips (count-based)
     let permaMult = 1;
     for (const [upgId, count] of Object.entries(state.prestige_upgrades)) {
@@ -1004,7 +1007,7 @@ export {
     getBulkCost,
     getMaxBuyable,
     getVPS,
-    getRoomVpsMult,
+    getActiveDecorVpsMult,
     getClickValue,
     getPrestigeGain,
     getPrestigeThreshold,
