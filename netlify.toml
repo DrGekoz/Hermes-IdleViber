@@ -4,6 +4,7 @@
 
 [build]
   publish = "."
+  ignore = ".git"
 
 # All routes serve index.html (SPA-ready, though it's a single-page app)
 [[redirects]]
