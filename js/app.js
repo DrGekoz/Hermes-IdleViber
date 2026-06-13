@@ -603,7 +603,7 @@ function initUIEvents() {
         if (type === 'autoclickers' || type === 'gateway_upgrades') {
             updateResourceUI();
             updateShopUI();
-            renderPrestigeUpgrades();
+            updatePrestigeAffordability();
         }
         if (type === 'prestige' || type === 'reset' || type === 'load') {
             updateAllUI();
@@ -827,11 +827,16 @@ async function doGoogleLoginAsync() {
         // Load cloud save
         const cloudState = await fbLoad();
         if (cloudState) {
-            Object.assign(G, cloudState);
-            G.auth_mode = 'firebase';
-            G.userId = result.uid;
-            G.username = result.user.displayName || 'Player';
-            showToast('☁️ Cloud save loaded');
+            // Sanity check: detect bugged prestige values
+            if (cloudState.total_pp_earned > 50000 || cloudState.prestige_points > 50000) {
+                console.warn('Cloud save has bugged prestige — resetting');
+            } else {
+                Object.assign(G, cloudState);
+                G.auth_mode = 'firebase';
+                G.userId = result.uid;
+                G.username = result.user.displayName || 'Player';
+                showToast('☁️ Cloud save loaded');
+            }
         } else {
             // First login — upload local save
             fbSave(G).catch(() => {});
@@ -1161,15 +1166,7 @@ function updateShopAffordability() {
         el.classList.toggle('locked', vibes < cost);
     });
     // Prestige upgrades (count-based, chip cost)
-    document.querySelectorAll('#prestige-upgrade-list .shop-item').forEach(el => {
-        const id = el.dataset.upgId;
-        if (!id) return;
-        const upg = PRESTIGE_UPGRADES.find(u => u.id === id);
-        if (!upg) return;
-        const count = G.prestige_upgrades[id] || 0;
-        const cost = Math.floor(upg.baseCost * Math.pow(upg.costMult, count));
-        el.classList.toggle('locked', G.prestige_points < cost);
-    });
+    updatePrestigeAffordability();
     // Decor
     document.querySelectorAll('#decor-list .shop-item').forEach(el => {
         const id = el.dataset.decorId;
@@ -1179,6 +1176,20 @@ function updateShopAffordability() {
         const owned = G.owned_decor.includes(id);
         const canBuy = !owned && vibes >= item.cost;
         el.classList.toggle('locked', !owned ? !canBuy : false);
+    });
+}
+
+// Lightweight prestige affordability update - no DOM rebuild
+function updatePrestigeAffordability() {
+    const chips = G.prestige_points;
+    document.querySelectorAll('#prestige-upgrade-list .shop-item').forEach(el => {
+        const id = el.dataset.upgId;
+        if (!id) return;
+        const upg = PRESTIGE_UPGRADES.find(u => u.id === id);
+        if (!upg) return;
+        const count = G.prestige_upgrades[id] || 0;
+        const cost = Math.floor(upg.baseCost * Math.pow(upg.costMult, count));
+        el.classList.toggle('locked', chips < cost);
     });
 }
 
