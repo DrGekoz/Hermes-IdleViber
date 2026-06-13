@@ -736,6 +736,7 @@ function buyDecor(id) {
     if (G.vibes >= item.cost) {
         G.vibes -= item.cost;
         G.owned_decor.push(id);
+        G.active_decor[id] = true; // Auto-activate on purchase
         notifyStateChange('decor');
         return true;
     }
