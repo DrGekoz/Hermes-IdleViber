@@ -1,0 +1,71 @@
+headersOrigin = "config"
+redirectsOrigin = "config"
+plugins = []
+
+[functions]
+
+[functions."*"]
+
+[build]
+publish = "F:\\aaaaaVIBECODING\\Hermes-IdleViber"
+publishOrigin = "config"
+ignore = ".git"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[[headers]]
+for = "/*"
+
+[headers.values]
+X-Content-Type-Options = "nosniff"
+X-Frame-Options = "DENY"
+Referrer-Policy = "strict-origin-when-cross-origin"
+Content-Security-Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; connect-src http://localhost:* ws://localhost:* https:; img-src 'self' data: blob:;"
+
+[[headers]]
+for = "/js/*"
+
+[headers.values]
+Cache-Control = "no-cache"
+
+[[headers]]
+for = "/css/*"
+
+[headers.values]
+Cache-Control = "no-cache"
+
+[[headers]]
+for = "/sprites/*"
+
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/midi/*"
+
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
