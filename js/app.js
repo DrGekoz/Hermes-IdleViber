@@ -231,6 +231,7 @@ function cacheDOM() {
         popupTitle: $('popup-title'),
         popupText: $('popup-text'),
         popupOk: $('popup-ok'),
+        popupCancel: $('popup-cancel'),
         tabRooms: $('tab-rooms'),
         tabUpgrades: $('tab-upgrades'),
         tabPrestige: $('tab-prestige'),
@@ -626,6 +627,9 @@ function initUIEvents() {
     dom.popupOk.addEventListener('click', () => {
         dom.popup.classList.add('hidden');
         if (dom.popup._callback) dom.popup._callback();
+    });
+    dom.popupCancel.addEventListener('click', () => {
+        dom.popup.classList.add('hidden');
     });
 }
 
@@ -1121,7 +1125,7 @@ function updateShopUI() {
             icon: `sprites/images/icons/individual/${tier.id}_64.png`,
             stats: [
                 { label: 'VPS each', value: '✦ ' + tier.vps, cls: 'cyan' },
-                { label: 'Total VPS', value: '✦ ' + formatNumber(getVPS()), cls: 'green' },
+                { label: 'Tier VPS', value: '✦ ' + formatNumber(tier.vps * count), cls: 'green' },
                 { label: 'Owned', value: String(count), cls: '' },
                 { label: 'Cost', value: formatNumber(cost) + ' ✦', cls: canBuy ? 'green' : 'gold' }
             ]

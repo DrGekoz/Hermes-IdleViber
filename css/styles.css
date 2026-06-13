@@ -806,6 +806,31 @@ body {
 }
 .popup-box h2 { font-size: 14px; color: var(--accent-gold); margin-bottom: 15px; }
 .popup-box p { font-size: 8px; line-height: 1.8; color: var(--text-primary); margin-bottom: 20px; white-space: pre-line; }
+.popup-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+.popup-btn {
+    padding: 10px 20px;
+    font-family: var(--pixel-font);
+    font-size: 8px;
+    cursor: pointer;
+    border: 2px solid #000;
+    transition: background 0.15s;
+}
+.popup-btn.ok {
+    background: var(--accent-gold);
+    color: #000;
+}
+.popup-btn.cancel {
+    background: #333;
+    color: var(--text-primary);
+    border-color: #555;
+}
+.popup-btn.cancel:hover {
+    background: #552222;
+}
 .popup-box button {
     padding: 12px 30px;
     background: var(--accent-gold);
