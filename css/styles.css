@@ -1393,6 +1393,10 @@ input[type="range"]::-webkit-slider-thumb {
     height: 28px;
     font-size: 12px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
 }
 .music-panel {
     background: rgba(10,12,25,0.95);
