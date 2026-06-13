@@ -63,7 +63,7 @@ const HOT_PORTS = [
     8080, 8081, 8082, 8083,
     3000, 3001, 4000, 5000, 5001,
     5173, 5174, 5555, 6000, 7000,
-    7070, 7071, 8443, 8888, 9000, 9090,
+    7070, 7071, 8443, 8644, 8888, 9000, 9090,
     8765, 8766, 8767,     // TTS / voice servers
     11434, 11435, 11436,  // LLM inference
     11111, 1234, 1337, 18080,
@@ -311,6 +311,7 @@ async function pingGateway() {
         const start = performance.now();
         const res = await fetch(`${gatewayStatus.url}/health`, {
             method: 'GET',
+            mode: 'no-cors',
             cache: 'no-cache',
             signal: AbortSignal.timeout(CONFIG.GATEWAY_TIMEOUT),
         });

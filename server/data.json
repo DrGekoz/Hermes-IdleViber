@@ -1,38 +1,6 @@
 {
-  "users": {
-    "testplayer": {
-      "password": "5d42b7f442b34af32ec1825df52bc6c1:0a69eebcd6bc691e05ce7a797ac35d9ee1279b138a901d4bd859e893c7e5e5cf",
-      "created_at": "2026-06-10T19:33:54.816Z"
-    }
-  },
-  "saves": {
-    "testplayer": {
-      "state": {
-        "vibes": 99999,
-        "lifetime_vibes": 5000000,
-        "prestige_points": 42
-      },
-      "updated_at": "2026-06-10T19:33:55.457Z"
-    }
-  },
-  "leaderboard": [
-    {
-      "username": "testplayer",
-      "score": 5000000,
-      "prestige_level": 42,
-      "updated_at": "2026-06-10T19:33:55.711Z"
-    }
-  ],
-  "tokens": {
-    "bea7c49f1c586305cb320170c6b9757d75f5e7eb6d4d9ccf0ef935d1801abe0d": {
-      "username": "testplayer",
-      "created": 1781120035078,
-      "expires": 1781724835079
-    },
-    "c359e5d76ab5bd5b48cc555b11a0ba0f9d754d0c58215e80cc44dfbbe5faa8a3": {
-      "username": "testplayer",
-      "created": 1781120463890,
-      "expires": 1781725263890
-    }
-  }
+  "users": {},
+  "saves": {},
+  "leaderboard": [],
+  "tokens": {}
 }

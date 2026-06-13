@@ -1281,8 +1281,8 @@ function drawGatewayHUD(ctx, w, h, state) {
 
     // Background panel
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    const panelW = 160;
-    const panelH = 42;
+    const panelW = 170;
+    const panelH = 50;
     const padX = 10;
     const padY = 8;
     ctx.fillRect(w - panelW - padX, padY, panelW, panelH);
@@ -1293,17 +1293,17 @@ function drawGatewayHUD(ctx, w, h, state) {
 
     // Status line
     ctx.fillStyle = PAL.white;
-    ctx.font = '8px monospace';
-    ctx.fillText(`${icon} ${label}`, w - panelW - padX + 20, padY + 12);
+    ctx.font = '9px monospace';
+    ctx.fillText(`${icon} ${label}`, w - panelW - padX + 20, padY + 13);
 
     // Latency and multiplier
     ctx.fillStyle = PAL.lt_gray;
-    ctx.font = '7px monospace';
+    ctx.font = '9px monospace';
     const latency = state._gwLatency || 0;
-    ctx.fillText(`Latency: ${latency}ms`, w - panelW - padX + 8, padY + 25);
+    ctx.fillText(`Latency: ${latency}ms`, w - panelW - padX + 8, padY + 28);
 
     ctx.fillStyle = connected ? PAL.neGrn : PAL.lt_gray;
-    ctx.fillText(`VPS ×${mult.toFixed(1)}`, w - panelW - padX + 8, padY + 37);
+    ctx.fillText(`VPS ×${mult.toFixed(1)}`, w - panelW - padX + 8, padY + 42);
 
     ctx.restore();
 }

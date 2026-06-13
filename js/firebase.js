@@ -139,7 +139,7 @@ async function logout() {
 }
 
 // ---- LEADERBOARD ----
-async function submitScoreToLeaderboard(username, score, prestigeLevel) {
+async function submitScoreToLeaderboard(username, score, prestigeLevel, totalPp) {
     if (!currentUser || !db) return { error: 'Not logged in' };
     const { doc, setDoc, Timestamp } = await import(`${FB_BASE}firebase-firestore.js`);
     try {
@@ -148,6 +148,7 @@ async function submitScoreToLeaderboard(username, score, prestigeLevel) {
             username: username || currentUser.displayName || 'Player',
             score: Math.floor(score) || 0,
             prestige_level: prestigeLevel || 0,
+            total_pp: totalPp || 0,
             updated_at: Timestamp.now(),
         }, { merge: true });
         return { success: true };
@@ -172,6 +173,7 @@ async function getLeaderboard(limitCount = 50) {
             username: d.data().username || 'Unknown',
             score: d.data().score || 0,
             prestige_level: d.data().prestige_level || 0,
+            total_pp: d.data().total_pp || 0,
         }));
     } catch (e) {
         console.warn('Leaderboard fetch error:', e.message);

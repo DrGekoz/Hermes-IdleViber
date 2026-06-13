@@ -1,5 +1,6 @@
-// Music Player — 8-bit chiptune remixes (8 tracks)
+// Music Player — 8-bit chiptune remixes (45 tracks)
 const MUSIC_TRACKS = [
+    // --- Original tracks ---
     { file: 'audio/zelda_overworld.mp3', name: 'Zelda Overworld' },
     { file: 'audio/mario_underground.mp3', name: 'Mario Underground' },
     { file: 'audio/pokemon_battle.mp3', name: 'Pokemon Battle' },
@@ -8,6 +9,44 @@ const MUSIC_TRACKS = [
     { file: 'audio/chrono_corridor_of_time.mp3', name: 'Chrono Corridor of Time' },
     { file: 'audio/street_fighter_guile.mp3', name: 'Street Fighter Guile' },
     { file: 'audio/ff7_battle.mp3', name: 'FF7 Battle Theme' },
+    // --- New chiptune covers ---
+    { file: 'audio/smells_like_teen_spirit.mp3', name: 'Smells Like Teen Spirit' },
+    { file: 'audio/take_on_me.mp3', name: 'Take On Me' },
+    { file: 'audio/eye_of_the_tiger.mp3', name: 'Eye Of The Tiger' },
+    { file: 'audio/get_lucky.mp3', name: 'Get Lucky' },
+    { file: 'audio/final_countdown.mp3', name: 'Final Countdown' },
+    { file: 'audio/harder_better_faster.mp3', name: 'Harder Better Faster Stronger' },
+    { file: 'audio/blinding_lights.mp3', name: 'Blinding Lights' },
+    { file: 'audio/kiss_from_a_rose.mp3', name: 'Kiss From A Rose' },
+    { file: 'audio/money.mp3', name: 'Money' },
+    { file: 'audio/lose_yourself.mp3', name: 'Lose Yourself' },
+    { file: 'audio/hey_ya.mp3', name: 'Hey Ya' },
+    { file: 'audio/centuries.mp3', name: 'Centuries' },
+    { file: 'audio/plastic_love.mp3', name: 'Plastic Love' },
+    { file: 'audio/good_luck_babe.mp3', name: 'Good Luck Babe' },
+    { file: 'audio/million_dollar_baby.mp3', name: 'Million Dollar Baby' },
+    { file: 'audio/bye_bye_bye.mp3', name: 'Bye Bye Bye' },
+    { file: 'audio/little_dark_age.mp3', name: 'Little Dark Age' },
+    { file: 'audio/west_end_girls.mp3', name: 'West End Girls' },
+    { file: 'audio/my_ordinary_life.mp3', name: 'My Ordinary Life' },
+    { file: 'audio/any_way_you_want_it.mp3', name: 'Any Way You Want It' },
+    { file: 'audio/tiny_dancer.mp3', name: 'Tiny Dancer' },
+    { file: 'audio/ready_for_it.mp3', name: 'Ready For It' },
+    { file: 'audio/washing_machine_heart.mp3', name: 'Washing Machine Heart' },
+    { file: 'audio/beautiful_things.mp3', name: 'Beautiful Things' },
+    { file: 'audio/gourmet_race.mp3', name: 'Gourmet Race' },
+    { file: 'audio/battle_true_hero.mp3', name: 'Battle Against A True Hero' },
+    { file: 'audio/otonoke_dandadan.mp3', name: 'Otonoke (Dandadan OP)' },
+    { file: 'audio/order_ultrakill.mp3', name: 'Order (Ultrakill)' },
+    { file: 'audio/rohirrim_charge.mp3', name: 'Rohirrim Charge' },
+    { file: 'audio/at_dooms_gate.mp3', name: 'At Doom\'s Gate' },
+    { file: 'audio/super_mario_theme.mp3', name: 'Super Mario Theme' },
+    { file: 'audio/stronger_than_you.mp3', name: 'Stronger Than You' },
+    { file: 'audio/naruto_silhouette.mp3', name: 'Naruto Silhouette' },
+    { file: 'audio/piranha_plants.mp3', name: 'Piranha Plants On Parade' },
+    { file: 'audio/tetris_theme.mp3', name: 'Tetris Theme' },
+    { file: 'audio/static_flavor.mp3', name: 'Static Flavor' },
+    { file: 'audio/otonoke_creepy_nuts.mp3', name: 'Otonoke (Creepy Nuts)' },
 ];
 
 const MUSIC_CACHE_KEY = 'hermes_idleviber_music';
@@ -51,12 +90,10 @@ function loadMusicFromCache() {
 function setMusicVolume(vol) {
     if (musicAudio) musicAudio.volume = vol;
     if (_musicVolSlider) _musicVolSlider.value = vol;
-    // Sync settings slider
     const settingsVol = document.getElementById('settings-music-volume');
     if (settingsVol) settingsVol.value = vol;
     const settingsLabel = document.getElementById('settings-music-vol-label');
     if (settingsLabel) settingsLabel.textContent = Math.round(vol * 100) + '%';
-    // Persist
     if (typeof G !== 'undefined' && G.settings) G.settings.music_volume = vol;
     saveMusicToCache();
 }
@@ -93,7 +130,6 @@ function initMusicPlayer() {
         wasPlaying = cache.playing || false;
         musicShuffle = cache.shuffle != null ? cache.shuffle : true;
     } else if (typeof G !== 'undefined' && G.settings) {
-        // Fallback to G.settings
         savedVol = G.settings.music_volume != null ? G.settings.music_volume : 0.5;
         savedTrack = G.settings.music_track_index != null ? G.settings.music_track_index : 0;
         wasPlaying = G.settings.music_playing || false;
@@ -196,7 +232,6 @@ function initMusicPlayer() {
         const vol = parseFloat(volumeSlider.value);
         musicAudio.volume = vol;
         if (typeof G !== 'undefined' && G.settings) G.settings.music_volume = vol;
-        // Sync settings slider
         const settingsVol = document.getElementById('settings-music-volume');
         if (settingsVol) settingsVol.value = vol;
         const settingsLabel = document.getElementById('settings-music-vol-label');

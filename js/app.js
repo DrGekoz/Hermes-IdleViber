@@ -887,7 +887,7 @@ function initGameLoop() {
         // Cloud save + leaderboard submit if authenticated
         if (G.auth_mode === 'firebase' && fbUser) {
             fbSave(G).catch(() => {});
-            fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_pp_earned).catch(() => {});
+            fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned).catch(() => {});
         } else if (G.auth_token && G.server_online) {
             apiSave(G.auth_token, G).catch(() => {});
             apiSubmitScore(G.auth_token, G.lifetime_vibes, G.total_pp_earned).catch(() => {});
@@ -1156,7 +1156,7 @@ function updateDecorUI() {
         const el = document.createElement('div');
         el.className = `shop-item ${canBuy ? '' : 'locked'} ${active ? 'active' : ''}`;
         el.dataset.decorId = item.id;
-        const decorIcon = `<img src="sprites/images/icons/individual/${item.icon}.png" alt="${item.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">${owned ? (active ? '⭐' : '✨') : '🔒'}</span>`;
+        const decorIcon = `<img src="sprites/images/room_decor/icons/${item.id}.png" alt="${item.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">${owned ? (active ? '⭐' : '✨') : '🔒'}</span>`;
         el.innerHTML = `
             <div class="shop-item-icon">${decorIcon}</div>
             <div class="shop-item-info">
@@ -1189,7 +1189,7 @@ function updateDecorUI() {
         el._tooltipData = {
             name: item.name,
             desc: item.type + ' decor',
-            icon: `sprites/images/icons/individual/${item.icon}.png`,
+            icon: `sprites/images/room_decor/icons/${item.id}.png`,
             stats: [
                 { label: 'Type', value: item.type, cls: '' },
                 { label: 'Status', value: owned ? (active ? 'ACTIVE' : 'OWNED') : 'LOCKED', cls: active ? 'green' : (owned ? 'gold' : '') },
@@ -1240,14 +1240,14 @@ function updateRoomUI() {
 function updateGatewayUI() {
     const gw = getGatewayStatus();
     const quality = getConnectionQuality();
-    dom.gatewayStatus.textContent = `${quality.icon} ${quality.label}`;
-    dom.gatewayStatus.style.color = quality.color;
-    dom.gatewayLatency.textContent = gw.connected ? `${gw.latency.toFixed(0)}ms` : '---';
-    const taskBusy = isGatewayBusy();
+    if (dom.gatewayStatus) dom.gatewayStatus.textContent = `${quality.icon} ${quality.label}`;
+    if (dom.gatewayStatus) dom.gatewayStatus.style.color = quality.color;
+    if (dom.gatewayLatency) dom.gatewayLatency.textContent = gw.connected ? `${gw.latency.toFixed(0)}ms` : '---';
+    const taskBusy = checkGatewayBusy();
     const baseMult = getLatencyMultiplier();
     const latMult = taskBusy ? baseMult * 1.5 : baseMult;
-    dom.gatewayMult.textContent = gw.connected ? `${latMult.toFixed(1)}x` : '0x';
-    dom.gatewayMult.style.color = taskBusy ? '#ffd700' : (gw.connected ? '#0f0' : '#f44');
+    if (dom.gatewayMult) dom.gatewayMult.textContent = gw.connected ? `${latMult.toFixed(1)}x` : '0x';
+    if (dom.gatewayMult) dom.gatewayMult.style.color = taskBusy ? '#ffd700' : (gw.connected ? '#0f0' : '#f44');
     if (dom.gatewayStatus && taskBusy) {
         dom.gatewayStatus.textContent = `🔥 ${getGatewayTaskLabel() || 'IN USE'}`;
         dom.gatewayStatus.style.color = '#ffd700';
@@ -1282,22 +1282,24 @@ async function updateLeaderboardUI() {
     list.innerHTML = '<div class="lb-entry"><span style="color:#666;font-size:6px;">Loading...</span></div>';
 
     let entries = [];
+    let fbHadData = false;
 
     // Try Firebase leaderboard first (production)
     if (fbReady) {
         const fbEntries = await fbGetLeaderboard(50);
         if (fbEntries && fbEntries.length > 0) {
+            fbHadData = true;
             entries = fbEntries.map(e => ({
                 name: e.username,
                 vibes: e.score,
-                pp: e.prestige_level || 0,
+                pp: e.total_pp || e.prestige_level || 0,
                 prestige: e.prestige_level || 0,
             }));
         }
     }
 
-    // Fallback to local server API
-    if (entries.length === 0) {
+    // Fallback to local server API (only if Firebase isn't available)
+    if (!fbReady && entries.length === 0) {
         const lbResult = await apiGetLeaderboard(50);
         if (lbResult && lbResult.entries && lbResult.entries.length > 0) {
             entries = lbResult.entries.map(e => ({
@@ -1309,22 +1311,24 @@ async function updateLeaderboardUI() {
         }
     }
 
-    // Fallback to local + mock data
-    if (entries.length === 0) {
+    // Fallback to local + mock data (only if no backend at all)
+    if (!fbReady && entries.length === 0) {
         entries = [
             { name: G.username || 'You', vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges },
-            { name: 'DrGekoz', vibes: 100_000_000_000, pp: 1500, prestige: 25 },
-            { name: 'Zoops', vibes: 50_000_000_000, pp: 800, prestige: 12 },
-            { name: 'CipherZero', vibes: 25_000_000_000, pp: 400, prestige: 8 },
-            { name: 'PixelWarden', vibes: 10_000_000_000, pp: 200, prestige: 5 },
+            { name: 'Zoops', vibes: 252_000_000_000_000, pp: 1_183_807, prestige: 12 },
+            { name: 'CipherZero', vibes: 136_000_000_000_000, pp: 611_620, prestige: 8 },
+            { name: 'PixelWarden', vibes: 70_000_000_000_000, pp: 294_303, prestige: 5 },
         ];
     }
 
-    // Always include local player if not in list
+    // Always include local player if not in list (even with Firebase)
     const displayName = G.displayName || G.username || 'You';
-    const localEntry = { name: displayName, vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges };
+    const localEntry = { name: displayName + (fbReady ? '' : ''), vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges };
     if (!entries.find(e => e.name === displayName || e.name === G.username)) {
-        entries.push(localEntry);
+        if (fbHadData || !fbReady) {
+            // Only add local player if Firebase has data or Firebase isn't in use
+            entries.push(localEntry);
+        }
     }
 
     entries.sort((a, b) => {
@@ -1333,6 +1337,14 @@ async function updateLeaderboardUI() {
         return b.vibes - a.vibes;
     });
     list.innerHTML = '';
+    if (entries.length === 0 && fbReady) {
+        const el = document.createElement('div');
+        el.className = 'lb-entry';
+        el.style.cssText = 'justify-content:center;color:#666;font-size:7px;padding:12px 5px;border:none;';
+        el.textContent = '✨ No entries yet — log in and play to be first!';
+        list.appendChild(el);
+        return;
+    }
     entries.slice(0, 50).forEach((entry, i) => {
         const isYou = entry.name === displayName || entry.name === G.username;
         const isDev = /^drgekoz$/i.test(entry.name);
@@ -1352,7 +1364,7 @@ async function updateLeaderboardUI() {
                     </span>
                 </span>
                 <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
-                <span class="lb-pp">${entry.pp} PP</span>
+                <span class="lb-pp">${formatNumber(entry.pp)} PP</span>
                 <span class="lb-prestige">P${entry.prestige}</span>
             `;
         } else {
@@ -1360,7 +1372,7 @@ async function updateLeaderboardUI() {
                 <span class="lb-rank">#${i + 1}</span>
                 <span class="lb-name">${isYou ? '⭐ ' : ''}${entry.name}</span>
                 <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
-                <span class="lb-pp">${entry.pp} PP</span>
+                <span class="lb-pp">${formatNumber(entry.pp)} PP</span>
                 <span class="lb-prestige">P${entry.prestige}</span>
             `;
         }
@@ -1383,7 +1395,7 @@ function updateLocalLeaderboardEntry() {
             const vibeEl = row.querySelector('.lb-vibes');
             const ppEl = row.querySelector('.lb-pp');
             if (vibeEl) vibeEl.textContent = formatNumber(G.lifetime_vibes);
-            if (ppEl) ppEl.textContent = G.total_pp_earned + ' PP';
+            if (ppEl) ppEl.textContent = formatNumber(G.total_pp_earned) + ' PP';
             break;
         }
     }

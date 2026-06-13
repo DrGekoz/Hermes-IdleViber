@@ -369,25 +369,24 @@ function getCost(baseCost, count) {
 }
 
 // Calculate total cost for buying N items starting from current count
+// Uses geometric series formula: b * r^k * (r^n - 1) / (r - 1)
 function getBulkCost(baseCost, currentCount, quantity) {
-    let total = 0;
-    for (let i = 0; i < quantity; i++) {
-        total += baseCost * Math.pow(1.15, currentCount + i);
-    }
-    return Math.floor(total);
+    if (quantity <= 0) return 0;
+    const r = 1.15;
+    const rK = Math.pow(r, currentCount);
+    const rN = Math.pow(r, quantity);
+    return Math.floor(baseCost * rK * (rN - 1) / (r - 1));
 }
 
 // Calculate how many can be bought with available vibes (MAX)
+// Uses log formula: floor(log(c*(r-1)/(b*r^k)+1) / log(r))
 function getMaxBuyable(baseCost, currentCount, availableVibes) {
-    let count = 0;
-    let total = 0;
-    while (true) {
-        const cost = baseCost * Math.pow(1.15, currentCount + count);
-        if (total + cost > availableVibes) break;
-        total += cost;
-        count++;
-    }
-    return count;
+    if (availableVibes <= 0 || baseCost <= 0) return 0;
+    const r = 1.15;
+    const rK = Math.pow(r, currentCount);
+    const ratio = (availableVibes * (r - 1)) / (baseCost * rK) + 1;
+    if (ratio <= 1) return 0;
+    return Math.floor(Math.log(ratio) / Math.log(r));
 }
 
 // Calculate the combined VPS multiplier from all unlocked rooms
