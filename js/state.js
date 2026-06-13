@@ -685,11 +685,19 @@ function unlockPrestige() {
 }
 
 function formatNumber(n) {
-    if (n >= 1e15) return (n / 1e15).toFixed(2) + 'Q';
-    if (n >= 1e12) return (n / 1e12).toFixed(2) + 'T';
-    if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
-    if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
-    if (n >= 1e3) return (n / 1e3).toFixed(2) + 'k';
+    // Suffix system: K M B T Q then a-z skipping k,m,b,t,q then A-Z skipping K,M,B,T,Q
+    const suffixes = ['k','M','B','T','Q',
+        'a','c','d','e','f','g','h','i','j','l','n','o','p','r','s','u','v','w','x','y','z',
+        'A','C','D','E','F','G','H','I','J','L','N','O','P','R','S','U','V','W','X','Y','Z'];
+    let idx = 0;
+    let scaled = n;
+    while (scaled >= 1000 && idx < suffixes.length) {
+        scaled /= 1000;
+        idx++;
+    }
+    if (idx > 0 && idx <= suffixes.length) {
+        return scaled.toFixed(2) + suffixes[idx - 1];
+    }
     if (n >= 1) return Math.floor(n).toString();
     // Fractional — for VPS display, this is critical
     if (n >= 0.01) return n.toFixed(2);
