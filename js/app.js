@@ -1236,14 +1236,11 @@ function updateRoomUI() {
         const el = document.createElement('div');
         el.className = `room-card ${active ? 'active' : ''} ${unlocked ? '' : 'locked'}`;
         el.innerHTML = `
-            <div class="room-card-bg" style="background-image:url('${room.bgImage || ''}');background-size:cover;background-position:center;">
-                <div class="room-card-icon">${active ? '📍' : unlocked ? '🏠' : '🔒'}</div>
-            </div>
+            <div class="room-card-bg" style="background-image:url('${room.bgImage || ''}');background-size:cover;background-position:center;"></div>
             <div class="room-card-info">
                 <div class="room-card-name">${room.name}</div>
                 <div class="room-card-desc">${room.desc}</div>
                 <div class="room-card-cost">${unlocked ? (active ? 'Current' : 'Click to enter') : `${formatNumber(room.cost)} ✦`}</div>
-                ${unlocked ? `<div class="room-card-mult">×${room.vpsMult} VPS</div>` : ''}
             </div>
         `;
         el.onclick = () => {
