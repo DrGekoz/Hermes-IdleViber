@@ -582,10 +582,18 @@ function getSynergyBonus(autoclickerId, state = G) {
 
 function getVPS(state = G) {
     let vps = 0;
-    // Use per-room autoclickers if available, fall back to global
-    const clickers = (state.room_autoclickers && state.room_autoclickers[state.current_room])
-        ? state.room_autoclickers[state.current_room]
-        : state.autoclickers || {};
+    // Sum autoclickers from ALL unlocked rooms
+    const roomAutos = state.room_autoclickers || {};
+    const roomsToCheck = state.unlocked_rooms || [state.current_room || 'campfire_grove'];
+    const merged = {};
+    for (const roomId of roomsToCheck) {
+        const clickers = roomAutos[roomId] || {};
+        for (const [id, count] of Object.entries(clickers)) {
+            merged[id] = (merged[id] || 0) + count;
+        }
+    }
+    // Fallback to global if no per-room data
+    const clickers = Object.keys(merged).length > 0 ? merged : (state.autoclickers || {});
     for (const [id, count] of Object.entries(clickers)) {
         const tier = AUTOCLICKERS.find(t => t.id === id);
         if (tier) {

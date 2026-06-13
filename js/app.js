@@ -1258,9 +1258,14 @@ function updateShopUI() {
     // Autoclickers
     dom.upgradeList.innerHTML = '';
     AUTOCLICKERS.forEach(tier => {
-        const room = G.current_room || 'campfire_grove';
-        const roomClickers = G.room_autoclickers[room] || {};
-        const count = roomClickers[tier.id] || 0;
+        // Sum across all unlocked rooms
+        const roomsToCheck = G.unlocked_rooms || [G.current_room || 'campfire_grove'];
+        let totalCount = 0;
+        for (const roomId of roomsToCheck) {
+            const roomClickers = (G.room_autoclickers || {})[roomId] || {};
+            totalCount += roomClickers[tier.id] || 0;
+        }
+        const count = totalCount || (G.autoclickers[tier.id] || 0);
         const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
         const canBuy = G.vibes >= cost;
         const el = document.createElement('div');
@@ -1306,10 +1311,20 @@ function updateShopAffordability() {
         if (!id) return;
         const tier = AUTOCLICKERS.find(t => t.id === id);
         if (!tier) return;
-        const room = G.current_room || 'campfire_grove';
-        const roomClickers = G.room_autoclickers[room] || {};
-        const count = roomClickers[id] || 0;
-        const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
+        const roomId3 = G.current_room || 'campfire_grove';
+        const roomClickers3 = (G.room_autoclickers || {})[roomId3] || {};
+        const currentRoomCount = roomClickers3[id] || 0;
+        // Total across all rooms for display
+        const roomsToCheck2 = G.unlocked_rooms || [roomId3];
+        let totalCount2 = 0;
+        for (const rId of roomsToCheck2) {
+            const rc = (G.room_autoclickers || {})[rId] || {};
+            totalCount2 += rc[id] || 0;
+        }
+        const count = totalCount2 || (G.autoclickers[id] || 0);
+        // Cost based on current room's count (each room has independent progression)
+        const cost = Math.floor(tier.baseCost * Math.pow(1.15, currentRoomCount));
+        const currentRoomName = (ROOMS[roomId3] && ROOMS[roomId3].name) || roomId3;
         el.classList.toggle('locked', vibes < cost);
     });
     // Prestige upgrades (count-based, chip cost)
