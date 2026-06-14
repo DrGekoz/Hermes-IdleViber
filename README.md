@@ -1,217 +1,171 @@
 # 🔥 Hermes IdleViber
 
-> **The Ambient Gateway Idle Game — Hard-Locked to Hermes Agent**
+<p align="center">
+  <i>~ The Ambient Gateway Idle Game ~</i><br>
+  <b>Your Hermes gateway doesn't boost your progression — it IS your progression.</b>
+</p>
 
 ---
 
-## ⚡ Overview
+## ✦ What Is This?
 
-Hermes IdleViber is a browser-based ambient idle/incremental game where your **Hermes Agent gateway literally powers your progression**. No gateway running? No vibes. The faster your gateway responds, the more you generate.
+Hermes IdleViber is an **ambient idle/incremental game** that lives in your browser — a cozy pixel-art universe where you click, earn, upgrade, and unlock themed rooms while chiptune music plays and particle effects drift across the screen.
 
----
-
-## 🏆 Feature List (Formidable)
-
-### 🏡 Ambient Spaces (6 Unlockable Rooms)
-
-| Room | Cost | Genre | Vibe |
-|------|------|-------|------|
-| **Campfire Grove** | Free (default) | Chill 🎵 | Warm crackling fire under stars |
-| **Cyber Den** | 1M ✦ | Cyber 🎵 | Neon-lit digital hideout |
-| **Zen Garden** | 5M ✦ | Nature 🎵 | Peaceful bamboo grove |
-| **Star Deck** | 25M ✦ | Jazz 🎵 | Cosmic observatory |
-| **Study Lounge** | 100M ✦ | Jazz 🎵 | Cozy bookshelves & lamplight |
-| **Beach Cove** | 500M ✦ | Nature 🎵 | Sunset waves on pixel sand |
-
-Each room has:
-- Unique procedurally-generated 8-bit background
-- Ambient particle effects (fireflies, matrix rain, cherry blossoms, aurora)
-- Godrays & atmospheric lighting
-- Matching music genre
-
-### 🛠 Idle Game Mechanics
-
-**12 Autoclicker Tiers:**
-- Win95 PC → Quantum Core → Dyson Sphere
-- Exponential cost scaling (1.15^count)
-- VPS compounds with prestige & gateway multipliers
-
-**Prestige System:**
-- Reset for permanent Prestige Points (PP)
-- Each PP = +1% to ALL generation
-- Rooms and gateway upgrades survive prestige
-
-**Gateway-Upgrades (10 unique):**
-- Gateway Amp → Neural Bridge → Singularity Link
-- Offline Cache → Standby Power (offline generation)
-- Click Amplifier → Godlike Click (click multipliers)
-- All survive prestige
-
-### 🔌 Hermes Gateway Integration (Hard Lock)
-
-| Feature | Detail |
-|---------|--------|
-| Auto-discovery | Scans localhost:8000, 8080, 3000, 7777, 5000, 9090 |
-| Proof-of-progress | Game pings `/health` every 5 seconds |
-| Latency tiers | Quantum (&lt;5ms) → Blazing → Fast → Stable → Slow |
-| VPS lock | Without gateway: only 10% generation (or 50-100% with offline upgrades) |
-| Visual feedback | Canvas border glows green when connected, red when offline |
-
-**The game literally cannot idle without Hermes running on your machine.**
-
-### ✨ Cosmetics & Decor (16 Items)
-
-| Category | Items |
-|----------|-------|
-| **Lighting** | Pixel Lamp, Neon Strip, Candle Set |
-| **Plants** | Potted Fern, Bonsai Tree, Cactus Buddy |
-| **Furniture** | Wooden Desk, Bookshelf, Armchair, Side Table, Coffee Table |
-| **Wall** | Retro Poster, World Map, Pixel Art Frame |
-| **Floor** | Cozy Rug, Neon Mat |
-
-All rendered as 8-bit pixel art sprites in the room viewport.
-
-### 🎵 8-Bit Chiptune Music Engine
-
-**4 Genres × Multiple Tracks (Web Audio API):**
-
-| Genre | Tracks | Feel |
-|-------|--------|------|
-| **Chill** | Campfire Dreams, Starlight Nocturne | Lo-fi ambient |
-| **Cyber** | Neon Pulse | Synthwave electronic |
-| **Jazz** | Moonlit Swing | Smooth upbeat |
-| **Nature** | Forest Breath | Peaceful organic |
-
-- All generated via Web Audio API oscillators — zero audio files
-- Genre auto-switches when you change rooms
-- Volume control, next track button
-- Square/triangle/sawtooth waveforms for authentic 8-bit sound
-
-### 🎨 Pixel Art Engine (100% Programmatic)
-
-Every visual in the game is generated at runtime via Canvas 2D API:
-
-- **32+ sprite definitions** as character arrays
-- **6 room backgrounds** procedurally drawn
-- **Ambient effects**: godrays, fireflies, matrix rain, cherry blossoms, aurora, waves
-- **8-bit color palette** with 40+ colors
-- **Pixel-perfect rendering** with `image-rendering: pixelated`
-- **Zero external image assets**
-
-### 💾 Built-in Server API (No External Dependencies)
-
-The game comes with a **self-hosted backend** running on the same port:
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/health` | GET | Server status + player count |
-| `/api/register` | POST | Create account (username + password) |
-| `/api/login` | POST | Login, returns auth token |
-| `/api/save` | POST | Upload cloud save (requires token) |
-| `/api/load` | GET | Download cloud save (requires token) |
-| `/api/leaderboard` | GET | Global leaderboard (top 50) |
-| `/api/leaderboard/submit` | POST | Submit score to leaderboard (requires token) |
-
-**Auth**: Token-based (7-day expiry). Tokens are stored in your browser's localStorage.
-**Storage**: `server/data.json` — all player data in a single JSON file.
-**Zero setup**: Just start the server and play. Accounts + leaderboard work immediately.
-
-No Supabase, no Firebase, no external signups. True offline-first with optional cloud sync.
-
-### 🎮 Game Loop
-
-1. **Manual Clicking** — Click "✦ VIBE ✦" for instant vibes (scales with upgrades)
-2. **Gateway Verification** — Every 5s, game pings your local Hermes gateway
-3. **Passive Generation** — Autoclickers produce VPS (gateway-connected = full rate)
-4. **Upgrade Cycle** — Buy autoclickers → earn more → buy gateway upgrades → prestige
-5. **Prestige** — Reset for permanent bonuses, unlock new rooms, deeper progression
-6. **Ambient Loop** — Rooms, music, particle effects create the "hang out" experience
-
-### 📊 Leaderboard
-
-Local leaderboard with mock data (DrGekoz, Zoops, CipherZero, PixelWarden).
-Auto-pipes to the server leaderboard when connected with an account.
+**The twist?** The game is hard-locked to your local Hermes Agent gateway. No gateway running? You generate at a crawl. Low latency? You're farming at full power. The faster your gateway responds, the faster you progress. It turns your dev tools into a game mechanic.
 
 ---
 
-## 🚀 Quick Start
+## ✦ Genre & Vibe
 
-### Option 1: Direct File (easiest)
+| | |
+|---|---|
+| **Genre** | Ambient idle / incremental ("cozy incremental") |
+| **Platform** | Browser (Chrome, Firefox, Edge) |
+| **Art** | 16-bit pixel art — all code-generated, zero external assets |
+| **Music** | 8-bit chiptune via Web Audio API — 12 tracks across 4 genres |
+| **Progression** | Exponential cost scaling + prestige layer + per-room upgrades |
+| **Lock** | 🔒 Hermes gateway-dependent — the core mechanic, not a bonus |
+
+Think **Cookie Clicker meets a chill lo-fi直播间** — except your gateway latency is the meta-currency.
+
+---
+
+## ✦ How It Works
+
+### 1. Click ✦ VIBE ✦
+Hit the big glowing button. Each click earns vibes (the game's currency). Click power scales with upgrades.
+
+### 2. Buy Autoclickers
+Each room has **13 unique upgrade tiers**, from a simple Spark Tinder to the transcendent Forest Spirit. Every upgrade adds passive VPS (Vibes Per Second). Costs scale exponentially (1.15× per purchase).
+
+### 3. Unlock Rooms
+6 themed rooms, each with its own music, background, particle effects, and independent upgrade progression:
+
+| Room | Cost | Vibe |
+|------|------|------|
+| 🏕 **Campfire Grove** | Free | Warm fire under starry skies |
+| 💻 **Cyber Den** | 100M ✦ | Neon-lit digital hideout |
+| 🧘 **Zen Garden** | 1B ✦ | Bamboo, koi, and flowing water |
+| 🔭 **Star Deck** | 25B ✦ | Floating among galaxies |
+| 📚 **Study Lounge** | 1T ✦ | Cozy bookshelves & lamplight |
+| 🏖 **Beach Cove** | 10T ✦ | Sunset waves on pixel sand |
+
+Each room's autoclickers are **completely independent** — buying upgrades in one room doesn't affect costs in another AND all room VPS stacks together. More rooms = exponentially more income.
+
+### 4. Decor Every Room
+15 decor items per room (90 total). Each adds a permanent VPS multiplier to that room. Place them visually on the canvas — drag, drop, rearrange.
+
+### 5. Prestige & Transcend
+Reset your run for **Prestige Chips (PP)** — permanent currency that buys escalating upgrades:
+- Gateway buffs (+× to gateway multiplier)
+- Click multipliers (×2 → ×4 → ×10)
+- Base VPS bonuses (+100 → +1K → +10K)
+- Permanent ×2 VPS (stacks)
+- Offline earnings rate boosts
+
+After 3+ prestiges, unlock the **Transcend** layer for even deeper scaling.
+
+### 6. The Gateway Lock
+The game pings your Hermes gateway every 5 seconds. Your latency determines your generation rate — lower latency = higher multiplier. If the gateway is down, you're stuck at 10% output (or higher if you've bought offline upgrades).
+
+---
+
+## ✦ Features
+
+### 🎮 Gameplay
+- 6 rooms × 13 unique autoclickers = **78 distinct upgrades**
+- Per-room cost progression (buy cheap in new rooms!)
+- Hold-to-spam purchase on upgrades & prestige
+- Bulk buy with calculated max-buyable
+- 91 pixel art icons — each upgrade has a custom sprite
+- Real-time sidebar tab indicators (gold dots = affordable!)
+- 90 decor items with visual placement system
+- Click-and-drag decor on canvas
+
+### 🎨 Visual
+- Full procedural pixel art engine (Canvas 2D)
+- 6 unique room backgrounds with atmospheric effects
+- Particle systems: fireflies, matrix rain, cherry blossoms, aurora, smoke, dust, waves
+- Godrays & dynamic lighting
+- pixel-perfect rendering with `image-rendering: pixelated`
+
+### 🎵 Audio
+- Chiptune engine via Web Audio API — zero audio files
+- 4 genres: Chill, Cyber, Jazz, Nature — 12 tracks total
+- Room-based music auto-switching
+- Adjustable SFX & music volume
+
+### 🔌 Integration
+- Auto-discovers Hermes gateway on 6 port ranges
+- Real-time latency display with quality tiers
+- Gateway VPS multiplier updates live
+- Task-in-progress detection (doubles multiplier when gateway is busy)
+
+### 💾 Persistence
+- Auto-save every 30s to localStorage
+- Firebase cloud save & leaderboard (optional)
+- Local API server mode for self-hosted accounts
+- Offline earnings calculated on return
+
+### 🏆 Achievements
+- 45 achievements across vibe, click, prestige, room, VPS, gateway, decor, and autoclicker milestones
+- Real-time achievement notifications
+- Permanent unlock tracking
+
+---
+
+## ✦ Quick Start
+
 ```bash
+# Option 1: Direct (no server needed)
 cd F:\aaaaaVIBECODING\Hermes-IdleViber\
 start index.html
-```
 
-### Option 2: Via HTTP Server (recommended — full gateway support)
-```bash
+# Option 2: With HTTP server (recommended)
 cd F:\aaaaaVIBECODING\Hermes-IdleViber\
 node server/index.js
 # Open http://localhost:4444
+
+# Option 3: Netlify (always live)
+# https://hermes-idleviber.netlify.app
 ```
 
-### Option 3: Python
-```bash
-cd F:\aaaaaVIBECODING\Hermes-IdleViber\
-python -m http.server 4444
-# Open http://localhost:4444
-```
-
-### Requirements
-- **Hermes Agent** running locally (for full game mechanics)
-- **Modern browser** (Chrome/Firefox/Edge — ES module support)
-- The game auto-detects your gateway on startup
+**Requirement:** Hermes Agent running locally (or the game works at reduced rates).
 
 ---
 
-## 🧠 Architecture
+## ✦ Architecture
 
 ```
 Hermes-IdleViber/
-├── index.html              # Entry point — full game UI
-├── css/
-│   └── styles.css          # Pixel-perfect retro styling
+├── index.html            # Entry point — single-page game UI
+├── css/styles.css        # Dark retro pixel styling
 ├── js/
-│   ├── state.js            # Game state, formulas, upgrade defs, save/load
-│   ├── gateway.js          # Hermes gateway discovery & health polling
-│   ├── sprites.js          # 32+ pixel art sprite definitions & room renderer
-│   ├── music.js            # Web Audio API chiptune engine (12 tracks)
-│   └── app.js              # Main loop, UI binding, event wiring
-├── server/
-│   ├── index.js            # Simple HTTP server with CORS
+│   ├── state.js          # Game state engine, formulas, definitions, save/load
+│   ├── gateway.js        # Hermes gateway discovery & health polling
+│   ├── sprites.js        # Pixel art sprite definitions & room renderer
+│   ├── music.js          # Web Audio API chiptune engine
+│   └── app.js            # Main loop, UI binding, event wiring
+├── server/               # Optional self-hosted backend
+│   ├── index.js          # HTTP server with CORS
 │   └── package.json
-└── README.md
-```
-
-### Data Flow
-```
-Browser ←→ localStorage (save/load)
-     ↕
-Gateway Ping → localhost:PORT/health → Latency → VPS Multiplier
-     ↕
-Game Loop (10Hz) → State Engine → UI Update → Canvas Render → Audio
+└── sprites/images/       # Pixel art icon assets (92 upgrade icons)
 ```
 
 ---
 
-## 🔜 Roadmap
+## ✦ Design Principles
 
-- [ ] Real-time leaderboard updates via WebSocket
-- [ ] Password reset via email
-- [ ] Rank badges and achievements sync
-- [ ] Global chat in rooms
-- [ ] Direct player profile pages
-
----
-
-## 💡 Design Philosophy
-
-- **Hermes-Locked Idle**: The gateway isn't a bonus — it's the core mechanic
-- **Ambient First**: The primary experience is hanging out in a beautiful pixel space
-- **Deep Progression**: 12 autoclicker tiers × 10 gateway upgrades × endless prestige × 6 rooms × 16 decor items
-- **Zero External Assets**: Everything is code-generated — sprites, music, effects
-- **Retro Authentic**: Press Start 2P font, 8-bit pixel art, chiptune audio, CRT-era color palette
+- **Ambient First** — The primary experience is hanging out in a beautiful pixel space, not optimizing spreadsheets
+- **Gateway as Mechanic** — The gateway isn't a bonus, it's the core loop. Your dev environment drives your game
+- **Per-Room Identity** — Every room is a distinct gameplay silo with its own progression, music, and art
+- **Zero External Assets** — Every sprite, every sound, every particle is generated at runtime
+- **Progressive Complexity** — Easy to start (click the button), deep to master (prestige × transcend × 6 rooms × 90 decor)
 
 ---
 
-> Built with 🔥 for the Hermes Agent ecosystem
+## ✦ Credits
+
+Built for the **Hermes Agent** ecosystem by DrGekoz.
+
 > *"Your gateway. Your vibe. Your dimension."*

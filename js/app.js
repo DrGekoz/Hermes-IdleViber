@@ -684,6 +684,7 @@ function initUIEvents() {
             updateShopAffordability();
             updateLocalLeaderboardEntry();
             processAchievements();
+            updateSidebarTabIndicators();
         }
         if (type === 'autoclickers' || type === 'gateway_upgrades') {
             updateResourceUI();
@@ -758,6 +759,9 @@ function setupTabs() {
             }
             if (panel === dom.panelAchievements) {
                 updateAchievementsUI();
+                // Mark achievements as notified
+                ACHIEVEMENTS.forEach(ach => ach._notified = true);
+                dom.tabAchievements.classList.remove('has-new');
             }
         });
     });
@@ -1043,6 +1047,8 @@ function initGameLoop() {
             }
             processAchievements(); // Periodic achievement check (catches VPS milestones)
         }
+        // Update sidebar tab indicators every tick (lightweight)
+        updateSidebarTabIndicators();
     }, CONFIG.TICK_INTERVAL);
 
     // Auto-save every 30s + cloud sync
@@ -1249,8 +1255,9 @@ function updatePrestigeUI() {
         if (!id) return;
         const upg = PRESTIGE_UPGRADES.find(u => u.id === id);
         if (!upg) return;
-        const owned = G.prestige_upgrades[id] || false;
-        el.classList.toggle('locked', owned || G.prestige_points < upg.cost);
+        const count = G.prestige_upgrades[id] || 0;
+        const cost = Math.floor(upg.baseCost * Math.pow(upg.costMult, count));
+        el.classList.toggle('locked', G.prestige_points < cost);
     });
 }
 
@@ -1260,15 +1267,10 @@ function updateShopUI() {
     const curRoom = G.current_room || 'campfire_grove';
     const roomDefs = typeof ROOM_AUTOCLICKERS !== 'undefined' ? (ROOM_AUTOCLICKERS[curRoom] || []) : [];
     const upgradeDefs = roomDefs.length > 0 ? roomDefs : AUTOCLICKERS;
+    const roomClickers = (G.room_autoclickers || {})[curRoom] || {};
     upgradeDefs.forEach(tier => {
-        // Sum across all unlocked rooms
-        const roomsToCheck = G.unlocked_rooms || [G.current_room || 'campfire_grove'];
-        let totalCount = 0;
-        for (const roomId of roomsToCheck) {
-            const roomClickers = (G.room_autoclickers || {})[roomId] || {};
-            totalCount += roomClickers[tier.id] || 0;
-        }
-        const count = totalCount || (G.autoclickers[tier.id] || 0);
+        // Count only in current room (each room has independent progression)
+        const count = roomClickers[tier.id] || 0;
         const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
         const canBuy = G.vibes >= cost;
         const el = document.createElement('div');
@@ -1294,8 +1296,8 @@ function updateShopUI() {
             icon: `sprites/images/icons/individual/${tier.id}_64.webp`,
             stats: [
                 { label: 'VPS each', value: '✦ ' + tier.vps, cls: 'cyan' },
-                { label: 'Tier VPS', value: '✦ ' + formatNumber(tier.vps * count), cls: 'green' },
-                { label: 'Owned', value: String(count), cls: '' },
+                { label: 'Room VPS', value: '✦ ' + formatNumber(tier.vps * count), cls: 'green' },
+                { label: 'Owned here', value: String(count), cls: '' },
                 { label: 'Cost', value: formatNumber(cost) + ' ✦', cls: canBuy ? 'green' : 'gold' }
             ]
         };
@@ -1309,25 +1311,17 @@ function updateShopUI() {
 function updateShopAffordability() {
     const vibes = G.vibes;
     // Autoclickers
+    const curRoomAff = G.current_room || 'campfire_grove';
+    const roomDefsAff = typeof ROOM_AUTOCLICKERS !== 'undefined' ? (ROOM_AUTOCLICKERS[curRoomAff] || []) : [];
+    const upgradeDefsAff = roomDefsAff.length > 0 ? roomDefsAff : AUTOCLICKERS;
     document.querySelectorAll('#upgrade-list .shop-item').forEach(el => {
         const id = el.dataset.tierId;
         if (!id) return;
-        const tier = AUTOCLICKERS.find(t => t.id === id);
+        const tier = upgradeDefsAff.find(t => t.id === id);
         if (!tier) return;
-        const roomId3 = G.current_room || 'campfire_grove';
-        const roomClickers3 = (G.room_autoclickers || {})[roomId3] || {};
+        const roomClickers3 = (G.room_autoclickers || {})[curRoomAff] || {};
         const currentRoomCount = roomClickers3[id] || 0;
-        // Total across all rooms for display
-        const roomsToCheck2 = G.unlocked_rooms || [roomId3];
-        let totalCount2 = 0;
-        for (const rId of roomsToCheck2) {
-            const rc = (G.room_autoclickers || {})[rId] || {};
-            totalCount2 += rc[id] || 0;
-        }
-        const count = totalCount2 || (G.autoclickers[id] || 0);
-        // Cost based on current room's count (each room has independent progression)
         const cost = Math.floor(tier.baseCost * Math.pow(1.15, currentRoomCount));
-        const currentRoomName = (ROOMS[roomId3] && ROOMS[roomId3].name) || roomId3;
         el.classList.toggle('locked', vibes < cost);
     });
     // Prestige upgrades (count-based, chip cost)
@@ -1356,6 +1350,76 @@ function updatePrestigeAffordability() {
         const cost = Math.floor(upg.baseCost * Math.pow(upg.costMult, count));
         el.classList.toggle('locked', chips < cost);
     });
+}
+
+// Lightweight sidebar tab state indicators — runs every tick
+function updateSidebarTabIndicators() {
+    const vibes = G.vibes;
+    const chips = G.prestige_points;
+
+    // --- Rooms tab: any locked room affordable? ---
+    let roomsAvailable = false;
+    for (const room of Object.values(ROOMS)) {
+        if (!G.unlocked_rooms.includes(room.id) && vibes >= room.cost) {
+            roomsAvailable = true;
+            break;
+        }
+    }
+    dom.tabRooms.classList.toggle('has-available', roomsAvailable);
+
+    // --- Upgrades tab: any autoclicker in current room affordable? ---
+    let upgradesAvailable = false;
+    const curRoom = G.current_room || 'campfire_grove';
+    const roomDefs = ROOM_AUTOCLICKERS[curRoom] || [];
+    const upgradeDefs = roomDefs.length > 0 ? roomDefs : AUTOCLICKERS;
+    const roomClickers = (G.room_autoclickers || {})[curRoom] || {};
+    for (const tier of upgradeDefs) {
+        const count = roomClickers[tier.id] || 0;
+        const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
+        if (vibes >= cost) {
+            upgradesAvailable = true;
+            break;
+        }
+    }
+    dom.tabUpgrades.classList.toggle('has-available', upgradesAvailable);
+
+    // --- Decor tab: any decor item in current room affordable & not owned? ---
+    let decorAvailable = false;
+    const decorItems = getDecorForRoom(curRoom) || [];
+    for (const item of decorItems) {
+        if (!G.owned_decor.includes(item.id) && vibes >= item.cost) {
+            decorAvailable = true;
+            break;
+        }
+    }
+    dom.tabDecor.classList.toggle('has-available', decorAvailable);
+
+    // --- Prestige tab: prestige ready OR any prestige upgrade affordable ---
+    const gain = getPrestigeGain();
+    let prestigeReady = gain > 0;
+    let prestigeUpgradesAvailable = false;
+    if (!prestigeReady) {
+        for (const upg of PRESTIGE_UPGRADES) {
+            const count = G.prestige_upgrades[upg.id] || 0;
+            const cost = Math.floor(upg.baseCost * Math.pow(upg.costMult, count));
+            if (chips >= cost) {
+                prestigeUpgradesAvailable = true;
+                break;
+            }
+        }
+    }
+    dom.tabPrestige.classList.toggle('has-ready', prestigeReady);
+    dom.tabPrestige.classList.toggle('has-available', !prestigeReady && prestigeUpgradesAvailable);
+
+    // --- Achievements tab: any achievement newly unlocked? ---
+    let newAchievements = false;
+    for (const ach of ACHIEVEMENTS) {
+        if (G.achievements.includes(ach.id) && !ach._notified) {
+            newAchievements = true;
+            break;
+        }
+    }
+    dom.tabAchievements.classList.toggle('has-new', newAchievements);
 }
 
 function renderPrestigeUpgrades() {
@@ -1496,7 +1560,7 @@ function updateRoomUI() {
         const active = G.current_room === room.id;
         const canUnlock = G.vibes >= room.cost && !unlocked;
         const el = document.createElement('div');
-        el.className = `room-card ${active ? 'active' : ''} ${unlocked ? '' : 'locked'}`;
+        el.className = `room-card ${active ? 'active' : ''} ${unlocked ? '' : 'locked'} ${canUnlock ? 'affordable' : ''} ${unlocked && !active ? 'purchased' : ''}`;
         el.innerHTML = `
             <div class="room-card-bg" style="background-image:url('${room.bgImage || ''}');background-size:cover;background-position:center;"></div>
             <div class="room-card-info">
@@ -2014,7 +2078,7 @@ let _holdTarget = null;
 
 function initHoldToSpam() {
     const list = document.getElementById('upgrade-list');
-    if (!list) return;
+    const prestigeList = document.getElementById('prestige-upgrade-list');
 
     function stopHold() {
         if (_holdTimer) { clearTimeout(_holdTimer); _holdTimer = null; }
@@ -2022,63 +2086,98 @@ function initHoldToSpam() {
         _holdTarget = null;
     }
 
-    list.addEventListener('mousedown', (e) => {
-        const item = e.target.closest('.shop-item');
-        if (!item || item.classList.contains('locked')) return;
-        // Only allow on main button (left click)
-        if (e.button !== 0) return;
+    // Get current room's upgrade definitions
+    function getUpgradeDefs() {
+        const room = G.current_room || 'campfire_grove';
+        const roomDefs = typeof ROOM_AUTOCLICKERS !== 'undefined' ? (ROOM_AUTOCLICKERS[room] || []) : [];
+        return roomDefs.length > 0 ? roomDefs : AUTOCLICKERS;
+    }
 
-        const tierId = item.dataset.tierId;
-        if (!tierId) return;
+    function setupHoldOnContainer(container) {
+        if (!container) return;
 
-        stopHold();
-        _holdTarget = item;
+        container.addEventListener('mousedown', (e) => {
+            const item = e.target.closest('.shop-item');
+            if (!item || item.classList.contains('locked')) return;
+            if (e.button !== 0) return;
 
-        // First purchase immediately on click (normal behavior)
-        // But only if this wasn't already handled by the item's onclick
-        // The onclick fires anyway — we just layer hold-to-spam on top
+            const tierId = item.dataset.tierId;
+            const upgId = item.dataset.upgId;
+            const isPrestige = !!upgId;
+            if (!tierId && !upgId) return;
 
-        // 500ms delay before spam starts
-        _holdTimer = setTimeout(() => {
-            if (_holdTarget !== item) return;
-            _holdSpamTimer = setInterval(() => {
-                if (!_holdTarget || _holdTarget !== item) {
-                    stopHold();
-                    return;
-                }
-                const id = _holdTarget.dataset.tierId;
-                if (!id) { stopHold(); return; }
-                const tier = AUTOCLICKERS.find(t => t.id === id);
-                if (!tier) { stopHold(); return; }
-                const room = G.current_room || 'campfire_grove';
-                const roomClickers = G.room_autoclickers[room] || {};
-                const count = roomClickers[id] || 0;
-                const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
-                if (G.vibes >= cost) {
-                    if (buyAutoclicker(tier.id)) {
-                        playPurchase();
-                        updateAllUI();
-                        // Update tooltip data for the item
-                        updateShopItemTooltip(item, id);
-                    } else {
-                        stopHold(); // Can't buy anymore
+            stopHold();
+            _holdTarget = item;
+
+            _holdTimer = setTimeout(() => {
+                if (_holdTarget !== item) return;
+                _holdSpamTimer = setInterval(() => {
+                    if (!_holdTarget || _holdTarget !== item) {
+                        stopHold();
+                        return;
                     }
-                } else {
-                    stopHold(); // Can't afford
-                }
-            }, 5);
-        }, 500);
-    });
+                    if (isPrestige) {
+                        // Prestige upgrade spam
+                        const id = _holdTarget.dataset.upgId;
+                        if (!id) { stopHold(); return; }
+                        const upg = PRESTIGE_UPGRADES.find(u => u.id === id);
+                        if (!upg) { stopHold(); return; }
+                        const count = G.prestige_upgrades[id] || 0;
+                        const cost = Math.floor(upg.baseCost * Math.pow(upg.costMult, count));
+                        if (G.prestige_points >= cost) {
+                            if (buyPrestigeUpgrade(id)) {
+                                playPurchase();
+                                updateAllUI();
+                            } else {
+                                stopHold();
+                            }
+                        } else {
+                            stopHold();
+                        }
+                    } else {
+                        // Autoclicker spam (per-room)
+                        const id = _holdTarget.dataset.tierId;
+                        if (!id) { stopHold(); return; }
+                        const defs = getUpgradeDefs();
+                        const tier = defs.find(t => t.id === id);
+                        if (!tier) { stopHold(); return; }
+                        const room = G.current_room || 'campfire_grove';
+                        const roomClickers = G.room_autoclickers[room] || {};
+                        const count = roomClickers[id] || 0;
+                        const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
+                        if (G.vibes >= cost) {
+                            if (buyAutoclicker(tier.id)) {
+                                playPurchase();
+                                updateAllUI();
+                                updateShopItemTooltip(item, id);
+                            } else {
+                                stopHold();
+                            }
+                        } else {
+                            stopHold();
+                        }
+                    }
+                }, 5);
+            }, 500);
+        });
 
-    // Stop on mouseup/leave anywhere on the list
-    list.addEventListener('mouseup', stopHold);
-    list.addEventListener('mouseleave', stopHold);
+        container.addEventListener('mouseup', stopHold);
+        container.addEventListener('mouseleave', stopHold);
+    }
+
+    setupHoldOnContainer(list);
+    setupHoldOnContainer(prestigeList);
 }
 
 function updateShopItemTooltip(item, tierId) {
-    const tier = AUTOCLICKERS.find(t => t.id === tierId);
+    // Find tier in per-room definitions first, fallback to global
+    const room = G.current_room || 'campfire_grove';
+    const roomDefs = typeof ROOM_AUTOCLICKERS !== 'undefined' ? (ROOM_AUTOCLICKERS[room] || []) : [];
+    const defs = roomDefs.length > 0 ? roomDefs : AUTOCLICKERS;
+    const tier = defs.find(t => t.id === tierId);
     if (!tier) return;
-    const count = G.autoclickers[tierId] || 0;
+    const roomClickers = (G.room_autoclickers || {})[room] || {};
+    const count = roomClickers[tierId] || 0;
     const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
     const canBuy = G.vibes >= cost;
     item._tooltipData = {
@@ -2087,7 +2186,8 @@ function updateShopItemTooltip(item, tierId) {
         icon: `sprites/images/icons/individual/${tier.id}_64.webp`,
         stats: [
             { label: 'VPS each', value: '✦ ' + tier.vps, cls: 'cyan' },
-            { label: 'Owned', value: String(count), cls: '' },
+            { label: 'Room VPS', value: '✦ ' + formatNumber(tier.vps * count), cls: 'green' },
+            { label: 'Owned here', value: String(count), cls: '' },
             { label: 'Cost', value: formatNumber(cost) + ' ✦', cls: canBuy ? 'green' : 'gold' }
         ]
     };
