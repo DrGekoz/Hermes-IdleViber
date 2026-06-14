@@ -126,7 +126,7 @@ Each count cycles 57 times (base + all suffixes). When a count wraps, the next l
 - Offline earnings calculated on return
 
 ### 🏆 Achievements
-- 45 achievements across vibe, click, prestige, room, VPS, gateway, decor, and autoclicker milestones
+- 55 achievements across vibe, click, prestige, room, VPS, gateway, decor, and autoclicker milestones
 - Real-time achievement notifications
 - Permanent unlock tracking
 
