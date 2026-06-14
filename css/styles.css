@@ -458,7 +458,31 @@ body {
 .room-card-cost { font-size: 7px; color: var(--accent-gold); white-space: nowrap; }
 .room-card-mult { font-size: 8px; color: var(--accent-cyan); margin-top: 3px; font-weight: bold; white-space: nowrap; }
 
-/* --- ACHIEVEMENTS --- */
+/* --- BUY ALL BUTTONS --- */
+.buy-all-btn {
+    background: #1a3a1a;
+    border: 1px solid #2a5a2a;
+    color: var(--accent-green);
+    font-family: var(--pixel-font);
+    font-size: 6px;
+    padding: 3px 8px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+    vertical-align: middle;
+}
+.buy-all-btn:hover {
+    background: #2a5a2a;
+    border-color: var(--accent-green);
+    box-shadow: 0 0 6px rgba(0,255,100,0.2);
+}
+.buy-all-btn:active {
+    background: #0a2a0a;
+}
+.buy-all-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
 .ach-item {
     display: flex;
     align-items: center;

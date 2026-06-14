@@ -792,21 +792,79 @@ function formatNumber(n) {
     const suffixes = ['k','M','B','T','Q',
         'a','c','d','e','f','g','h','i','j','l','n','o','p','r','s','u','v','w','x','y','z',
         'A','C','D','E','F','G','H','I','J','L','N','O','P','R','S','U','V','W','X','Y','Z'];
+    const S = suffixes.length; // 56
+
+    if (n < 1000) {
+        if (n >= 1) return Math.floor(n).toString();
+        if (n >= 0.01) return n.toFixed(2);
+        if (n >= 0.0001) return n.toFixed(4);
+        if (n > 0) return n.toExponential(1);
+        return '0';
+    }
+
     let idx = 0;
     let scaled = n;
-    while (scaled >= 1000 && idx < suffixes.length) {
+    while (scaled >= 1000) {
         scaled /= 1000;
         idx++;
     }
-    if (idx > 0 && idx <= suffixes.length) {
+    // scaled in [1, 1000), idx >= 1
+
+    if (idx <= S) {
         return scaled.toFixed(2) + suffixes[idx - 1];
     }
-    if (n >= 1) return Math.floor(n).toString();
-    // Fractional — for VPS display, this is critical
-    if (n >= 0.01) return n.toFixed(2);
-    if (n >= 0.0001) return n.toFixed(4);
-    if (n > 0) return n.toExponential(1);
-    return '0';
+
+    // ---- INFINITYZ SYSTEM ----
+    // Beyond Z, display cycles through InfinityZ ×N layers.
+    // Each layer: a count N (1, 2, 3...) with 57 display states per count:
+    //   N (base) + Nk, NM, NB, NT, NQ, Na, Nc, ... Nz, NA, NC, ... NZ
+    // When a count value itself needs InfinityZ notation, wrap in:
+    //   InfinityZ × InfinityZ (inner_count)  where inner_count cycles the same way
+    return formatInfinitySimple(idx, scaled, suffixes, S);
+}
+
+function formatNumberSuffix(val, suffixes, S) {
+    // Format a value with the basic suffix system (k through Z)
+    let idx = 0;
+    let v = val;
+    while (v >= 1000) { v /= 1000; idx++; }
+    if (idx === 0) return String(Math.floor(v));
+    return v.toFixed(2) + suffixes[idx - 1];
+}
+
+function formatInfinitySimple(totalIdx, scaled, suffixes, S) {
+    const C = S + 1; // 57 states per count
+    let beyond = totalIdx - S;
+    let pos = (beyond - 1) % C;
+    let count = Math.floor((beyond - 1) / C) + 1;
+
+    // If the count itself is in InfinityZ range (its idx > S),
+    // then we need a multi-layer display.
+    let countIdx = 0;
+    let tmp = count;
+    while (tmp >= 1000) { tmp /= 1000; countIdx++; }
+
+    let prefix;
+    if (countIdx <= S) {
+        // Count is in normal range — just format it
+        prefix = 'InfinityZ ×' + formatNumberSuffix(count, suffixes, S);
+    } else {
+        // Count itself needs InfinityZ — wrap recursively
+        // Show: InfinityZ × InfinityZ (inner_count + suffix)
+        let innerBeyond = countIdx - S;
+        let innerPos = (innerBeyond - 1) % C;
+        let innerCount = Math.floor((innerBeyond - 1) / C) + 1;
+        
+        let innerStr = 'InfinityZ × InfinityZ (' + formatNumberSuffix(innerCount, suffixes, S);
+        if (innerPos > 0) innerStr += suffixes[innerPos - 1];
+        innerStr += ')';
+        return innerStr;
+    }
+
+    if (pos > 0) {
+        prefix += suffixes[pos - 1];
+    }
+    return prefix;
 }
 
 // ---------- STATE ACTIONS ----------

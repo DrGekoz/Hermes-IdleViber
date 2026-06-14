@@ -236,8 +236,10 @@ function cacheDOM() {
         gatewayScanProgress: $('gateway-scan-progress'),
         leaderboardPanel: $('leaderboard-panel'),
         leaderboardMinimize: $('leaderboard-minimize'),
-
-        ppDisplayTotal: $('pp-display-total'),
+        leaderboardList: $('leaderboard-list'),
+        buyAllUpgrades: $('buy-all-upgrades-btn'),
+        buyAllDecor: $('buy-all-decor-btn'),
+        buyAllPrestige: $('buy-all-prestige-btn'),
         clickValueOverlay: $('click-value-display-overlay'),
         roomMultDisplay: $('room-mult-display'),
         offlineRateDisplay: $('offline-rate-display'),
@@ -673,6 +675,11 @@ function initUIEvents() {
 
     // Click & hold to spam-purchase upgrades
     initHoldToSpam();
+
+    // Buy All buttons
+    if (dom.buyAllUpgrades) dom.buyAllUpgrades.addEventListener('click', () => { playClick(); buyAllUpgrades(); });
+    if (dom.buyAllDecor) dom.buyAllDecor.addEventListener('click', () => { playClick(); buyAllDecor(); });
+    if (dom.buyAllPrestige) dom.buyAllPrestige.addEventListener('click', () => { playClick(); buyAllPrestige(); });
 
     // Music player
     initMusicPlayer();
@@ -2191,6 +2198,82 @@ function updateShopItemTooltip(item, tierId) {
             { label: 'Cost', value: formatNumber(cost) + ' ✦', cls: canBuy ? 'green' : 'gold' }
         ]
     };
+}
+
+// ---- BUY ALL BUTTONS ----
+function buyAllUpgrades() {
+    const room = G.current_room || 'campfire_grove';
+    const roomDefs = typeof ROOM_AUTOCLICKERS !== 'undefined' ? (ROOM_AUTOCLICKERS[room] || []) : [];
+    const defs = roomDefs.length > 0 ? roomDefs : AUTOCLICKERS;
+    if (defs.length === 0) return;
+
+    // Sort by baseCost descending (most expensive first)
+    const sorted = [...defs].sort((a, b) => b.baseCost - a.baseCost);
+    const roomClickers = (G.room_autoclickers || {})[room] || {};
+    let bought = 0;
+
+    for (const tier of sorted) {
+        const count = roomClickers[tier.id] || 0;
+        const maxQty = getMaxBuyable(tier.baseCost, count, G.vibes);
+        if (maxQty > 0) {
+            const result = buyAutoclicker(tier.id, maxQty);
+            if (result) bought += result;
+        }
+    }
+
+    if (bought > 0) {
+        playPurchase();
+        updateAllUI();
+    }
+}
+
+function buyAllDecor() {
+    const room = G.current_room || 'campfire_grove';
+    const items = getDecorForRoom(room) || [];
+    if (items.length === 0) return;
+
+    // Sort by cost descending, filter unowned
+    const sorted = items.filter(d => !G.owned_decor.includes(d.id)).sort((a, b) => b.cost - a.cost);
+    let bought = 0;
+
+    for (const item of sorted) {
+        if (G.vibes >= item.cost && !G.owned_decor.includes(item.id)) {
+            if (buyDecor(item.id)) bought++;
+        }
+    }
+
+    if (bought > 0) {
+        playPurchase();
+        updateAllUI();
+    }
+}
+
+function buyAllPrestige() {
+    if (!PRESTIGE_UPGRADES || PRESTIGE_UPGRADES.length === 0) return;
+
+    // Build sorted list by progressive cost descending
+    const withCost = PRESTIGE_UPGRADES.map(upg => {
+        const count = G.prestige_upgrades[upg.id] || 0;
+        const cost = Math.floor(upg.baseCost * Math.pow(upg.costMult, count));
+        return { upg, cost, count };
+    }).sort((a, b) => b.cost - a.cost);
+
+    let bought = 0;
+
+    for (const entry of withCost) {
+        if (G.prestige_points >= entry.cost) {
+            if (buyPrestigeUpgrade(entry.upg.id)) {
+                bought++;
+                // After buying one, recalculate remaining costs
+                // Since buying changes prestige_points, re-check next iterations
+            }
+        }
+    }
+
+    if (bought > 0) {
+        playPurchase();
+        updateAllUI();
+    }
 }
 
 function applySidebarPosition() {
