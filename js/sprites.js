@@ -1210,7 +1210,26 @@ async function drawBackground(roomId, ctx, w, h) {
         const img = await loadExternalSprite(`sprites/images/bg/${bgName}.png`);
         if (img) {
             ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(img, 0, 0, w, h);
+            // Center-weighted cover: crop image to match canvas aspect ratio
+            const iw = img.naturalWidth || img.width;
+            const ih = img.naturalHeight || img.height;
+            const canvasAspect = w / h;
+            const imgAspect = iw / ih;
+            let sx, sy, sw, sh;
+            if (canvasAspect > imgAspect) {
+                // Canvas is wider relative to image → crop top/bottom
+                sh = ih;
+                sw = ih * canvasAspect;
+                sx = (iw - sw) / 2;
+                sy = 0;
+            } else {
+                // Canvas is taller relative to image → crop left/right
+                sw = iw;
+                sh = iw / canvasAspect;
+                sx = 0;
+                sy = (ih - sh) / 2;
+            }
+            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
             return true;
         }
     }
