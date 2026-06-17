@@ -1757,7 +1757,7 @@ async function updateLeaderboardUI(externalEntries) {
 
     // Always include local player if not in list (even with Firebase)
     const displayName = G.displayName || G.username || 'You';
-    const localEntry = { name: displayName, vibes: bnToNumber(G.lifetime_vibes), pp: G.total_pp_earned, prestige: G.total_prestiges, vps: getVPS(), tier: getCurrentTier(G) };
+    const localEntry = { name: displayName, vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges, vps: getVPS(), tier: getCurrentTier(G) };
     if (!entries.find(e => e.name === displayName || e.name === G.username)) {
         if (entries.length === 0 || externalEntries || fbHadData || !fbReady) {
             entries.push(localEntry);
