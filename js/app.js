@@ -573,41 +573,28 @@ function initUIEvents() {
             const vps = getVPS();
             if (bnLe(vps, BN_ZERO)) { showToast('⛔ No VPS — cannot prestige'); return; }
             let count = 0;
-            // Run in batches to not freeze the UI — keeps going until threshold unmet
-            const runBatch = () => {
-                const startCount = count;
-                try {
-                    while (true) {
-                        const threshold = getPrestigeThreshold(G);
-                        if (!bnGe(G.lifetime_vibes, threshold)) {
-                            const needed = bnSub(bnFromNumber(threshold), G.lifetime_vibes);
-                            const secondsToReach = bnDiv(needed, vps);
-                            if (bnGt(secondsToReach, bnFromNumber(600))) break;
-                            addVibes(bnMul(needed, bnFromNumber(1.01)));
-                        }
-                        if (unlockPrestige() || G.prestige_unlocked) {
-                            const gain = getPrestigeGain(G);
-                            if (bnLe(gain, BN_ZERO)) break;
-                            if (!doPrestige()) break;
-                            count++;
-                        } else {
-                            break;
-                        }
-                    }
-                } catch (e) {
-                    console.warn('Max prestige batch failed:', e.message);
+            const vpsLog = Math.max(1, Math.log2(Math.max(2, bnToNumber(vps))));
+            const vpsLogSqrt = Math.sqrt(vpsLog);
+            const maxPrestiges = Math.floor((- (2*G.total_prestiges + 3) + Math.sqrt((2*G.total_prestiges + 3)**2 + 4 * 2 * 600 * bnToNumber(vps) / (1e12 * vpsLogSqrt))) / 2);
+            const runs = Math.min(maxPrestiges, 50000); // safety cap
+            
+            for (let i = 0; i < runs; i++) {
+                const threshold = getPrestigeThreshold(G);
+                if (!bnGe(G.lifetime_vibes, threshold)) {
+                    const needed = bnSub(bnFromNumber(threshold), G.lifetime_vibes);
+                    addVibes(needed);
                 }
-                if (count === startCount || !G.prestige_unlocked) {
-                    finish();
+                if (unlockPrestige() || G.prestige_unlocked) {
+                    const gain = getPrestigeGain(G);
+                    if (bnLe(gain, BN_ZERO)) break;
+                    if (!doPrestige()) break;
+                    count++;
                 } else {
-                    setTimeout(runBatch, 0);
+                    break;
                 }
-            };
-            const finish = () => {
-                updateAllUI();
-                showToast(count > 0 ? '⚡ Max Prestige: ' + count + ' prestiges!' : '⛔ Cannot prestige yet');
-            };
-            runBatch();
+            }
+            updateAllUI();
+            showToast(count > 0 ? '⚡ Max Prestige: ' + count + ' prestiges!' : '⛔ Cannot prestige yet');
         });
     }
 
