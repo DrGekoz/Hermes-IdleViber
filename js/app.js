@@ -577,20 +577,21 @@ function initUIEvents() {
             let safety = 0;
             while (safety < MAX_ITER) {
                 safety++;
-                // Accumulate vibes until threshold is reached
+                // Check if we meet the threshold for next prestige
                 const threshold = getPrestigeThreshold(G);
-                if (bnGe(G.lifetime_vibes, threshold)) {
-                    // Can prestige
+                if (!bnGe(G.lifetime_vibes, threshold)) {
+                    // Simulate VPS accumulation until threshold reached
+                    const needed = bnSub(bnFromNumber(threshold), G.lifetime_vibes);
+                    addVibes(bnMul(needed, bnFromNumber(1.01)));
+                }
+                // Unlock and attempt prestige
+                if (unlockPrestige() || G.prestige_unlocked) {
                     const gain = getPrestigeGain(G);
                     if (bnLe(gain, BN_ZERO)) break;
                     if (!doPrestige()) break;
                     count++;
                 } else {
-                    // Need more vibes — simulate VPS accumulation
-                    const needed = bnSub(bnFromNumber(threshold), G.lifetime_vibes);
-                    // Time to reach threshold = needed / vps (in seconds, at 10 ticks/sec)
-                    // Simulate by adding vibes directly
-                    addVibes(bnMul(needed, bnFromNumber(1.01))); // Add 1% extra to ensure we cross
+                    break;
                 }
             }
             updateAllUI();
