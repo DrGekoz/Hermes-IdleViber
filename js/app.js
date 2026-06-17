@@ -1258,7 +1258,8 @@ function updateResourceUI() {
         if (G.prestige_upgrades) {
             rate += 0.01 * (G.prestige_upgrades.offline_amp || 0);
         }
-        dom.offlineRateDisplay.textContent = Math.round(rate * 100) + '%';
+        const pct = Math.round(rate * 100);
+        dom.offlineRateDisplay.textContent = pct >= 1000 ? (rate).toFixed(1) + '×' : pct + '%';
     }
 }
 
