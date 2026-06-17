@@ -64,7 +64,7 @@ function setSessionCookie() {
     if (!G.username && !G.userId) return;
     const data = {
         username: G.username || 'Player',
-        userId: G.userId || 'local_guest',
+        userId: G.userId || 'local',
         authMode: G.auth_mode || 'local',
         displayName: G.displayName || '',
         timestamp: Date.now()
@@ -115,23 +115,12 @@ function checkAutoLogin() {
             try {
                 const cloudState = await fbLoad();
                 if (cloudState) {
-                    // Sanity check: detect bugged prestige values
-                    if (cloudState.total_pp_earned > 50000 || cloudState.prestige_points > 50000) {
-                        console.warn('Cloud save has bugged prestige — resetting');
-                        // Reset G to default because loadGame() already loaded the bugged save
-                        Object.assign(G, getDefaultState());
-                        G.auth_mode = 'firebase';
-                        G.userId = fbUser.uid;
-                        G.username = fbUser.displayName || 'Player';
-                        dom.userDisplay.textContent = G.username;
-                        saveGame();
-                    } else {
                         Object.assign(G, cloudState);
                         G.auth_mode = 'firebase';
                         G.userId = fbUser.uid;
                         G.username = fbUser.displayName || G.username;
                         showToast('☁️ Cloud save loaded');
-                    }
+                        saveGame();
                 }
             } catch (_) {}
             enterGame();
@@ -139,7 +128,7 @@ function checkAutoLogin() {
         return;
     }
 
-    // Local server API mode only (guest/local accounts disabled)
+    // Local server API mode only
     if (cookie.authMode === 'local_api') {
         G.userId = cookie.userId;
         G.username = cookie.username || 'Player';
@@ -201,7 +190,6 @@ function cacheDOM() {
         loginScreen: $('login-screen'),
         gameScreen: $('game-screen'),
         loginBtn: $('login-btn'),
-        guestBtn: $('guest-btn'),
         username: $('username'),
         password: $('password'),
         loginMsg: $('login-message'),
@@ -378,7 +366,6 @@ async function initAPI() {
 function initUIEvents() {
     // Auth
     dom.loginBtn.addEventListener('click', () => { playClick(); doLogin(); });
-    if (dom.guestBtn) dom.guestBtn.addEventListener('click', () => { playClick(); doGuest(); });
     dom.logoutBtn.addEventListener('click', () => { playClick(); doLogout(); });
     if (dom.settingsBtn) dom.settingsBtn.addEventListener('click', () => { playClick(); openSettings('name'); });
     if (dom.settingsClose) dom.settingsClose.addEventListener('click', () => { playClick(); closeSettings(); });
@@ -400,7 +387,7 @@ function initUIEvents() {
             doLogout();
         });
     }
-    // Settings: upgrade guest account (Google)
+    // Settings: upgrade account (Google)
     if (dom.settingsUpgradeGoogle) {
         dom.settingsUpgradeGoogle.addEventListener('click', async () => {
             if (!fbReady) { dom.settingsUpgradeMsg.textContent = '⚠️ Firebase not ready'; return; }
@@ -413,21 +400,11 @@ function initUIEvents() {
                 dom.userDisplay.textContent = G.username;
                 const cloudState = await fbLoad();
                 if (cloudState) {
-                    if (cloudState.total_pp_earned > 50000 || cloudState.prestige_points > 50000) {
-                        Object.assign(G, getDefaultState());
-                        G.auth_mode = 'firebase';
-                        G.userId = result.uid;
-                        G.username = result.user.displayName || 'Player';
-                        dom.userDisplay.textContent = G.username;
-                        saveGame();
-                        dom.settingsUpgradeMsg.textContent = '✅ Fresh cloud account created';
-                    } else {
                         Object.assign(G, cloudState);
                         G.auth_mode = 'firebase';
                         G.userId = result.uid;
                         G.username = result.user.displayName || 'Player';
                         dom.settingsUpgradeMsg.textContent = '☁️ Cloud save loaded';
-                    }
                 } else {
                     await fbSave(G);
                     await fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName);
@@ -441,7 +418,7 @@ function initUIEvents() {
             }
         });
     }
-    // Settings: upgrade guest account (Email)
+    // Settings: upgrade account (Email)
     if (dom.settingsUpgradeEmailBtn) {
         dom.settingsUpgradeEmailBtn.addEventListener('click', async () => {
             const email = dom.settingsUpgradeEmail.value.trim();
@@ -802,16 +779,12 @@ async function doLogin() {
             // Load cloud save from Firestore
             const cloudState = await fbLoad();
             if (cloudState) {
-                // Sanity check: detect bugged prestige values
-                if (cloudState.total_pp_earned > 50000 || cloudState.prestige_points > 50000) {
-                    console.warn('Cloud save has bugged prestige — resetting');
-                } else {
                     Object.assign(G, cloudState);
                     G.auth_mode = 'firebase';
                     G.userId = result.uid;
                     G.username = result.user.displayName || username;
                     showToast('☁️ Cloud save loaded');
-                }
+                    saveGame();
             } else {
                 // First login — upload local save data to Firebase
                 fbSave(G).catch(() => {});
@@ -906,7 +879,7 @@ function doGoogleLogin() {
 
 async function doGoogleLoginAsync() {
     if (!fbReady) {
-        showToast('⚠️ Firebase not ready — use Email or Guest');
+        showToast('⚠️ Firebase not ready — use Email');
         return;
     }
     const result = await loginWithGoogle();
@@ -919,23 +892,12 @@ async function doGoogleLoginAsync() {
         // Load cloud save
         const cloudState = await fbLoad();
         if (cloudState) {
-            // Sanity check: detect bugged prestige values
-            if (cloudState.total_pp_earned > 50000 || cloudState.prestige_points > 50000) {
-                console.warn('Cloud save has bugged prestige — resetting');
-                // Reset in-memory state since loadGame() already loaded bugged data
-                Object.assign(G, getDefaultState());
-                G.auth_mode = 'firebase';
-                G.userId = result.uid;
-                G.username = result.user.displayName || 'Player';
-                dom.userDisplay.textContent = G.username;
-                saveGame(); // persist clean state
-            } else {
                 Object.assign(G, cloudState);
                 G.auth_mode = 'firebase';
                 G.userId = result.uid;
                 G.username = result.user.displayName || 'Player';
                 showToast('☁️ Cloud save loaded');
-            }
+                saveGame();
         } else {
             // First login — upload local save
             fbSave(G).catch(() => {});
@@ -950,9 +912,6 @@ async function doGoogleLoginAsync() {
     }
 }
 
-function doGuest() {
-    showToast('⚠️ Guest accounts disabled — sign in with Google or Email');
-}
 
 function doLogout() {
     saveGame();

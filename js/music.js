@@ -156,7 +156,7 @@ function initMusicPlayer() {
         const track = MUSIC_TRACKS[index];
         musicAudio.src = track.file;
         trackName.textContent = track.name;
-        document.title = `♫ ${track.name} — Hermes IdleViber`;
+        document.title = 'Hermes IdleViber';
         saveMusicToCache();
     }
 
@@ -172,7 +172,7 @@ function initMusicPlayer() {
             musicPlaying = true;
             playBtn.textContent = '⏸';
             trackName.textContent = MUSIC_TRACKS[musicCurrentTrack].name;
-            document.title = `♫ ${MUSIC_TRACKS[musicCurrentTrack].name} — Hermes IdleViber`;
+            document.title = 'Hermes IdleViber';
         }
         saveMusicToCache();
     }
@@ -248,7 +248,7 @@ function initMusicPlayer() {
             musicPlaying = true;
             playBtn.textContent = '⏸';
             trackName.textContent = MUSIC_TRACKS[musicCurrentTrack].name;
-            document.title = `♫ ${MUSIC_TRACKS[musicCurrentTrack].name} — Hermes IdleViber`;
+            document.title = 'Hermes IdleViber';
             saveMusicToCache();
         }).catch(() => {
             musicPlaying = false;

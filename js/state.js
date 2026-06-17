@@ -1087,11 +1087,6 @@ function applyOfflineProgress() {
 }
 
 function saveGame() {
-    // Sanity check: don't save bugged prestige values
-    if (G.total_pp_earned > 50000 || G.prestige_points > 50000) {
-        console.warn('Blocked save of bugged prestige values');
-        return false;
-    }
     G.last_save = Date.now();
     try {
         const data = JSON.stringify(G);
@@ -1111,13 +1106,6 @@ function loadGame() {
             return false;
         }
         const data = JSON.parse(raw);
-        // Sanity check: detect impossibly high prestige from old bugged formula
-        if (data.total_pp_earned > 50000 || data.prestige_points > 50000) {
-            console.warn('Save has bugged prestige values (' + data.total_pp_earned + ' PP) — resetting');
-            localStorage.removeItem(CONFIG.SAVE_KEY);
-            resetGame();
-            return false;
-        }
         // Merge carefully to handle new fields
         const defaults = getDefaultState();
         for (const key of Object.keys(defaults)) {
