@@ -1276,7 +1276,17 @@ function updatePrestigeUI() {
     } else {
         dom.ppDisplay.textContent = ppFormatted;
     }
-    dom.lifetimeDisplay.textContent = formatNumber(G.lifetime_vibes);
+    const lifeFormatted = formatNumber(G.lifetime_vibes);
+    if (lifeFormatted.includes('InfZ')) {
+        const parts = lifeFormatted.split(' ');
+        if (parts.length >= 2) {
+            dom.lifetimeDisplay.innerHTML = parts[0] + '<br>×<br>' + parts.slice(2).join(' ');
+        } else {
+            dom.lifetimeDisplay.textContent = lifeFormatted;
+        }
+    } else {
+        dom.lifetimeDisplay.textContent = lifeFormatted;
+    }
     dom.prestigeCount.textContent = formatNumber(G.total_prestiges);
 
     let needMsg;
