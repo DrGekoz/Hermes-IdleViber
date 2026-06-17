@@ -763,7 +763,9 @@ body {
     border: 1px solid #ffd70033;
     padding: 1px 4px;
     border-radius: 2px;
+    z-index: 10;
 }
+.lb-dev-badge:hover { z-index: 10002; }
 /* Bridge the gap so hover doesn't break between badge and tooltip */
 .lb-dev-badge::after {
     content: '';
