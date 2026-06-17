@@ -724,7 +724,7 @@ function getVPS(state = G) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
         if (upg && upg.type === 'perma_mult' && count) {
             const val = Math.pow(upg.value, count);
-            permaMult = isFinite(val) ? permaMult * val : Number.MAX_VALUE;
+            if (isFinite(val)) permaMult *= val;
         }
     }
     // VPS boost from golden cookie
@@ -741,7 +741,7 @@ function getClickValue(state = G) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
         if (upg && upg.type === 'click_mult' && count) {
             const val = Math.pow(upg.value, count);
-            clickMult = isFinite(val) ? clickMult * val : Number.MAX_VALUE;
+            if (isFinite(val)) clickMult *= val;
         }
     }
     // Permanent multiplier from prestige chips (count-based)
@@ -750,13 +750,13 @@ function getClickValue(state = G) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
         if (upg && upg.type === 'perma_mult' && count) {
             const val = Math.pow(upg.value, count);
-            permaMult = isFinite(val) ? permaMult * val : Number.MAX_VALUE;
+            if (isFinite(val)) permaMult *= val;
         }
     }
     // Golden cookie click boost
     const gcBoost = getClickBoostMult();
     const raw = base * clickMult * permaMult * gcBoost;
-    return isFinite(raw) ? Math.floor(raw) : Number.MAX_SAFE_INTEGER;
+    return isFinite(raw) ? Math.floor(raw) : Infinity;
 }
 
 // Prestige threshold scales with prestige count: n*(n+9) trillion where n = next prestige #

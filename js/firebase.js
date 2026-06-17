@@ -139,7 +139,7 @@ async function logout() {
 }
 
 // ---- LEADERBOARD ----
-async function submitScoreToLeaderboard(username, score, prestigeLevel, totalPp, displayName) {
+async function submitScoreToLeaderboard(username, score, prestigeLevel, totalPp, displayName, vps) {
     if (!currentUser || !db) {
         console.warn('🔥 LB submit skipped: no user/db', {hasUser:!!currentUser, hasDb:!!db});
         return { error: 'Not logged in' };
@@ -152,6 +152,7 @@ async function submitScoreToLeaderboard(username, score, prestigeLevel, totalPp,
             score: Math.floor(score) || 0,
             prestige_level: prestigeLevel || 0,
             total_pp: totalPp || 0,
+            vps: vps || 0,
             display_name: displayName || '',
             updated_at: Timestamp.now(),
         }, { merge: true });
@@ -179,6 +180,7 @@ async function getLeaderboard(limitCount = 50) {
             score: d.data().score || 0,
             prestige_level: d.data().prestige_level || 0,
             total_pp: d.data().total_pp || 0,
+            vps: d.data().vps || 0,
         }));
     } catch (e) {
         console.warn('Leaderboard fetch error:', e.message);
@@ -206,6 +208,7 @@ function subscribeLeaderboard(callback, limitCount = 50) {
                 score: d.data().score || 0,
                 prestige_level: d.data().prestige_level || 0,
                 total_pp: d.data().total_pp || 0,
+                vps: d.data().vps || 0,
             }));
             try { callback(entries); } catch (_) {}
         }, (err) => {

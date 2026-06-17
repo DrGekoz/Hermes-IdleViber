@@ -407,7 +407,7 @@ function initUIEvents() {
                         dom.settingsUpgradeMsg.textContent = '☁️ Cloud save loaded';
                 } else {
                     await fbSave(G);
-                    await fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName);
+                    await fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName, getVPS());
                     dom.settingsUpgradeMsg.textContent = '✅ Google linked! Progress saved to cloud';
                 }
                 updateAllUI();
@@ -788,7 +788,7 @@ async function doLogin() {
             } else {
                 // First login — upload local save data to Firebase
                 fbSave(G).catch(() => {});
-                fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName).catch(() => {});
+                fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
             }
 
             enterGame();
@@ -808,7 +808,7 @@ async function doLogin() {
                 } else {
                     // First login — upload local save
                     fbSave(G).catch(() => {});
-                    fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName).catch(() => {});
+                    fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
                 }
                 enterGame();
                 return;
@@ -901,7 +901,7 @@ async function doGoogleLoginAsync() {
         } else {
             // First login — upload local save
             fbSave(G).catch(() => {});
-            fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName).catch(() => {});
+            fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
         }
 
         enterGame();
@@ -1023,10 +1023,10 @@ function initGameLoop() {
         // Cloud save + leaderboard submit if authenticated
         if (G.auth_mode === 'firebase' && fbUser) {
             fbSave(G).catch(() => {});
-            fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName).catch(() => {});
+            fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
         } else if (G.auth_token && G.server_online) {
             apiSave(G.auth_token, G).catch(() => {});
-            apiSubmitScore(G.auth_token, G.lifetime_vibes, G.total_pp_earned).catch(() => {});
+            apiSubmitScore(G.auth_token, G.lifetime_vibes, G.total_pp_earned, getVPS()).catch(() => {});
         }
     }, CONFIG.SAVE_INTERVAL);
 
@@ -1402,11 +1402,11 @@ function renderPrestigeUpgrades() {
         if (count === 0) continue;
         if (upg.type === 'click_mult') {
             const val = Math.pow(upg.value, count);
-            clickMult = isFinite(val) ? clickMult * val : Number.MAX_VALUE;
+            if (isFinite(val)) clickMult *= val;
         }
         if (upg.type === 'perma_mult') {
             const val = Math.pow(upg.value, count);
-            vpsMult = isFinite(val) ? vpsMult * val : Number.MAX_VALUE;
+            if (isFinite(val)) vpsMult *= val;
         }
         if (upg.type === 'gw_add') gwAdd += upg.value * count;
         if (upg.type === 'base_vps') baseVps += upg.value * count;
@@ -1618,6 +1618,7 @@ async function updateLeaderboardUI(externalEntries) {
                     vibes: e.score,
                     pp: e.total_pp || e.prestige_level || 0,
                     prestige: e.prestige_level || 0,
+                    vps: e.vps || 0,
                 }));
             }
         }
@@ -1631,6 +1632,7 @@ async function updateLeaderboardUI(externalEntries) {
                     vibes: e.score,
                     pp: e.prestige_level || 0,
                     prestige: e.prestige_level || 0,
+                    vps: e.vps || 0,
                 }));
             }
         }
@@ -1638,10 +1640,10 @@ async function updateLeaderboardUI(externalEntries) {
         // Fallback to local + mock data (only if no backend at all)
         if (!fbReady && entries.length === 0) {
             entries = [
-                { name: G.username || 'You', vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges },
-                { name: 'Zoops', vibes: 252_000_000_000_000, pp: 1_183_807, prestige: 12 },
-                { name: 'CipherZero', vibes: 136_000_000_000_000, pp: 611_620, prestige: 8 },
-                { name: 'PixelWarden', vibes: 70_000_000_000_000, pp: 294_303, prestige: 5 },
+                { name: G.username || 'You', vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges, vps: getVPS() },
+                { name: 'Zoops', vibes: 252_000_000_000_000, pp: 1_183_807, prestige: 12, vps: 85_000_000_000_000 },
+                { name: 'CipherZero', vibes: 136_000_000_000_000, pp: 611_620, prestige: 8, vps: 42_000_000_000_000 },
+                { name: 'PixelWarden', vibes: 70_000_000_000_000, pp: 294_303, prestige: 5, vps: 18_000_000_000_000 },
             ];
         }
     } else {
@@ -1650,7 +1652,7 @@ async function updateLeaderboardUI(externalEntries) {
 
     // Always include local player if not in list (even with Firebase)
     const displayName = G.displayName || G.username || 'You';
-    const localEntry = { name: displayName, vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges };
+    const localEntry = { name: displayName, vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges, vps: getVPS() };
     if (!entries.find(e => e.name === displayName || e.name === G.username)) {
         if (entries.length === 0 || externalEntries || fbHadData || !fbReady) {
             entries.push(localEntry);
@@ -1700,10 +1702,12 @@ async function updateLeaderboardUI(externalEntries) {
             const rankEl = el.querySelector('.lb-rank');
             const vibeEl = el.querySelector('.lb-vibes');
             const ppEl = el.querySelector('.lb-pp');
+            const vpsEl = el.querySelector('.lb-vps');
             const prestigeEl = el.querySelector('.lb-prestige');
             if (rankEl) rankEl.textContent = '#' + (i + 1);
             if (vibeEl) vibeEl.textContent = formatNumber(entry.vibes);
             if (ppEl) ppEl.textContent = formatNumber(entry.pp) + ' PP';
+            if (vpsEl) vpsEl.textContent = formatNumber(entry.vps || 0) + ' VPS';
             if (prestigeEl) prestigeEl.textContent = 'P' + entry.prestige;
         } else {
             // Create new row
@@ -1725,6 +1729,7 @@ async function updateLeaderboardUI(externalEntries) {
                     </span>
                     <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
                     <span class="lb-pp">${formatNumber(entry.pp)} PP</span>
+                    <span class="lb-vps">${formatNumber(entry.vps || 0)} VPS</span>
                     <span class="lb-prestige">P${entry.prestige}</span>
                 `;
             } else {
@@ -1733,6 +1738,7 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-name">${isYou ? `<img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon-sm" alt=""> ` : ''}${entry.name}</span>
                     <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
                     <span class="lb-pp">${formatNumber(entry.pp)} PP</span>
+                    <span class="lb-vps">${formatNumber(entry.vps || 0)} VPS</span>
                     <span class="lb-prestige">P${entry.prestige}</span>
                 `;
             }
@@ -1762,8 +1768,10 @@ function updateLocalLeaderboardEntry() {
         if (rowName === displayName || rowName === G.username) {
             const vibeEl = row.querySelector('.lb-vibes');
             const ppEl = row.querySelector('.lb-pp');
+            const vpsEl = row.querySelector('.lb-vps');
             if (vibeEl) vibeEl.textContent = formatNumber(G.lifetime_vibes);
             if (ppEl) ppEl.textContent = formatNumber(G.total_pp_earned) + ' PP';
+            if (vpsEl) vpsEl.textContent = formatNumber(getVPS()) + ' VPS';
             break;
         }
     }
@@ -1930,7 +1938,7 @@ async function saveDisplayName() {
         // Upload local save to Firebase
         try {
             await fbSave(G);
-            await fbSubmitScore(name, G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, name);
+            await fbSubmitScore(name, G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, name, getVPS());
         } catch (_) {}
     }
 }

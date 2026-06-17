@@ -71,12 +71,12 @@ async function apiLoad(token) {
 }
 
 // ---- LEADERBOARD ----
-async function apiSubmitScore(token, score, prestigeLevel) {
+async function apiSubmitScore(token, score, prestigeLevel, vps) {
     try {
         const res = await fetch(`${API_BASE}/api/leaderboard/submit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token, score, prestige_level: prestigeLevel }),
+            body: JSON.stringify({ token, score, prestige_level: prestigeLevel, vps }),
         });
         return await res.json();
     } catch (e) {
