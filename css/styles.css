@@ -712,6 +712,7 @@ body {
 .leaderboard-float.fullscreen .lb-vps { min-width: 80px; font-size: 11px; }
 .leaderboard-float.fullscreen .lb-pp { min-width: 60px; font-size: 11px; }
 .leaderboard-float.fullscreen .lb-prestige { min-width: 40px; font-size: 10px; }
+.leaderboard-float.fullscreen .lb-tier { min-width: 40px; font-size: 10px; }
 .leaderboard-float.fullscreen .lb-dev-badge { font-size: 8px; }
 .leaderboard-float.fullscreen .dev-tooltip { font-size: 10px; }
 .leaderboard-float.fullscreen .dev-tooltip strong { font-size: 10px; }
@@ -746,7 +747,7 @@ body {
 .lb-entry.dev .lb-name.dev { color: #ffd700; font-weight: bold; }
 #leaderboard-list {
     display: grid;
-    grid-template-columns: auto 1fr auto auto auto auto;
+    grid-template-columns: auto 1fr auto auto auto auto auto;
     gap: 5px;
     align-items: center;
 }
@@ -818,6 +819,7 @@ body {
 .lb-vps { color: var(--accent-green); text-align: right; white-space: nowrap; }
 .lb-pp { color: var(--accent-cyan); text-align: right; white-space: nowrap; }
 .lb-prestige { color: var(--accent-pink); text-align: right; white-space: nowrap; }
+.lb-tier { color: var(--accent-gold); text-align: right; white-space: nowrap; }
 
 /* Leaderboard header row — generated inside leaderboard-list so columns align */
 .lb-header {

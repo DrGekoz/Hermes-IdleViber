@@ -4,6 +4,7 @@
 // ============================================================
 
 import { FIREBASE_CONFIG } from '../firebase-config.js';
+import { bnToNumber } from './state.js';
 
 // Load Firebase SDKs from CDN
 const FB_BASE = 'https://www.gstatic.com/firebasejs/10.14.1/';
@@ -147,12 +148,15 @@ async function submitScoreToLeaderboard(username, score, prestigeLevel, totalPp,
     const { doc, setDoc, Timestamp } = await import(`${FB_BASE}firebase-firestore.js`);
     try {
         const ref = doc(db, 'leaderboard', currentUser.uid);
+        const safeScore = Array.isArray(score) ? Math.floor(bnToNumber(score)) || 0 : Math.floor(score) || 0;
+        const safePp = Array.isArray(totalPp) ? Math.floor(bnToNumber(totalPp)) || 0 : totalPp || 0;
+        const safeVps = Array.isArray(vps) ? Math.floor(bnToNumber(vps)) || 0 : vps || 0;
         await setDoc(ref, {
             username: displayName || username || currentUser.displayName || 'Player',
-            score: Math.floor(score) || 0,
+            score: safeScore,
             prestige_level: prestigeLevel || 0,
-            total_pp: totalPp || 0,
-            vps: vps || 0,
+            total_pp: safePp,
+            vps: safeVps,
             display_name: displayName || '',
             updated_at: Timestamp.now(),
         }, { merge: true });

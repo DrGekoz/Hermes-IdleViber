@@ -13,6 +13,99 @@ const CONFIG = {
     PRESTIGE_THRESHOLD: 10_000_000_000_000, // 10T (legacy, use getPrestigeThreshold instead)
 };
 
+// ---------- BIG NUMBER SYSTEM ----------
+// Numbers stored as [mantissa, exponent] = mantissa * 10^exponent
+// mantissa in [1, 10) or 0 for zero. Supports effectively unlimited growth.
+const BN = (m, e) => [m, e];
+const BN_ZERO = BN(0, 0);
+
+function bnNormalize(bn) {
+    let [m, e] = bn;
+    if (m === 0 || !isFinite(m)) return BN_ZERO;
+    if (!isFinite(e)) return BN(1, Number.MAX_SAFE_INTEGER);
+    while (m >= 10) { m /= 10; e++; }
+    while (m < 1 && m > 0) { m *= 10; e--; }
+    return BN(m, e);
+}
+
+function bnFromNumber(n) {
+    if (n === 0 || !isFinite(n)) return BN_ZERO;
+    const abs = Math.abs(n);
+    const e = Math.floor(Math.log10(abs));
+    const m = abs / Math.pow(10, e);
+    return BN(n < 0 ? -m : m, e);
+}
+
+function bnToNumber(bn) {
+    if (bn[0] === 0) return 0;
+    const [m, e] = bn;
+    if (e > 308) return Infinity;
+    if (e < -308) return 0;
+    return m * Math.pow(10, e);
+}
+
+function bnAdd(a, b) {
+    if (a[0] === 0) return b;
+    if (b[0] === 0) return a;
+    let [m1, e1] = a;
+    let [m2, e2] = b;
+    const diff = Math.abs(e1 - e2);
+    if (diff > 15) return e1 > e2 ? a : b;
+    const minE = Math.min(e1, e2);
+    const sum = m1 * Math.pow(10, e1 - minE) + m2 * Math.pow(10, e2 - minE);
+    return bnNormalize(BN(sum, minE));
+}
+
+function bnSub(a, b) {
+    if (b[0] === 0) return a;
+    let [m1, e1] = a;
+    let [m2, e2] = b;
+    const diff = Math.abs(e1 - e2);
+    if (diff > 15) return e1 > e2 ? a : BN_ZERO;
+    const minE = Math.min(e1, e2);
+    const diff2 = m1 * Math.pow(10, e1 - minE) - m2 * Math.pow(10, e2 - minE);
+    if (diff2 <= 0) return BN_ZERO;
+    return bnNormalize(BN(diff2, minE));
+}
+
+function bnMul(a, b) {
+    if (a[0] === 0 || b[0] === 0) return BN_ZERO;
+    return bnNormalize(BN(a[0] * b[0], a[1] + b[1]));
+}
+
+function bnDiv(a, b) {
+    if (b[0] === 0) return BN(1, Number.MAX_SAFE_INTEGER);
+    if (a[0] === 0) return BN_ZERO;
+    return bnNormalize(BN(a[0] / b[0], a[1] - b[1]));
+}
+
+function bnCompare(a, b) {
+    // Accept both BN arrays and regular numbers
+    if (typeof a === 'number') a = bnFromNumber(a);
+    if (typeof b === 'number') b = bnFromNumber(b);
+    if (a[0] === 0 && b[0] === 0) return 0;
+    if (a[0] === 0) return -1;
+    if (b[0] === 0) return 1;
+    if (a[1] > b[1]) return 1;
+    if (a[1] < b[1]) return -1;
+    return a[0] > b[0] ? 1 : a[0] < b[0] ? -1 : 0;
+}
+
+function bnFloor(bn) {
+    if (bn[0] === 0) return BN_ZERO;
+    let [m, e] = bn;
+    if (e < 0) return BN_ZERO;
+    if (e > 15) return bn;
+    const val = Math.floor(m * Math.pow(10, e));
+    return bnFromNumber(val);
+}
+
+function bnLt(a, b) { return bnCompare(a, b) < 0; }
+function bnLe(a, b) { return bnCompare(a, b) <= 0; }
+function bnGt(a, b) { return bnCompare(a, b) > 0; }
+function bnGe(a, b) { return bnCompare(a, b) >= 0; }
+function bnEq(a, b) { return bnCompare(a, b) === 0; }
+
 // ---------- ROOMS & THEMES ----------
 const ROOMS = {
     campfire_grove: {
@@ -341,6 +434,27 @@ const TRANSCEND_UPGRADES = [
     { id: 'trans_master',  name: 'Master Key',        cost: 10, desc: 'Free prestige unlock each run',     type: 'trans_master',   value: 1 },
 ];
 
+// ---------- TIERS (prestige-based permanent upgrades) ----------
+const TIERS = [
+    { id: 'tier_1',  name: 'Bronze',   requires: 1,    bonus: '×2 starting click power',          type: 'click',  value: 2 },
+    { id: 'tier_2',  name: 'Silver',   requires: 3,    bonus: '×2 VPS permanently',               type: 'vps',    value: 2 },
+    { id: 'tier_3',  name: 'Gold',     requires: 5,    bonus: '+5% offline earnings',              type: 'offline',value: 5 },
+    { id: 'tier_4',  name: 'Platinum', requires: 10,   bonus: 'Unlock all rooms on prestige',      type: 'rooms',  value: 1 },
+    { id: 'tier_5',  name: 'Diamond',  requires: 25,   bonus: '×3 click power',                    type: 'click',  value: 3 },
+    { id: 'tier_6',  name: 'Master',   requires: 50,   bonus: '×3 VPS permanently',               type: 'vps',    value: 3 },
+    { id: 'tier_7',  name: 'Grandmaster', requires: 100, bonus: '+10% offline earnings',            type: 'offline',value: 10 },
+    { id: 'tier_8',  name: 'Legend',   requires: 250,  bonus: '×5 click power',                    type: 'click',  value: 5 },
+    { id: 'tier_9',  name: 'Mythic',   requires: 500,  bonus: '×5 VPS permanently',               type: 'vps',    value: 5 },
+    { id: 'tier_10', name: 'Transcendent', requires: 1000, bonus: '×10 all multipliers',           type: 'all',    value: 10 },
+];
+function getCurrentTier(state = G) {
+    let tier = 0;
+    for (const t of TIERS) {
+        if (state.total_prestiges >= t.requires) tier = t.requires;
+    }
+    return tier;
+}
+
 // ---------- ACHIEVEMENTS ----------
 const ACHIEVEMENTS = [
     // Vibe milestones
@@ -406,16 +520,22 @@ const ACHIEVEMENTS = [
     { id: 'auto_10',      name: 'Automation Begins',  desc: 'Buy 10 total autoclickers',   icon: '🤖', threshold: { type: 'autoclickers', value: 10 } },
     { id: 'auto_50',      name: 'Robot Army',         desc: 'Buy 50 total autoclickers',   icon: '🦾', threshold: { type: 'autoclickers', value: 50 } },
     { id: 'auto_100',     name: 'Fully Automated',    desc: 'Buy 100 total autoclickers',  icon: '🤖', threshold: { type: 'autoclickers', value: 100 } },
+    // Tier milestones
+    { id: 'tier_ach_1',   name: 'Bronze Age',         desc: 'Reach Tier 1',                icon: '🥉', threshold: { type: 'prestiges', value: 1 } },
+    { id: 'tier_ach_3',   name: 'Silver Age',         desc: 'Reach Tier 3',                icon: '🥈', threshold: { type: 'prestiges', value: 5 } },
+    { id: 'tier_ach_5',   name: 'Golden Era',         desc: 'Reach Tier 5',                icon: '🥇', threshold: { type: 'prestiges', value: 25 } },
+    { id: 'tier_ach_7',   name: 'Grandmaster',        desc: 'Reach Tier 7',                icon: '👑', threshold: { type: 'prestiges', value: 100 } },
+    { id: 'tier_ach_10',  name: 'Transcendent',       desc: 'Reach Tier 10',               icon: '🌟', threshold: { type: 'prestiges', value: 1000 } },
 ];
 
 // ---------- DEFAULT GAME STATE ----------
 function getDefaultState() {
     return {
         version: 1,
-        vibes: 0,
-        lifetime_vibes: 0,
-        prestige_points: 0,
-        total_pp_earned: 0,
+        vibes: BN_ZERO,
+        lifetime_vibes: BN_ZERO,
+        prestige_points: BN_ZERO,
+        total_pp_earned: BN_ZERO,
         total_prestiges: 0,
         prestige_unlocked: false,    // Prestige must be re-unlocked each time
         transcend_points: 0,
@@ -686,7 +806,6 @@ function getVPS(state = G) {
             const count = clickers[def.id] || 0;
             if (count > 0) {
                 let tierVps = def.vps * count;
-                // Apply synergy bonuses (use global synergy by finding matching global tier)
                 const globalTier = AUTOCLICKERS.find(t => t.id === def.id);
                 if (globalTier) {
                     const synBonus = getSynergyBonus(def.id, state);
@@ -695,11 +814,10 @@ function getVPS(state = G) {
                 vps += tierVps;
             }
         }
-        // Also include any legacy global autoclickers for backward compat
         const globalClickers = state.autoclickers || {};
         for (const [id, count] of Object.entries(globalClickers)) {
             const tier = AUTOCLICKERS.find(t => t.id === id);
-            if (tier && !clickers[id]) { // Only if room doesn't already have this
+            if (tier && !clickers[id]) {
                 let tierVps = tier.vps * count;
                 const synBonus = getSynergyBonus(id, state);
                 tierVps *= (1 + synBonus);
@@ -716,48 +834,54 @@ function getVPS(state = G) {
         if (upg.type === 'gw_add') gwMult += upg.value * count;
         if (upg.type === 'base_vps') vps += upg.value * count;
     }
-    // Decor VPS multiplier (from active decor items)
+    // Decor VPS multiplier
     const roomMult = getActiveDecorVpsMult(state);
-    // Permanent multiplier from prestige chips (count-based)
-    let permaMult = 1;
+    // Permanent multiplier from prestige chips (BN)
+    let permaMult = BN_ONE;
     for (const [upgId, count] of Object.entries(state.prestige_upgrades)) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
         if (upg && upg.type === 'perma_mult' && count) {
             const val = Math.pow(upg.value, count);
-            if (isFinite(val)) permaMult *= val;
+            if (isFinite(val)) permaMult = bnMul(permaMult, bnFromNumber(val));
         }
     }
-    // VPS boost from golden cookie
     const vpsBoost = getVpsBoostMult();
-    // Wrinkler penalty
     const wrinkleMult = getEffectiveVpsMultiplier(state);
-    const raw = vps * gwMult * roomMult * permaMult * vpsBoost * wrinkleMult;
-    return isFinite(raw) ? raw : Number.MAX_VALUE;
+    // Combine as BN: vps * gwMult * roomMult * permaMult * vpsBoost * wrinkleMult
+    let result = bnFromNumber(vps);
+    result = bnMul(result, bnFromNumber(gwMult));
+    result = bnMul(result, bnFromNumber(roomMult));
+    result = bnMul(result, permaMult);
+    result = bnMul(result, bnFromNumber(vpsBoost));
+    result = bnMul(result, bnFromNumber(wrinkleMult));
+    return result;
 }
 
 function getClickValue(state = G) {
     let base = 1;
-    let clickMult = 1;
+    let clickMult = BN_ONE;
     for (const [upgId, count] of Object.entries(state.prestige_upgrades)) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
         if (upg && upg.type === 'click_mult' && count) {
             const val = Math.pow(upg.value, count);
-            if (isFinite(val)) clickMult *= val;
+            if (isFinite(val)) clickMult = bnMul(clickMult, bnFromNumber(val));
         }
     }
-    // Permanent multiplier from prestige chips (count-based)
-    let permaMult = 1;
+    // Permanent multiplier from prestige chips (BN)
+    let permaMult = BN_ONE;
     for (const [upgId, count] of Object.entries(state.prestige_upgrades)) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
         if (upg && upg.type === 'perma_mult' && count) {
             const val = Math.pow(upg.value, count);
-            if (isFinite(val)) permaMult *= val;
+            if (isFinite(val)) permaMult = bnMul(permaMult, bnFromNumber(val));
         }
     }
     // Golden cookie click boost
     const gcBoost = getClickBoostMult();
-    const raw = base * clickMult * permaMult * gcBoost;
-    return isFinite(raw) ? Math.floor(raw) : Number.MAX_VALUE;
+    let result = bnMul(bnFromNumber(base), clickMult);
+    result = bnMul(result, permaMult);
+    result = bnMul(result, bnFromNumber(gcBoost));
+    return result;
 }
 
 // Prestige threshold scales with prestige count: n*(n+9) trillion where n = next prestige #
@@ -769,17 +893,18 @@ function getPrestigeThreshold(state = G) {
 
 function getPrestigeGain(state = G) {
     // Must be unlocked first
-    if (!state.prestige_unlocked) return 0;
+    if (!state.prestige_unlocked) return BN_ZERO;
     const threshold = getPrestigeThreshold(state);
-    if (state.lifetime_vibes < threshold) return 0;
+    if (bnLt(state.lifetime_vibes, threshold)) return BN_ZERO;
     // Base 50 chips + 1 per 1T lifetime vibes
-    return 50 + Math.floor(state.lifetime_vibes / 1_000_000_000_000);
+    const bonus = bnFloor(bnDiv(state.lifetime_vibes, bnFromNumber(1e12)));
+    return bnAdd(bnFromNumber(50), bonus);
 }
 
 function isPrestigeUnlockable(state = G) {
     const threshold = getPrestigeThreshold(state);
     // Check if lifetime vibes >= threshold
-    if (state.lifetime_vibes < threshold) return false;
+    if (bnLt(state.lifetime_vibes, threshold)) return false;
     // If total room cost > threshold, require all 6 rooms
     const totalRoomCost = Object.values(ROOMS).reduce((sum, r) => sum + r.cost, 0);
     if (totalRoomCost > threshold) {
@@ -798,8 +923,61 @@ function unlockPrestige() {
     return false;
 }
 
+// ---------- BIG NUMBER FORMATTING ----------
+function formatBN(bn) {
+    if (bn[0] === 0) return '0';
+    let [m, e] = bn;
+    // m is in [1, 10)
+    // Small numbers
+    if (e < 0) return (m * Math.pow(10, e)).toFixed(Math.max(2, -e + 2));
+    // Get suffix group index (each group = 10^3)
+    const groupIdx = Math.floor(e / 3);
+    const rem = e % 3;
+    let scaled = m * Math.pow(10, rem); // Now in [1, 1000)
+    const suffixesList = ['k','M','B','T','Q',
+        'a','c','d','e','f','g','h','i','j','l','n','o','p','r','s','u','v','w','x','y','z',
+        'A','C','D','E','F','G','H','I','J','L','N','O','P','R','S','U','V','W','X','Y','Z'];
+    const S = suffixesList.length; // 47
+    if (groupIdx === 0) {
+        if (scaled >= 1) return Math.floor(scaled).toString();
+        return scaled.toFixed(2);
+    }
+    if (groupIdx <= S) {
+        return scaled.toFixed(2) + suffixesList[groupIdx - 1];
+    }
+    // InfZ system: compute from exponent directly
+    const C = S + 1; // 48 states per layer
+    let beyond = groupIdx - S;
+    let pos = (beyond - 1) % C;
+    let count = Math.floor((beyond - 1) / C) + 1;
+    // Format the layer count
+    let countIdx = 0;
+    let tmp = count;
+    while (tmp >= 1000) { tmp /= 1000; countIdx++; }
+    let prefix;
+    if (countIdx <= S) {
+        let cntStr = String(Math.floor(count));
+        if (countIdx > 0) cntStr = (count / Math.pow(1000, countIdx)).toFixed(2) + suffixesList[countIdx - 1];
+        prefix = 'InfZ x (' + cntStr;
+    } else {
+        // Multi-layer — rare but handled
+        let innerBeyond = countIdx - S;
+        let innerPos = (innerBeyond - 1) % C;
+        let innerCount = Math.floor((innerBeyond - 1) / C) + 1;
+        let innerStr = 'InfZ x InfZ (' + (innerCount > 0 ? innerCount : '1');
+        if (innerPos > 0) innerStr += suffixesList[innerPos - 1];
+        innerStr += ')';
+        return innerStr;
+    }
+    if (pos > 0) prefix += suffixesList[pos - 1];
+    prefix += ')';
+    return prefix;
+}
+
 function formatNumber(n) {
-    // Guard against Infinity/NaN from overflow — show InfZ for truly infinite values
+    // Handle BigNum arrays — format via the BN system
+    if (Array.isArray(n)) return formatBN(n);
+    // Guard against Infinity/NaN from overflow
     if (!isFinite(n)) return 'InfZ';
     if (isNaN(n)) return '0';
     // Suffix system: K M B T Q then a-z skipping k,m,b,t,q then A-Z skipping K,M,B,T,Q
@@ -884,8 +1062,10 @@ function formatInfinitySimple(totalIdx, scaled, suffixes, S) {
 
 // ---------- STATE ACTIONS ----------
 function addVibes(amount) {
-    G.vibes = Math.min(G.vibes + amount, Number.MAX_VALUE);
-    G.lifetime_vibes = Math.min(G.lifetime_vibes + amount, Number.MAX_VALUE);
+    // Convert regular numbers to BN
+    if (typeof amount === 'number') amount = bnFromNumber(amount);
+    G.vibes = bnAdd(G.vibes, amount);
+    G.lifetime_vibes = bnAdd(G.lifetime_vibes, amount);
     notifyStateChange('vibes');
 }
 
@@ -903,8 +1083,8 @@ function buyAutoclicker(id, quantity = 1) {
     }
     
     const totalCost = getBulkCost(tier.baseCost, count, quantity);
-    if (G.vibes >= totalCost) {
-        G.vibes -= totalCost;
+    if (bnGe(G.vibes, totalCost)) {
+        G.vibes = bnSub(G.vibes, bnFromNumber(totalCost));
         G.room_autoclickers[room][id] = count + quantity;
         notifyStateChange('autoclickers');
         return quantity;
@@ -918,8 +1098,8 @@ function buyPrestigeUpgrade(id) {
     const count = G.prestige_upgrades[id] || 0;
     const rawCost = upg.baseCost * Math.pow(upg.costMult, count);
     const cost = !isFinite(rawCost) ? Infinity : Math.floor(rawCost);
-    if (G.prestige_points >= cost) {
-        G.prestige_points -= cost;
+    if (bnGe(G.prestige_points, cost)) {
+        G.prestige_points = bnSub(G.prestige_points, bnFromNumber(cost));
         G.prestige_upgrades[id] = count + 1;
         notifyStateChange('gateway_upgrades');
         return true;
@@ -936,8 +1116,8 @@ function buyDecor(id) {
     }
     if (!item) return false;
     if (G.owned_decor.includes(id)) return false;
-    if (G.vibes >= item.cost) {
-        G.vibes -= item.cost;
+    if (bnGe(G.vibes, item.cost)) {
+        G.vibes = bnSub(G.vibes, bnFromNumber(item.cost));
         G.owned_decor.push(id);
         G.active_decor[id] = true; // Auto-activate on purchase
         notifyStateChange('decor');
@@ -973,8 +1153,8 @@ function unlockRoom(id) {
     const room = ROOMS[id];
     if (!room) return false;
     if (G.unlocked_rooms.includes(id)) return false;
-    if (G.vibes >= room.cost) {
-        G.vibes -= room.cost;
+    if (bnGe(G.vibes, room.cost)) {
+        G.vibes = bnSub(G.vibes, bnFromNumber(room.cost));
         G.unlocked_rooms.push(id);
         notifyStateChange('rooms');
         return true;
@@ -991,12 +1171,12 @@ function switchRoom(id) {
 
 function doPrestige() {
     const gain = getPrestigeGain(G);
-    if (gain <= 0) return false;
-    G.total_pp_earned = Math.min(G.total_pp_earned + gain, Number.MAX_VALUE);
-    G.prestige_points = Math.min(G.prestige_points + gain, Number.MAX_VALUE);
+    if (bnLe(gain, BN_ZERO)) return false;
+    G.total_pp_earned = bnAdd(G.total_pp_earned, gain);
+    G.prestige_points = bnAdd(G.prestige_points, gain);
     G.total_prestiges += 1;
-    G.vibes = 0;
-    G.lifetime_vibes = 0;        // Reset lifetime — must earn 10T again
+    G.vibes = BN_ZERO;
+    G.lifetime_vibes = BN_ZERO;        // Reset lifetime — must earn 10T again
     G.prestige_unlocked = false; // Must re-unlock prestige next run
     G.autoclickers = {};
     G.room_autoclickers = {};
@@ -1127,6 +1307,11 @@ function loadGame() {
             if (data[key] !== undefined) G[key] = data[key];
             else G[key] = defaults[key];
         }
+        // Legacy support: migrate old number format to BigNum
+        if (typeof G.vibes === 'number') G.vibes = bnFromNumber(G.vibes);
+        if (typeof G.lifetime_vibes === 'number') G.lifetime_vibes = bnFromNumber(G.lifetime_vibes);
+        if (typeof G.prestige_points === 'number') G.prestige_points = bnFromNumber(G.prestige_points);
+        if (typeof G.total_pp_earned === 'number') G.total_pp_earned = bnFromNumber(G.total_pp_earned);
         // Legacy support: ensure all expected keys exist
         if (!G.unlocked_rooms) G.unlocked_rooms = ['campfire_grove'];
         if (!G.owned_decor) G.owned_decor = [];
@@ -1214,6 +1399,7 @@ export {
     ROOM_AUTOCLICKERS,
     PRESTIGE_UPGRADES,
     ACHIEVEMENTS,
+    TIERS, getCurrentTier,
     GOLDEN_COOKIE_TYPES,
     GOLDEN_COOKIE_INTERVAL_MIN,
     GOLDEN_COOKIE_INTERVAL_MAX,
@@ -1244,6 +1430,7 @@ export {
     unlockPrestige,
     checkAchievements,
     formatNumber,
+    BN_ZERO, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnEq, bnToNumber,
     calculateOfflineProgress,
     applyOfflineProgress,
     addVibes,

@@ -83,7 +83,8 @@
             <button id="tab-decor">✨ Decor</button>
             <button id="tab-gateway">🔌 Gateway</button>
             <button id="tab-prestige">💎 Prestige</button>
-            <button id="tab-achievements">🏆 Achievements</button>
+            <button id="tab-tiers">🏛️ Tiers</button>
+            <button id="tab-achievements" style="grid-column:span 2">🏆 Achievements</button>
         </div>
 
         <!-- Panel: Upgrades -->
@@ -161,6 +162,10 @@
             <div class="prestige-reset-box">
                 <div class="prestige-gain-text" id="prestige-gain">Need 10T Total This Round to unlock</div>
                 <button id="prestige-btn" disabled>💎 PRESTIGE</button>
+                <label class="prestige-instant-toggle" style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:4px;font-size:6px;color:var(--text-secondary);cursor:pointer;">
+                    <input type="checkbox" id="prestige-instant"> ⚡ Instant Prestige (skip confirmation)
+                </label>
+                <button id="prestige-max-btn" style="margin-top:4px;width:100%;padding:3px 8px;background:#2a1a3a;border:1px solid #5a3a8a;color:#cc88ff;font-family:var(--pixel-font);font-size:6px;cursor:pointer;">⚡ MAX PRESTIGE</button>
                 <div style="font-size:6px;color:#553333;margin-top:6px;text-align:center;">
                     Reset for <span id="prestige-chip-gain">0</span> chips<br>
                     Keeps: Prestige Upgrades • Loses: Vibes, Rooms, Autoclickers, Decor
@@ -200,6 +205,11 @@
 
         <!-- Panel: Achievements -->
         <div class="tab-panel" id="panel-achievements">
+        </div>
+        <!-- Panel: Tiers -->
+        <div class="tab-panel" id="panel-tiers">
+            <div style="font-size:8px;color:var(--accent-gold);margin-bottom:8px;">▼ TIERS — Prestige milestones unlock permanent bonuses</div>
+            <div id="tier-list" style="display:flex;flex-direction:column;gap:3px;"></div>
         </div>
     </div>
 

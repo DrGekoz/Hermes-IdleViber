@@ -73,10 +73,13 @@ async function apiLoad(token) {
 // ---- LEADERBOARD ----
 async function apiSubmitScore(token, score, prestigeLevel, vps) {
     try {
+        // Convert BN arrays to numbers for JSON serialization
+        const safeScore = Array.isArray(score) ? Number(score[0]) * Math.pow(10, Math.min(score[1], 308)) : score;
+        const safeVps = Array.isArray(vps) ? Number(vps[0]) * Math.pow(10, Math.min(vps[1], 308)) : vps;
         const res = await fetch(`${API_BASE}/api/leaderboard/submit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token, score, prestige_level: prestigeLevel, vps }),
+            body: JSON.stringify({ token, score: safeScore, prestige_level: prestigeLevel, vps: safeVps }),
         });
         return await res.json();
     } catch (e) {

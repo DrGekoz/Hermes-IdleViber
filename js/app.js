@@ -3,7 +3,7 @@
 // ============================================================
 
 import {
-    G, CONFIG, ROOMS, ROOM_DECOR, getDecorForRoom, AUTOCLICKERS, ROOM_AUTOCLICKERS, PRESTIGE_UPGRADES, ACHIEVEMENTS,
+    G, CONFIG, ROOMS, ROOM_DECOR, getDecorForRoom, AUTOCLICKERS, ROOM_AUTOCLICKERS, PRESTIGE_UPGRADES, ACHIEVEMENTS, TIERS,
     GOLDEN_COOKIE_TYPES, GOLDEN_COOKIE_INTERVAL_MIN, GOLDEN_COOKIE_INTERVAL_MAX, GOLDEN_COOKIE_DURATION,
     goldenCookieSystem, spawnGoldenCookie, collectGoldenCookie, getClickBoostMult, getVpsBoostMult,
     wrinklerSystem, SYNERGIES, getSynergyBonus, getWrinklerPenalty, getEffectiveVpsMultiplier,
@@ -13,7 +13,9 @@ import {
     getBulkCost, getMaxBuyable,
     addVibes, buyAutoclicker, buyPrestigeUpgrade, buyDecor,
     activateDecor, unlockRoom, switchRoom, doPrestige,
+    BN_ZERO, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnToNumber,
     isPrestigeUnlockable, unlockPrestige, checkAchievements,
+    TIERS, getCurrentTier,
     onStateChange, saveGame, loadGame, notifyStateChange,
     getDefaultState,
 } from './state.js';
@@ -243,12 +245,14 @@ function cacheDOM() {
         tabDecor: $('tab-decor'),
         tabGateway: $('tab-gateway'),
         tabAchievements: $('tab-achievements'),
+        tabTiers: $('tab-tiers'),
         panelRooms: $('panel-rooms'),
         panelUpgrades: $('panel-upgrades'),
         panelPrestige: $('panel-prestige'),
         panelDecor: $('panel-decor'),
         panelGateway: $('panel-gateway'),
         panelAchievements: $('panel-achievements'),
+        panelTiers: $('panel-tiers'),
         settingsBtn: $('settings-btn'),
         settingsScreen: $('settings-screen'),
         settingsClose: $('settings-close'),
@@ -407,7 +411,7 @@ function initUIEvents() {
                         dom.settingsUpgradeMsg.textContent = '☁️ Cloud save loaded';
                 } else {
                     await fbSave(G);
-                    await fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName, getVPS());
+                    await fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), G.total_prestiges, bnToNumber(G.total_pp_earned), G.displayName, bnToNumber(getVPS()));
                     dom.settingsUpgradeMsg.textContent = '✅ Google linked! Progress saved to cloud';
                 }
                 updateAllUI();
@@ -433,7 +437,7 @@ function initUIEvents() {
                 G.auth_mode = 'firebase';
                 dom.userDisplay.textContent = G.username;
                 await fbSave(G);
-                await fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName);
+                    await fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), G.total_prestiges, bnToNumber(G.total_pp_earned), G.displayName);
                 dom.settingsUpgradeMsg.textContent = '✅ Email linked! Progress saved to cloud';
                 updateAllUI();
                 saveGame();
@@ -523,17 +527,63 @@ function initUIEvents() {
     // Prestige
     dom.prestigeBtn.addEventListener('click', () => {
         const gain = getPrestigeGain();
-        if (gain <= 0) return;
-        const msg = "Reset for " + formatNumber(gain) + " Prestige Chips?\n\nYou'll keep:\n• Prestige Chips (" + formatNumber(G.total_pp_earned + gain) + " total)\n• All Prestige Upgrades\n\nYou'll lose:\n• All vibes\n• Rooms & room VPS multipliers\n• All autoclickers\n• All decor";
-        showPopup('\u2728 Prestige', msg, () => {
+        if (bnLe(gain, BN_ZERO)) return;
+        const instant = document.getElementById('prestige-instant')?.checked;
+        if (instant) {
+            // Instant prestige — skip confirmation and credits
             if (doPrestige()) {
                 updateAllUI();
                 showToast('✨ Prestiged! +' + formatNumber(gain) + ' PP');
                 playSfxPrestige();
-                showCredits();
+            }
+        } else {
+            const msg = "Reset for " + formatNumber(gain) + " Prestige Chips?\n\nYou'll keep:\n• Prestige Chips (" + formatNumber(bnAdd(G.total_pp_earned, gain)) + " total)\n• All Prestige Upgrades\n\nYou'll lose:\n• All vibes\n• Rooms & room VPS multipliers\n• All autoclickers\n• All decor";
+            showPopup('\u2728 Prestige', msg, () => {
+                if (doPrestige()) {
+                    updateAllUI();
+                    showToast('✨ Prestiged! +' + formatNumber(gain) + ' PP');
+                    playSfxPrestige();
+                    showCredits();
+                }
+            });
+        }
+    });
+
+    // Max Prestige — repeatedly prestige until no longer possible
+    const maxPrestigeBtn = document.getElementById('prestige-max-btn');
+    if (maxPrestigeBtn) {
+        maxPrestigeBtn.addEventListener('click', () => {
+            const vps = getVPS();
+            if (bnLe(vps, BN_ZERO)) { showToast('⛔ No VPS — cannot prestige'); return; }
+            let count = 0;
+            const MAX_ITER = 5000;
+            let safety = 0;
+            while (safety < MAX_ITER) {
+                safety++;
+                // Accumulate vibes until threshold is reached
+                const threshold = getPrestigeThreshold(G);
+                if (bnGe(G.lifetime_vibes, threshold)) {
+                    // Can prestige
+                    const gain = getPrestigeGain(G);
+                    if (bnLe(gain, BN_ZERO)) break;
+                    if (!doPrestige()) break;
+                    count++;
+                } else {
+                    // Need more vibes — simulate VPS accumulation
+                    const needed = bnSub(bnFromNumber(threshold), G.lifetime_vibes);
+                    // Time to reach threshold = needed / vps (in seconds, at 10 ticks/sec)
+                    // Simulate by adding vibes directly
+                    addVibes(bnMul(needed, bnFromNumber(1.01))); // Add 1% extra to ensure we cross
+                }
+            }
+            updateAllUI();
+            if (count > 0) {
+                showToast('⚡ Max Prestige: ' + count + ' prestiges!');
+            } else {
+                showToast('⛔ Cannot prestige yet');
             }
         });
-    });
+    }
 
     // Gateway manual connect
     dom.gwConnectBtn.addEventListener('click', async () => {
@@ -721,6 +771,7 @@ function setupTabs() {
         { btn: dom.tabDecor, panel: dom.panelDecor },
         { btn: dom.tabGateway, panel: dom.panelGateway },
         { btn: dom.tabAchievements, panel: dom.panelAchievements },
+        { btn: dom.tabTiers, panel: dom.panelTiers },
     ];
 
     tabs.forEach(({ btn, panel }) => {
@@ -747,6 +798,7 @@ function setupTabs() {
                 ACHIEVEMENTS.forEach(ach => ach._notified = true);
                 dom.tabAchievements.classList.remove('has-new');
             }
+            if (panel === dom.panelTiers) renderTiers();
         });
     });
 }
@@ -788,7 +840,7 @@ async function doLogin() {
             } else {
                 // First login — upload local save data to Firebase
                 fbSave(G).catch(() => {});
-                fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
+                fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
             }
 
             enterGame();
@@ -808,7 +860,7 @@ async function doLogin() {
                 } else {
                     // First login — upload local save
                     fbSave(G).catch(() => {});
-                    fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
+                    fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
                 }
                 enterGame();
                 return;
@@ -901,7 +953,7 @@ async function doGoogleLoginAsync() {
         } else {
             // First login — upload local save
             fbSave(G).catch(() => {});
-            fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
+            fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
         }
 
         enterGame();
@@ -1000,8 +1052,8 @@ function initGameLoop() {
     // Game logic: VPS generation at 100ms (10 ticks/sec)
     ticker = setInterval(() => {
         const vps = getVPS();
-        if (vps > 0) {
-            addVibes(vps / 10);
+        if (bnGt(vps, BN_ZERO)) {
+            addVibes(bnMul(vps, bnFromNumber(0.1)));
         }
         // Check prestige unlock every 1s (every 10 ticks)
         prestigeCheckCounter++;
@@ -1023,10 +1075,10 @@ function initGameLoop() {
         // Cloud save + leaderboard submit if authenticated
         if (G.auth_mode === 'firebase' && fbUser) {
             fbSave(G).catch(() => {});
-            fbSubmitScore(G.username || 'Player', G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
+            fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
         } else if (G.auth_token && G.server_online) {
             apiSave(G.auth_token, G).catch(() => {});
-            apiSubmitScore(G.auth_token, G.lifetime_vibes, G.total_pp_earned, getVPS()).catch(() => {});
+            apiSubmitScore(G.auth_token, bnToNumber(G.lifetime_vibes), G.total_pp_earned, getVPS()).catch(() => {});
         }
     }, CONFIG.SAVE_INTERVAL);
 
@@ -1201,7 +1253,7 @@ function updatePrestigeUI() {
         if (needRooms) {
             const locked = allRoomIds.filter(id => !G.unlocked_rooms.includes(id));
             needMsg = `🔒 Unlock all rooms first (${locked.length} left) — then ${formatNumber(threshold)} vibes`;
-        } else if (G.lifetime_vibes < threshold) {
+        } else if (bnLt(G.lifetime_vibes, threshold)) {
             needMsg = `Need ${formatNumber(threshold)} Total This Round (${formatNumber(G.lifetime_vibes)} / ${formatNumber(threshold)})`;
         } else {
             needMsg = `Need ${formatNumber(threshold)} Total This Round to unlock`;
@@ -1238,7 +1290,7 @@ function updateShopUI() {
         // Count only in current room (each room has independent progression)
         const count = roomClickers[tier.id] || 0;
         const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
-        const canBuy = G.vibes >= cost;
+        const canBuy = bnGe(G.vibes, cost);
         const el = document.createElement('div');
         el.className = `shop-item ${canBuy ? '' : 'locked'}`;
         el.dataset.tierId = tier.id;
@@ -1432,7 +1484,7 @@ function renderPrestigeUpgrades() {
         const count = G.prestige_upgrades[upg.id] || 0;
         const rawCost = upg.baseCost * Math.pow(upg.costMult, count);
         const cost = !isFinite(rawCost) ? Infinity : Math.floor(rawCost);
-        const canBuy = G.prestige_points >= cost;
+        const canBuy = bnGe(G.prestige_points, cost);
         const el = document.createElement('div');
         el.className = `shop-item ${canBuy ? 'affordable' : 'locked'} ${count > 0 ? 'owned' : ''}`;
         el.dataset.upgId = upg.id;
@@ -1475,7 +1527,7 @@ function updateDecorUI() {
     getDecorForRoom(G.current_room).forEach(item => {
         const owned = G.owned_decor.includes(item.id);
         const active = !!G.active_decor[item.id];
-        const canBuy = G.vibes >= item.cost && !owned;
+        const canBuy = bnGe(G.vibes, item.cost) && !owned;
         const el = document.createElement('div');
         el.className = `shop-item ${canBuy ? '' : 'locked'} ${active ? 'active' : ''}`;
         el.dataset.decorId = item.id;
@@ -1533,7 +1585,7 @@ function updateRoomUI() {
     Object.values(ROOMS).forEach(room => {
         const unlocked = G.unlocked_rooms.includes(room.id);
         const active = G.current_room === room.id;
-        const canUnlock = G.vibes >= room.cost && !unlocked;
+        const canUnlock = bnGe(G.vibes, room.cost) && !unlocked;
         const el = document.createElement('div');
         el.className = `room-card ${active ? 'active' : ''} ${unlocked ? '' : 'locked'} ${canUnlock ? 'affordable' : ''} ${unlocked && !active ? 'purchased' : ''}`;
         el.innerHTML = `
@@ -1619,6 +1671,7 @@ async function updateLeaderboardUI(externalEntries) {
                     pp: e.total_pp || e.prestige_level || 0,
                     prestige: e.prestige_level || 0,
                     vps: e.vps || 0,
+                    tier: 0,
                 }));
             }
         }
@@ -1633,6 +1686,7 @@ async function updateLeaderboardUI(externalEntries) {
                     pp: e.prestige_level || 0,
                     prestige: e.prestige_level || 0,
                     vps: e.vps || 0,
+                    tier: 0,
                 }));
             }
         }
@@ -1640,10 +1694,10 @@ async function updateLeaderboardUI(externalEntries) {
         // Fallback to local + mock data (only if no backend at all)
         if (!fbReady && entries.length === 0) {
             entries = [
-                { name: G.username || 'You', vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges, vps: getVPS() },
-                { name: 'Zoops', vibes: 252_000_000_000_000, pp: 1_183_807, prestige: 12, vps: 85_000_000_000_000 },
-                { name: 'CipherZero', vibes: 136_000_000_000_000, pp: 611_620, prestige: 8, vps: 42_000_000_000_000 },
-                { name: 'PixelWarden', vibes: 70_000_000_000_000, pp: 294_303, prestige: 5, vps: 18_000_000_000_000 },
+                { name: G.username || 'You', vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges, vps: getVPS(), tier: getCurrentTier(G) },
+                { name: 'Zoops', vibes: 252_000_000_000_000, pp: 1_183_807, prestige: 12, vps: 85_000_000_000_000, tier: 3 },
+                { name: 'CipherZero', vibes: 136_000_000_000_000, pp: 611_620, prestige: 8, vps: 42_000_000_000_000, tier: 2 },
+                { name: 'PixelWarden', vibes: 70_000_000_000_000, pp: 294_303, prestige: 5, vps: 18_000_000_000_000, tier: 1 },
             ];
         }
     } else {
@@ -1652,7 +1706,7 @@ async function updateLeaderboardUI(externalEntries) {
 
     // Always include local player if not in list (even with Firebase)
     const displayName = G.displayName || G.username || 'You';
-    const localEntry = { name: displayName, vibes: G.lifetime_vibes, pp: G.total_pp_earned, prestige: G.total_prestiges, vps: getVPS() };
+    const localEntry = { name: displayName, vibes: bnToNumber(G.lifetime_vibes), pp: G.total_pp_earned, prestige: G.total_prestiges, vps: getVPS(), tier: getCurrentTier(G) };
     if (!entries.find(e => e.name === displayName || e.name === G.username)) {
         if (entries.length === 0 || externalEntries || fbHadData || !fbReady) {
             entries.push(localEntry);
@@ -1661,8 +1715,9 @@ async function updateLeaderboardUI(externalEntries) {
 
     entries.sort((a, b) => {
         if (b.prestige !== a.prestige) return b.prestige - a.prestige;
-        if (b.pp !== a.pp) return b.pp - a.pp;
-        return b.vibes - a.vibes;
+        const ppCmp = bnCompare(b.pp, a.pp);
+        if (ppCmp !== 0) return ppCmp;
+        return bnCompare(b.vibes, a.vibes);
     });
 
     // DOM diffing: update in-place without flicker
@@ -1696,7 +1751,7 @@ async function updateLeaderboardUI(externalEntries) {
     // Generate header row (inside list so columns align with entries)
     const hdrEl = document.createElement('div');
     hdrEl.className = 'lb-entry lb-header';
-    hdrEl.innerHTML = '<span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span>';
+    hdrEl.innerHTML = '<span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span><span class="lb-tier">TIER</span>';
     fragment.appendChild(hdrEl);
     entries.slice(0, maxRows).forEach((entry, i) => {
         const rowName = nameField(entry.name);
@@ -1710,11 +1765,12 @@ async function updateLeaderboardUI(externalEntries) {
             const ppEl = el.querySelector('.lb-pp');
             const vpsEl = el.querySelector('.lb-vps');
             const prestigeEl = el.querySelector('.lb-prestige');
+            const tierEl = el.querySelector('.lb-tier');
             if (rankEl) rankEl.textContent = '#' + (i + 1);
             if (vibeEl) vibeEl.textContent = formatNumber(entry.vibes);
-            if (ppEl) ppEl.textContent = formatNumber(entry.pp) + ' PP';
-            if (vpsEl) vpsEl.textContent = formatNumber(entry.vps || 0) + ' VPS';
-            if (prestigeEl) prestigeEl.textContent = 'P' + entry.prestige;
+            if (vpsEl) vpsEl.textContent = formatNumber(entry.vps || 0);
+            if (prestigeEl) prestigeEl.textContent = String(entry.prestige);
+            if (tierEl) tierEl.textContent = String(entry.tier || 0);
         } else {
             // Create new row
             const isYou = entry.name === displayName || entry.name === G.username;
@@ -1733,18 +1789,20 @@ async function updateLeaderboardUI(externalEntries) {
                         </span>
                     </span></span>
                     <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
-                    <span class="lb-vps">${formatNumber(entry.vps || 0)} VPS</span>
-                    <span class="lb-pp">${formatNumber(entry.pp)} PP</span>
-                    <span class="lb-prestige">P${entry.prestige}</span>
+                    <span class="lb-vps">${formatNumber(entry.vps || 0)}</span>
+                    <span class="lb-pp">${formatNumber(entry.pp)}</span>
+                    <span class="lb-prestige">${entry.prestige}</span>
+                    <span class="lb-tier">${entry.tier || 0}</span>
                 `;
             } else {
                 el.innerHTML = `
                     <span class="lb-rank">#${i + 1}</span>
                     <span class="lb-name">${isYou ? `<img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon-sm" alt=""> ` : ''}${entry.name}</span>
                     <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
-                    <span class="lb-pp">${formatNumber(entry.pp)} PP</span>
-                    <span class="lb-vps">${formatNumber(entry.vps || 0)} VPS</span>
-                    <span class="lb-prestige">P${entry.prestige}</span>
+                    <span class="lb-vps">${formatNumber(entry.vps || 0)}</span>
+                    <span class="lb-pp">${formatNumber(entry.pp)}</span>
+                    <span class="lb-prestige">${entry.prestige}</span>
+                    <span class="lb-tier">${entry.tier || 0}</span>
                 `;
             }
         }
@@ -1775,10 +1833,32 @@ function updateLocalLeaderboardEntry() {
             const ppEl = row.querySelector('.lb-pp');
             const vpsEl = row.querySelector('.lb-vps');
             if (vibeEl) vibeEl.textContent = formatNumber(G.lifetime_vibes);
-            if (ppEl) ppEl.textContent = formatNumber(G.total_pp_earned) + ' PP';
-            if (vpsEl) vpsEl.textContent = formatNumber(getVPS()) + ' VPS';
+            if (ppEl) ppEl.textContent = formatNumber(G.total_pp_earned);
+            if (vpsEl) vpsEl.textContent = formatNumber(getVPS());
             break;
         }
+    }
+}
+
+// ---- TIERS UI ----
+function renderTiers() {
+    const list = document.getElementById('tier-list');
+    if (!list || !TIERS) return;
+    const currentTier = getCurrentTier(G);
+    list.innerHTML = '';
+    for (const tier of TIERS) {
+        const unlocked = G.total_prestiges >= tier.requires;
+        const el = document.createElement('div');
+        el.className = `shop-item ${unlocked ? 'affordable' : 'locked'}`;
+        el.style.cssText = 'display:grid;grid-template-columns:auto 1fr;gap:4px;padding:4px 6px;font-size:6px;';
+        el.innerHTML = `
+            <span style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-secondary)'};font-size:8px;">${unlocked ? '✅' : '🔒'}</span>
+            <div>
+                <div style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-primary)'}"><strong>${tier.name}</strong> — ${tier.requires} prestiges</div>
+                <div style="color:${unlocked ? 'var(--accent-green)' : 'var(--text-secondary)'}">${tier.bonus}</div>
+            </div>
+        `;
+        list.appendChild(el);
     }
 }
 
@@ -1943,7 +2023,7 @@ async function saveDisplayName() {
         // Upload local save to Firebase
         try {
             await fbSave(G);
-            await fbSubmitScore(name, G.lifetime_vibes, G.total_prestiges, G.total_pp_earned, name, getVPS());
+            await fbSubmitScore(name, bnToNumber(G.lifetime_vibes), G.total_prestiges, G.total_pp_earned, name, getVPS());
         } catch (_) {}
     }
 }
@@ -2112,7 +2192,7 @@ function initHoldToSpam() {
                         if (!upg) { stopHold(); return; }
                         const count = G.prestige_upgrades[id] || 0;
                         const cost = Math.floor(upg.baseCost * Math.pow(upg.costMult, count));
-                        if (G.prestige_points >= cost) {
+                        if (bnGe(G.prestige_points, cost)) {
                             if (buyPrestigeUpgrade(id)) {
                                 playPurchase();
                                 updateAllUI();
@@ -2133,7 +2213,7 @@ function initHoldToSpam() {
                         const roomClickers = G.room_autoclickers[room] || {};
                         const count = roomClickers[id] || 0;
                         const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
-                        if (G.vibes >= cost) {
+                        if (bnGe(G.vibes, cost)) {
                             if (buyAutoclicker(tier.id)) {
                                 playPurchase();
                                 updateAllUI();
@@ -2167,7 +2247,7 @@ function updateShopItemTooltip(item, tierId) {
     const roomClickers = (G.room_autoclickers || {})[room] || {};
     const count = roomClickers[tierId] || 0;
     const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
-    const canBuy = G.vibes >= cost;
+    const canBuy = bnGe(G.vibes, cost);
     item._tooltipData = {
         name: tier.name,
         desc: tier.desc,
@@ -2195,7 +2275,7 @@ function buyAllUpgrades() {
 
     for (const tier of sorted) {
         const count = roomClickers[tier.id] || 0;
-        const maxQty = getMaxBuyable(tier.baseCost, count, G.vibes);
+        const maxQty = getMaxBuyable(tier.baseCost, count, bnToNumber(G.vibes));
         if (maxQty > 0) {
             const result = buyAutoclicker(tier.id, maxQty);
             if (result) bought += result;
@@ -2218,7 +2298,7 @@ function buyAllDecor() {
     let bought = 0;
 
     for (const item of sorted) {
-        if (G.vibes >= item.cost && !G.owned_decor.includes(item.id)) {
+        if (bnGe(G.vibes, item.cost) && !G.owned_decor.includes(item.id)) {
             if (buyDecor(item.id)) bought++;
         }
     }
@@ -2243,7 +2323,7 @@ function buyAllPrestige() {
     let bought = 0;
 
     for (const entry of withCost) {
-        if (G.prestige_points >= entry.cost) {
+        if (bnGe(G.prestige_points, entry.cost)) {
             if (buyPrestigeUpgrade(entry.upg.id)) {
                 bought++;
                 // After buying one, recalculate remaining costs
