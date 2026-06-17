@@ -1814,7 +1814,7 @@ async function updateLeaderboardUI(externalEntries) {
             const prestigeEl = el.querySelector('.lb-prestige');
             const tierEl = el.querySelector('.lb-tier');
             if (rankEl) rankEl.textContent = '#' + (i + 1);
-            if (vibeEl) vibeEl.textContent = formatNumber(entry.vibes);
+            if (vibeEl) vibeEl.textContent = (typeof entry.vibes === 'number' && !isFinite(entry.vibes)) ? 'InfZ' : formatNumber(entry.vibes);
             if (vpsEl) vpsEl.textContent = formatNumber(entry.vps || 0);
             if (prestigeEl) prestigeEl.textContent = formatNumber(entry.prestige);
             if (tierEl) tierEl.textContent = TIERS.find(t => t.requires === entry.tier)?.name || '—';
@@ -1835,7 +1835,7 @@ async function updateLeaderboardUI(externalEntries) {
                             <a href="https://buymeacoffee.com/DrGekoz" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
                         </span>
                     </span></span>
-                    <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
+                    <span class="lb-vibes">${typeof entry.vibes === 'number' && !isFinite(entry.vibes) ? 'InfZ' : formatNumber(entry.vibes)}</span>
                     <span class="lb-vps">${formatNumber(entry.vps || 0)}</span>
                     <span class="lb-pp">${formatNumber(entry.pp)}</span>
                     <span class="lb-prestige">${formatNumber(entry.prestige)}</span>
@@ -1845,7 +1845,7 @@ async function updateLeaderboardUI(externalEntries) {
                 el.innerHTML = `
                     <span class="lb-rank">#${i + 1}</span>
                     <span class="lb-name">${isYou ? `<img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon-sm" alt=""> ` : ''}${entry.name}</span>
-                    <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
+                    <span class="lb-vibes">${typeof entry.vibes === 'number' && !isFinite(entry.vibes) ? 'InfZ' : formatNumber(entry.vibes)}</span>
                     <span class="lb-vps">${formatNumber(entry.vps || 0)}</span>
                     <span class="lb-pp">${formatNumber(entry.pp)}</span>
                     <span class="lb-prestige">${formatNumber(entry.prestige)}</span>
