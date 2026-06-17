@@ -562,12 +562,26 @@ const ACHIEVEMENTS = [
     { id: 'auto_10',      name: 'Automation Begins',  desc: 'Buy 10 total autoclickers',   icon: '🤖', threshold: { type: 'autoclickers', value: 10 } },
     { id: 'auto_50',      name: 'Robot Army',         desc: 'Buy 50 total autoclickers',   icon: '🦾', threshold: { type: 'autoclickers', value: 50 } },
     { id: 'auto_100',     name: 'Fully Automated',    desc: 'Buy 100 total autoclickers',  icon: '🤖', threshold: { type: 'autoclickers', value: 100 } },
-    // Tier milestones
-    { id: 'tier_ach_1',   name: 'Bronze Age',         desc: 'Reach Tier 1',                icon: '🥉', threshold: { type: 'prestiges', value: 1 } },
-    { id: 'tier_ach_3',   name: 'Silver Age',         desc: 'Reach Tier 3',                icon: '🥈', threshold: { type: 'prestiges', value: 5 } },
-    { id: 'tier_ach_5',   name: 'Golden Era',         desc: 'Reach Tier 5',                icon: '🥇', threshold: { type: 'prestiges', value: 25 } },
-    { id: 'tier_ach_7',   name: 'Grandmaster',        desc: 'Reach Tier 7',                icon: '👑', threshold: { type: 'prestiges', value: 100 } },
-    { id: 'tier_ach_10',  name: 'Transcendent',       desc: 'Reach Tier 10',               icon: '🌟', threshold: { type: 'prestiges', value: 1000 } },
+    // Tier milestones — achievements for reaching prestige tiers
+    { id: 'tier_ach_1',   name: 'Bronze Age',         desc: 'Reach Tier 1 (Bronze)',       icon: '🥉', threshold: { type: 'prestiges', value: 1 } },
+    { id: 'tier_ach_2',   name: 'Silver Age',         desc: 'Reach Tier 2 (Silver)',       icon: '🥈', threshold: { type: 'prestiges', value: 3 } },
+    { id: 'tier_ach_3',   name: 'Golden Era',         desc: 'Reach Tier 3 (Gold)',         icon: '🥇', threshold: { type: 'prestiges', value: 5 } },
+    { id: 'tier_ach_4',   name: 'Platinum Club',      desc: 'Reach Tier 4 (Platinum)',     icon: '💎', threshold: { type: 'prestiges', value: 10 } },
+    { id: 'tier_ach_5',   name: 'Diamond Soul',       desc: 'Reach Tier 5 (Diamond)',      icon: '💠', threshold: { type: 'prestiges', value: 25 } },
+    { id: 'tier_ach_6',   name: 'Master Class',       desc: 'Reach Tier 6 (Master)',       icon: '🎖️', threshold: { type: 'prestiges', value: 50 } },
+    { id: 'tier_ach_7',   name: 'Grandmaster',        desc: 'Reach Tier 7 (Grandmaster)',  icon: '👑', threshold: { type: 'prestiges', value: 100 } },
+    { id: 'tier_ach_8',   name: 'Living Legend',      desc: 'Reach Tier 8 (Legend)',       icon: '🌟', threshold: { type: 'prestiges', value: 250 } },
+    { id: 'tier_ach_9',   name: 'Mythic Being',       desc: 'Reach Tier 9 (Mythic)',       icon: '🔮', threshold: { type: 'prestiges', value: 500 } },
+    { id: 'tier_ach_10',  name: 'Transcendent',       desc: 'Reach Tier 10 (Transcendent)', icon: '⚡', threshold: { type: 'prestiges', value: 1000 } },
+    { id: 'tier_ach_12',  name: 'Void Walker',        desc: 'Reach Tier 12 (Void)',        icon: '🕳️', threshold: { type: 'prestiges', value: 5000 } },
+    { id: 'tier_ach_14',  name: 'Infinite One',       desc: 'Reach Tier 14 (Infinite)',    icon: '∞',  threshold: { type: 'prestiges', value: 25000 } },
+    { id: 'tier_ach_16',  name: 'Alpha Centauri',     desc: 'Reach Tier 16 (Alpha)',       icon: '🚀', threshold: { type: 'prestiges', value: 100000 } },
+    { id: 'tier_ach_19',  name: 'Big Bang Theory',    desc: 'Reach Tier 19 (Big Bang)',    icon: '💥', threshold: { type: 'prestiges', value: 1000000 } },
+    { id: 'tier_ach_22',  name: 'Million Miles',      desc: 'Reach Tier 22 (10M)',         icon: '🌍', threshold: { type: 'prestiges', value: 50000000 } },
+    { id: 'tier_ach_25',  name: 'Billion Club',       desc: 'Reach Tier 25 (1B)',          icon: '💰', threshold: { type: 'prestiges', value: 1000000000 } },
+    { id: 'tier_ach_30',  name: 'Half-Trillion',      desc: 'Reach Tier 30 (500B)',        icon: '🏛️', threshold: { type: 'prestiges', value: 500000000000 } },
+    { id: 'tier_ach_35',  name: 'Quadrillion Quest',  desc: 'Reach Tier 35 (100T)',        icon: '🪐', threshold: { type: 'prestiges', value: 100000000000000 } },
+    { id: 'tier_ach_39',  name: 'Ten Quad',           desc: 'Reach Tier 39 (10Q)',         icon: '🌌', threshold: { type: 'prestiges', value: 10000000000000000 } },
 ];
 
 // ---------- DEFAULT GAME STATE ----------
