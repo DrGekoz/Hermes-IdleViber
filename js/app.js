@@ -1120,7 +1120,7 @@ function initGameLoop() {
         }, 4000);
     }
 
-    // --- RENDER LOOP: 60fps via requestAnimationFrame ---
+    // --- RENDER LOOP: runs at display refresh rate (up to 180Hz) ---
     let lastBgRoom = null;
     let bgCanvas = null;
     let lastFrameTime = 0;
@@ -1167,18 +1167,17 @@ function initGameLoop() {
         // Cache background render per room (redraw only on room change)
         if (lastBgRoom !== G.current_room) {
             lastBgRoom = G.current_room;
-            // Trigger async background load — renderRoom handles it
         }
 
-        // Smooth 30fps cap for the heavy canvas render
-        const elapsed = timestamp - lastFrameTime;
-        if (elapsed > 33) { // ~30fps
-            lastFrameTime = timestamp;
-            renderRoom(G.current_room, canvas, G);
-        }
+        // Delta time in seconds, capping at 50ms to avoid spiral of death
+        const dt = lastFrameTime ? Math.min(timestamp - lastFrameTime, 50) / 1000 : 1/60;
+        lastFrameTime = timestamp;
 
-        // Particles animate every frame regardless (lightweight)
-        particles.update();
+        // Render room at full display refresh rate
+        renderRoom(G.current_room, canvas, G);
+
+        // Particles animate every frame with delta-time scaling
+        particles.update(dt);
 
         // Gateway glow effect (animated every frame)
         const gw = getGatewayStatus();
@@ -1214,7 +1213,7 @@ function updateCanvas() {
     const canvas = dom.canvas;
     const ctx = canvas.getContext('2d');
     renderRoom(G.current_room, canvas, G);
-    particles.update();
+    particles.update(1/60);
 }
 
 // ---- UI UPDATES ----

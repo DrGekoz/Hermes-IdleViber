@@ -1639,14 +1639,15 @@ class ParticleSystem {
         }
     }
 
-    render() {
+    render(dt = 1/60) {
         if (!this.running) return;
         const ctx = this.ctx;
+        const scale = dt * 60; // Normalize to 60fps
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
-            p.x += p.vx;
-            p.y += p.vy;
-            p.life -= p.decay;
+            p.x += p.vx * scale;
+            p.y += p.vy * scale;
+            p.life -= p.decay * scale;
             if (p.life <= 0) {
                 this.particles.splice(i, 1);
                 continue;
@@ -1664,7 +1665,7 @@ class ParticleSystem {
     }
 
     // Alias: render() is the drawing method, update() is what the game loop calls
-    update() { this.render(); }
+    update(dt) { this.render(dt); }
 
     start() { this.running = true; }
     stop() { this.running = false; this.particles = []; }
