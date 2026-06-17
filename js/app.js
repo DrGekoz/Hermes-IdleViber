@@ -15,7 +15,7 @@ import {
     activateDecor, unlockRoom, switchRoom, doPrestige,
     BN_ZERO, BN_ONE, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnToNumber,
     isPrestigeUnlockable, unlockPrestige, checkAchievements,
-    getCurrentTier,
+    getCurrentTier, getCurrentTierName,
     onStateChange, saveGame, loadGame, notifyStateChange,
     getDefaultState,
 } from './state.js';
@@ -1821,7 +1821,7 @@ async function updateLeaderboardUI(externalEntries) {
             if (vibeEl) vibeEl.textContent = formatNumber(entry.vibes);
             if (vpsEl) vpsEl.textContent = formatNumber(entry.vps || 0);
             if (prestigeEl) prestigeEl.textContent = String(entry.prestige);
-            if (tierEl) tierEl.textContent = String(entry.tier || 0);
+            if (tierEl) tierEl.textContent = TIERS.find(t => t.requires === entry.tier)?.name || '—';
         } else {
             // Create new row
             const isYou = entry.name === displayName || entry.name === G.username;
@@ -1843,7 +1843,7 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-vps">${formatNumber(entry.vps || 0)}</span>
                     <span class="lb-pp">${formatNumber(entry.pp)}</span>
                     <span class="lb-prestige">${entry.prestige}</span>
-                    <span class="lb-tier">${entry.tier || 0}</span>
+                    <span class="lb-tier">${TIERS.find(t => t.requires === entry.tier)?.name || '—'}</span>
                 `;
             } else {
                 el.innerHTML = `
@@ -1853,7 +1853,7 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-vps">${formatNumber(entry.vps || 0)}</span>
                     <span class="lb-pp">${formatNumber(entry.pp)}</span>
                     <span class="lb-prestige">${entry.prestige}</span>
-                    <span class="lb-tier">${entry.tier || 0}</span>
+                    <span class="lb-tier">${TIERS.find(t => t.requires === entry.tier)?.name || '—'}</span>
                 `;
             }
         }
@@ -1897,10 +1897,10 @@ function renderLeaderboardFallback(list) {
     if (!list) return;
     const name = G.displayName || G.username || 'Player';
     const entries = [
-        { name, vibes: formatNumber(G.lifetime_vibes), vps: formatNumber(getVPS()), pp: formatNumber(G.total_pp_earned), prestige: G.total_prestiges, tier: getCurrentTier(G) },
-        { name: 'Zoops', vibes: '252.00T', vps: '85.00T', pp: '1.18M', prestige: 12, tier: 3 },
-        { name: 'CipherZero', vibes: '136.00T', vps: '42.00T', pp: '611.62k', prestige: 8, tier: 2 },
-        { name: 'PixelWarden', vibes: '70.00T', vps: '18.00T', pp: '294.30k', prestige: 5, tier: 1 },
+        { name, vibes: formatNumber(G.lifetime_vibes), vps: formatNumber(getVPS()), pp: formatNumber(G.total_pp_earned), prestige: G.total_prestiges, tier: getCurrentTierName(G) },
+        { name: 'Zoops', vibes: '252.00T', vps: '85.00T', pp: '1.18M', prestige: 12, tier: 'Gold' },
+        { name: 'CipherZero', vibes: '136.00T', vps: '42.00T', pp: '611.62k', prestige: 8, tier: 'Silver' },
+        { name: 'PixelWarden', vibes: '70.00T', vps: '18.00T', pp: '294.30k', prestige: 5, tier: 'Bronze' },
     ];
     list.innerHTML = '<div class="lb-entry lb-header"><span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span><span class="lb-tier">TIER</span></div>'
         + entries.map((e, i) => '<div class="lb-entry"><span class="lb-rank">#' + (i+1) + '</span><span class="lb-name">' + e.name + '</span><span class="lb-vibes">' + e.vibes + '</span><span class="lb-vps">' + e.vps + '</span><span class="lb-pp">' + e.pp + '</span><span class="lb-prestige">' + e.prestige + '</span><span class="lb-tier">' + e.tier + '</span></div>').join('');
