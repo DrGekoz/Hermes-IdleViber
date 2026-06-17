@@ -151,12 +151,17 @@ async function submitScoreToLeaderboard(username, score, prestigeLevel, totalPp,
         const safeScore = Array.isArray(score) ? Math.floor(Math.min(bnToNumber(score), 1e15)) || 0 : Math.floor(score) || 0;
         const safePp = Array.isArray(totalPp) ? Math.floor(Math.min(bnToNumber(totalPp), 1e15)) || 0 : totalPp || 0;
         const safeVps = Array.isArray(vps) ? Math.floor(Math.min(bnToNumber(vps), 1e15)) || 0 : vps || 0;
+        // Store full BN arrays for accurate client-side formatting
+        const score_full = Array.isArray(score) ? score : [Math.floor(score) || 0, 0];
+        const pp_full = Array.isArray(totalPp) ? totalPp : [totalPp || 0, 0];
+        const vps_full = Array.isArray(vps) ? vps : [vps || 0, 0];
         await setDoc(ref, {
             username: displayName || username || currentUser.displayName || 'Player',
             score: safeScore,
             prestige_level: prestigeLevel || 0,
             total_pp: safePp,
             vps: safeVps,
+            score_full, pp_full, vps_full,
             display_name: displayName || '',
             updated_at: Timestamp.now(),
         }, { merge: true });
@@ -185,6 +190,9 @@ async function getLeaderboard(limitCount = 50) {
             prestige_level: d.data().prestige_level || 0,
             total_pp: d.data().total_pp || 0,
             vps: d.data().vps || 0,
+            score_full: d.data().score_full || null,
+            pp_full: d.data().pp_full || null,
+            vps_full: d.data().vps_full || null,
         }));
     } catch (e) {
         console.warn('Leaderboard fetch error:', e.message);
@@ -213,6 +221,9 @@ function subscribeLeaderboard(callback, limitCount = 50) {
                 prestige_level: d.data().prestige_level || 0,
                 total_pp: d.data().total_pp || 0,
                 vps: d.data().vps || 0,
+                score_full: d.data().score_full || null,
+                pp_full: d.data().pp_full || null,
+                vps_full: d.data().vps_full || null,
             }));
             try { callback(entries); } catch (_) {}
         }, (err) => {

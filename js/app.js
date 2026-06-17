@@ -1712,10 +1712,10 @@ async function updateLeaderboardUI(externalEntries) {
                 fbHadData = true;
                 entries = fbEntries.map(e => ({
                     name: e.username,
-                    vibes: e.score,
-                    pp: e.total_pp || e.prestige_level || 0,
+                    vibes: e.score_full || e.score,
+                    pp: e.pp_full || (e.total_pp || e.prestige_level || 0),
                     prestige: e.prestige_level || 0,
-                    vps: e.vps || 0,
+                    vps: e.vps_full || (e.vps || 0),
                     tier: getTierFromPrestige(e.prestige_level || 0),
                 }));
             }
