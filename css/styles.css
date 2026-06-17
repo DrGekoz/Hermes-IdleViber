@@ -690,8 +690,9 @@ body {
     margin-bottom: 24px;
 }
 .leaderboard-float.fullscreen .lb-header {
-    font-size: 9px;
-    padding: 6px 14px 8px;
+    font-size: 10px;
+    padding: 10px 5px 12px;
+    border-bottom: 2px solid #444;
     gap: 12px;
 }
 .leaderboard-float.fullscreen .lb-header span {
@@ -699,8 +700,11 @@ body {
 }
 .leaderboard-float.fullscreen .lb-entry {
     font-size: 11px;
-    padding: 10px 14px;
     gap: 12px;
+}
+.leaderboard-float.fullscreen .lb-entry > span {
+    font-size: 11px;
+    padding: 10px 0;
 }
 .leaderboard-float.fullscreen .lb-rank { width: 40px; font-size: 11px; }
 .leaderboard-float.fullscreen .lb-name { font-size: 11px; }
@@ -729,8 +733,8 @@ body {
 .leaderboard-float.fullscreen .leaderboard-minimize { display: block; }
 .lb-entry {
     display: grid;
-    grid-template-columns: auto 1fr auto auto auto auto;
-    gap: 5px;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
     font-size: 6px;
     padding: 3px 5px;
     border-bottom: 1px solid #1a1a1a;
@@ -740,6 +744,12 @@ body {
 .lb-entry.dev { background: rgba(255,215,0,0.15); }
 .lb-entry.dev .lb-rank { color: #ffd700; }
 .lb-entry.dev .lb-name.dev { color: #ffd700; font-weight: bold; }
+#leaderboard-list {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto auto auto;
+    gap: 5px;
+    align-items: center;
+}
 .lb-dev-badge {
     position: relative;
     display: inline-flex;
@@ -809,17 +819,18 @@ body {
 .lb-pp { color: var(--accent-cyan); text-align: right; white-space: nowrap; }
 .lb-prestige { color: var(--accent-pink); text-align: right; white-space: nowrap; }
 
-/* Leaderboard header row */
+/* Leaderboard header row — generated inside leaderboard-list so columns align */
 .lb-header {
-    display: grid;
-    grid-template-columns: auto 1fr auto auto auto auto;
-    gap: 5px;
-    font-size: 5px;
-    padding: 2px 5px 4px;
+    font-size: 6px;
+    padding: 3px 5px 4px;
     border-bottom: 1px solid #333;
     color: var(--text-secondary);
-    align-items: center;
+    background: rgba(255,255,255,0.02);
+    cursor: default;
+    pointer-events: none;
 }
+.lb-header span { color: var(--text-secondary); font-weight: normal; }
+.lb-header:hover { background: rgba(255,255,255,0.02); border-color: #333; }
 
 /* --- POPUP --- */
 #popup {

@@ -828,7 +828,11 @@ function formatNumber(n) {
     }
 
     // ---- INFINITYZ SYSTEM ----
-    // Beyond Z, display shows InfZ x (N) for each layer.
+    // Beyond Z, display cycles through InfinityZ ×N layers.
+    // Each layer: a count N (1, 2, 3...) with 57 display states per count:
+    //   N (base) + Nk, NM, NB, NT, NQ, Na, Nc, ... Nz, NA, NC, ... NZ
+    // When a count value itself needs InfinityZ notation, wrap in:
+    //   InfZ x InfZ (inner_count)  where inner_count cycles the same way
     return formatInfinitySimple(idx, scaled, suffixes, S);
 }
 

@@ -1670,9 +1670,10 @@ async function updateLeaderboardUI(externalEntries) {
     const oldRows = list.querySelectorAll('.lb-entry');
     const nameField = (n) => n.replace('◆ ', '').replace('⭐ ', '').trim();
 
-    // Build lookup of old rows by name
+    // Build lookup of old rows by name (skip header row)
     const oldRowMap = new Map();
     oldRows.forEach(row => {
+        if (row.classList.contains('lb-header')) return;
         const nameEl = row.querySelector('.lb-name');
         if (nameEl) oldRowMap.set(nameField(nameEl.textContent), row);
     });
@@ -1692,6 +1693,11 @@ async function updateLeaderboardUI(externalEntries) {
     }
 
     const fragment = document.createDocumentFragment();
+    // Generate header row (inside list so columns align with entries)
+    const hdrEl = document.createElement('div');
+    hdrEl.className = 'lb-entry lb-header';
+    hdrEl.innerHTML = '<span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span>';
+    fragment.appendChild(hdrEl);
     entries.slice(0, maxRows).forEach((entry, i) => {
         const rowName = nameField(entry.name);
         let el = oldRowMap.get(rowName);
@@ -1718,18 +1724,17 @@ async function updateLeaderboardUI(externalEntries) {
             if (isDev) {
                 el.innerHTML = `
                     <span class="lb-rank">#${i + 1}</span>
-                    <span class="lb-name dev">◆ ${entry.name}</span>
-                    <span class="lb-dev-badge">(DEV)
+                    <span class="lb-name dev">◆ ${entry.name} <span class="lb-dev-badge">(DEV)
                         <span class="dev-tooltip">
                             <strong>Official Game Dev</strong>
                             <a href="https://adsdoctormelbourne.com.au" target="_blank" rel="noopener">🌐 Website</a>
                             <a href="https://github.com/DrGekoz" target="_blank" rel="noopener">🐙 GitHub</a>
                             <a href="https://buymeacoffee.com/DrGekoz" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
                         </span>
-                    </span>
+                    </span></span>
                     <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
-                    <span class="lb-pp">${formatNumber(entry.pp)} PP</span>
                     <span class="lb-vps">${formatNumber(entry.vps || 0)} VPS</span>
+                    <span class="lb-pp">${formatNumber(entry.pp)} PP</span>
                     <span class="lb-prestige">P${entry.prestige}</span>
                 `;
             } else {
