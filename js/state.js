@@ -798,8 +798,9 @@ function unlockPrestige() {
 }
 
 function formatNumber(n) {
-    // Guard against Infinity/NaN from overflow — prevents infinite loop
-    if (!isFinite(n) || isNaN(n)) return '∞';
+    // Guard against Infinity/NaN from overflow — show InfZ for truly infinite values
+    if (!isFinite(n)) return 'InfZ';
+    if (isNaN(n)) return '0';
     // Suffix system: K M B T Q then a-z skipping k,m,b,t,q then A-Z skipping K,M,B,T,Q
     const suffixes = ['k','M','B','T','Q',
         'a','c','d','e','f','g','h','i','j','l','n','o','p','r','s','u','v','w','x','y','z',
@@ -827,11 +828,7 @@ function formatNumber(n) {
     }
 
     // ---- INFINITYZ SYSTEM ----
-    // Beyond Z, display cycles through InfinityZ ×N layers.
-    // Each layer: a count N (1, 2, 3...) with 57 display states per count:
-    //   N (base) + Nk, NM, NB, NT, NQ, Na, Nc, ... Nz, NA, NC, ... NZ
-    // When a count value itself needs InfinityZ notation, wrap in:
-    //   InfinityZ × InfinityZ (inner_count)  where inner_count cycles the same way
+    // Beyond Z, display shows InfZ x (N) for each layer.
     return formatInfinitySimple(idx, scaled, suffixes, S);
 }
 
@@ -859,15 +856,15 @@ function formatInfinitySimple(totalIdx, scaled, suffixes, S) {
     let prefix;
     if (countIdx <= S) {
         // Count is in normal range — just format it
-        prefix = 'InfinityZ ×' + formatNumberSuffix(count, suffixes, S);
+        prefix = 'InfZ x (' + formatNumberSuffix(count, suffixes, S);
     } else {
         // Count itself needs InfinityZ — wrap recursively
-        // Show: InfinityZ × InfinityZ (inner_count + suffix)
+        // Show: InfZ x InfZ (inner_count + suffix)
         let innerBeyond = countIdx - S;
         let innerPos = (innerBeyond - 1) % C;
         let innerCount = Math.floor((innerBeyond - 1) / C) + 1;
         
-        let innerStr = 'InfinityZ × InfinityZ (' + formatNumberSuffix(innerCount, suffixes, S);
+        let innerStr = 'InfZ x InfZ (' + formatNumberSuffix(innerCount, suffixes, S);
         if (innerPos > 0) innerStr += suffixes[innerPos - 1];
         innerStr += ')';
         return innerStr;
@@ -876,6 +873,7 @@ function formatInfinitySimple(totalIdx, scaled, suffixes, S) {
     if (pos > 0) {
         prefix += suffixes[pos - 1];
     }
+    prefix += ')';
     return prefix;
 }
 

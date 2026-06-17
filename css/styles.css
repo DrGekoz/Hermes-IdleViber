@@ -692,6 +692,7 @@ body {
 .leaderboard-float.fullscreen .lb-header {
     font-size: 9px;
     padding: 6px 14px 8px;
+    gap: 12px;
 }
 .leaderboard-float.fullscreen .lb-header span {
     font-size: 9px;
@@ -699,6 +700,7 @@ body {
 .leaderboard-float.fullscreen .lb-entry {
     font-size: 11px;
     padding: 10px 14px;
+    gap: 12px;
 }
 .leaderboard-float.fullscreen .lb-rank { width: 40px; font-size: 11px; }
 .leaderboard-float.fullscreen .lb-name { font-size: 11px; }
@@ -1000,14 +1002,14 @@ body {
 }
 .stat-box {
     flex: 1;
-    min-width: 70px;
+    min-width: 85px;
     background: rgba(255,255,255,0.03);
     border: 1px solid #1a1a1a;
     padding: 8px 6px;
     text-align: center;
 }
-.stat-box .stat-value { font-size: 13px; font-weight: bold; color: var(--accent-gold); }
-.stat-box .stat-label { font-size: 5.5px; color: var(--text-secondary); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-box .stat-value { font-size: 13px; font-weight: bold; color: var(--accent-gold); word-break: break-all; overflow-wrap: break-word; }
+.stat-box .stat-label { font-size: 5.5px; color: var(--text-secondary); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; word-break: break-all; }
 
 /* Prestige chip display */
 .prestige-chip-box { border-color: #5a3a8a; background: rgba(120,60,180,0.08); }
@@ -1040,6 +1042,8 @@ body {
     font-weight: bold;
     color: var(--accent-cyan);
     margin-top: 2px;
+    word-break: break-all;
+    overflow-wrap: break-word;
 }
 
 /* Prestige reset area */
