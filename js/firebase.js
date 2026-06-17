@@ -148,9 +148,9 @@ async function submitScoreToLeaderboard(username, score, prestigeLevel, totalPp,
     const { doc, setDoc, Timestamp } = await import(`${FB_BASE}firebase-firestore.js`);
     try {
         const ref = doc(db, 'leaderboard', currentUser.uid);
-        const safeScore = Array.isArray(score) ? Math.floor(bnToNumber(score)) || 0 : Math.floor(score) || 0;
-        const safePp = Array.isArray(totalPp) ? Math.floor(bnToNumber(totalPp)) || 0 : totalPp || 0;
-        const safeVps = Array.isArray(vps) ? Math.floor(bnToNumber(vps)) || 0 : vps || 0;
+        const safeScore = Array.isArray(score) ? Math.floor(Math.min(bnToNumber(score), 1e15)) || 0 : Math.floor(score) || 0;
+        const safePp = Array.isArray(totalPp) ? Math.floor(Math.min(bnToNumber(totalPp), 1e15)) || 0 : totalPp || 0;
+        const safeVps = Array.isArray(vps) ? Math.floor(Math.min(bnToNumber(vps), 1e15)) || 0 : vps || 0;
         await setDoc(ref, {
             username: displayName || username || currentUser.displayName || 'Player',
             score: safeScore,

@@ -91,6 +91,14 @@ function clearSessionCookie() {
     document.cookie = 'hermes_idleviber=; path=/; max-age=0; SameSite=Lax';
 }
 
+function migrateBN(state) {
+    // Ensure BN fields are BN arrays after cloud load
+    if (typeof state.vibes === 'number') state.vibes = bnFromNumber(state.vibes);
+    if (typeof state.lifetime_vibes === 'number') state.lifetime_vibes = bnFromNumber(state.lifetime_vibes);
+    if (typeof state.prestige_points === 'number') state.prestige_points = bnFromNumber(state.prestige_points);
+    if (typeof state.total_pp_earned === 'number') state.total_pp_earned = bnFromNumber(state.total_pp_earned);
+}
+
 // ---- AUTO-LOGIN ----
 function checkAutoLogin() {
     if (_entered || _autoLoginCheckQueued) return;
@@ -118,6 +126,7 @@ function checkAutoLogin() {
                 const cloudState = await fbLoad();
                 if (cloudState) {
                         Object.assign(G, cloudState);
+                        migrateBN(G);
                         G.auth_mode = 'firebase';
                         G.userId = fbUser.uid;
                         G.username = fbUser.displayName || G.username;
@@ -405,6 +414,7 @@ function initUIEvents() {
                 const cloudState = await fbLoad();
                 if (cloudState) {
                         Object.assign(G, cloudState);
+                        migrateBN(G);
                         G.auth_mode = 'firebase';
                         G.userId = result.uid;
                         G.username = result.user.displayName || 'Player';
@@ -1843,8 +1853,16 @@ function updateLocalLeaderboardEntry() {
 // ---- TIERS UI ----
 function renderTiers() {
     const list = document.getElementById('tier-list');
-    if (!list || !TIERS) return;
+    const statsEl = document.getElementById('tier-stats');
+    if (!list || !TIERS || !statsEl) return;
     const currentTier = getCurrentTier(G);
+    const nextTier = TIERS.find(t => t.requires > G.total_prestiges);
+    const unlocked = TIERS.filter(t => G.total_prestiges >= t.requires).length;
+    // Stats bar
+    statsEl.innerHTML = '<div class="stat-box prestige-chip-box" style="min-width:100px;"><div class="stat-value chip-value" style="font-size:11px;">' + unlocked + ' / ' + TIERS.length + '</div><div class="stat-label">TIERS UNLOCKED</div></div>'
+        + '<div class="stat-box" style="min-width:100px;"><div class="stat-value" style="font-size:11px;color:var(--accent-gold);">' + formatNumber(G.total_prestiges) + '</div><div class="stat-label">TOTAL PRESTIGES</div></div>'
+        + '<div class="stat-box" style="min-width:100px;"><div class="stat-value" style="font-size:11px;color:var(--accent-cyan);">' + (nextTier ? formatNumber(nextTier.requires) : 'MAX') + '</div><div class="stat-label">NEXT TIER AT</div></div>';
+    // Tier list
     list.innerHTML = '';
     for (const tier of TIERS) {
         const unlocked = G.total_prestiges >= tier.requires;

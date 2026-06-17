@@ -435,18 +435,52 @@ const TRANSCEND_UPGRADES = [
 ];
 
 // ---------- TIERS (prestige-based permanent upgrades) ----------
-const TIERS = [
-    { id: 'tier_1',  name: 'Bronze',   requires: 1,    bonus: '×2 starting click power',          type: 'click',  value: 2 },
-    { id: 'tier_2',  name: 'Silver',   requires: 3,    bonus: '×2 VPS permanently',               type: 'vps',    value: 2 },
-    { id: 'tier_3',  name: 'Gold',     requires: 5,    bonus: '+5% offline earnings',              type: 'offline',value: 5 },
-    { id: 'tier_4',  name: 'Platinum', requires: 10,   bonus: 'Unlock all rooms on prestige',      type: 'rooms',  value: 1 },
-    { id: 'tier_5',  name: 'Diamond',  requires: 25,   bonus: '×3 click power',                    type: 'click',  value: 3 },
-    { id: 'tier_6',  name: 'Master',   requires: 50,   bonus: '×3 VPS permanently',               type: 'vps',    value: 3 },
-    { id: 'tier_7',  name: 'Grandmaster', requires: 100, bonus: '+10% offline earnings',            type: 'offline',value: 10 },
-    { id: 'tier_8',  name: 'Legend',   requires: 250,  bonus: '×5 click power',                    type: 'click',  value: 5 },
-    { id: 'tier_9',  name: 'Mythic',   requires: 500,  bonus: '×5 VPS permanently',               type: 'vps',    value: 5 },
-    { id: 'tier_10', name: 'Transcendent', requires: 1000, bonus: '×10 all multipliers',           type: 'all',    value: 10 },
-];
+// ---------- TIERS (prestige-based permanent upgrades) ----------
+// Generated programmatically: 250 tiers scaling from 1 to 10Q prestiges
+const TIERS = (function() {
+    const tiers = [];
+    const types = ['click', 'vps', 'offline', 'all', 'click', 'vps', 'rooms'];
+    const prefixes = ['Bronze','Silver','Gold','Platinum','Diamond','Master','Grand','Royal','Noble','Solar',
+        'Lunar','Stellar','Cosmic','Void','Eternal','Infinite','Omega','Alpha','Prime','Ultra',
+        'Hyper','Mega','Giga','Tera','Peta','Exa','Zetta','Yotta','Nova','Quasar',
+        'Pulsar','Nebula','Galaxy','Meteor','Comet','Astral','Celestial','Orbital','Solaris','Lumina',
+        'Crystal','Obsidian','Onyx','Ruby','Emerald','Sapphire','Amethyst','Topaz','Jade','Opal',
+        'Titan','Atlas','Hero','Legend','Mythic','Fabled','Ancient','Elder','Primal','Origin',
+        'Zenith','Apex','Pinnacle','Summit','Acme','Peak','Crown','Glory','Victor','Champion',
+        'Sage','Wise','Knight','Paladin','Guardian','Sentinel','Warden','Ranger','Seeker','Hunter',
+        'Phoenix','Dragon','Griffin','Seraph','Angel','Titan','Colossus','Giant','Behemoth','Leviathan',
+        'Storm','Thunder','Lightning','Blaze','Inferno','Ember','Flame','Spark','Volt','Surge',
+        'Frost','Glacier','Arctic','Tundra','Permafrost','Crystal','Shard','Rime','Hail','Blizzard',
+        'Shadow','Shade','Dusk','Twilight','Night','Dark','Eclipse','Void','Abyss','Depth',
+        'Spirit','Ghost','Wraith','Phantom','Specter','Haunt','Mystic','Arcane','Ethereal','Astral',
+        'Iron','Steel','Copper','Tin','Zinc','Brass','Alloy','Metal','Forge','Anvil',
+        'Silk','Satin','Velvet','Linen','Cotton','Fiber','Thread','Weave','Spun','Twine',
+        'Coral','Reef','Tide','Wave','Swell','Current','Drift','Flow','Stream','River',
+        'Moss','Fern','Leaf','Petal','Bloom','Grove','Forest','Jungle','Thicket','Wild',
+        'Dune','Rock','Stone','Pebble','Boulder','Cliff','Crag','Summit','Peak','Ridge',
+        'Haze','Mist','Fog','Cloud','Sky','Aether','Wind','Gale','Breeze','Zephyr'];
+    for (let i = 0; i < 250; i++) {
+        const tierNum = i + 1;
+        const base = Math.pow(1.15, i);
+        const requires = Math.max(1, Math.round(base));
+        const type = types[i % types.length];
+        const p1 = prefixes[i % prefixes.length];
+        const p2 = prefixes[(i * 3 + 7) % prefixes.length];
+        const name = p1 + ' ' + p2;
+        const multFactor = Math.max(1, Math.floor(tierNum / 5) + 1);
+        let bonus, value;
+        switch (type) {
+            case 'click': value = multFactor; bonus = '×' + value + ' click power'; break;
+            case 'vps': value = multFactor; bonus = '×' + value + ' VPS'; break;
+            case 'offline': value = Math.min(multFactor, 1000); bonus = '+' + value + '% offline'; break;
+            case 'all': value = multFactor; bonus = '×' + value + ' all'; break;
+            case 'rooms': value = 1; bonus = 'Unlock rooms faster'; break;
+            default: value = 1; bonus = '×' + value; break;
+        }
+        tiers.push({ id: 'tier_' + tierNum, name, requires, bonus, type, value });
+    }
+    return tiers;
+})();
 function getCurrentTier(state = G) {
     let tier = 0;
     for (const t of TIERS) {
