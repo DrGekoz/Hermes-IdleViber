@@ -13,7 +13,7 @@ import {
     getBulkCost, getMaxBuyable,
     addVibes, buyAutoclicker, buyPrestigeUpgrade, buyDecor,
     activateDecor, unlockRoom, switchRoom, doPrestige,
-    BN_ZERO, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnToNumber,
+    BN_ZERO, BN_ONE, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnToNumber,
     isPrestigeUnlockable, unlockPrestige, checkAchievements,
     getCurrentTier,
     onStateChange, saveGame, loadGame, notifyStateChange,

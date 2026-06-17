@@ -18,6 +18,7 @@ const CONFIG = {
 // mantissa in [1, 10) or 0 for zero. Supports effectively unlimited growth.
 const BN = (m, e) => [m, e];
 const BN_ZERO = BN(0, 0);
+const BN_ONE = BN(1, 0);
 
 function bnNormalize(bn) {
     let [m, e] = bn;
@@ -1464,7 +1465,7 @@ export {
     unlockPrestige,
     checkAchievements,
     formatNumber,
-    BN_ZERO, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnEq, bnToNumber,
+    BN_ZERO, BN_ONE, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnEq, bnToNumber,
     calculateOfflineProgress,
     applyOfflineProgress,
     addVibes,
