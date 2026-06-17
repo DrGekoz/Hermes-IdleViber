@@ -15,7 +15,7 @@ import {
     activateDecor, unlockRoom, switchRoom, doPrestige,
     BN_ZERO, BN_ONE, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnToNumber,
     isPrestigeUnlockable, unlockPrestige, checkAchievements,
-    getCurrentTier, getCurrentTierName,
+    getCurrentTier, getCurrentTierName, getTierFromPrestige,
     onStateChange, saveGame, loadGame, notifyStateChange,
     getDefaultState,
 } from './state.js';
@@ -1716,7 +1716,7 @@ async function updateLeaderboardUI(externalEntries) {
                     pp: e.total_pp || e.prestige_level || 0,
                     prestige: e.prestige_level || 0,
                     vps: e.vps || 0,
-                    tier: 0,
+                    tier: getTierFromPrestige(e.prestige_level || 0),
                 }));
             }
         }
@@ -1731,7 +1731,7 @@ async function updateLeaderboardUI(externalEntries) {
                     pp: e.prestige_level || 0,
                     prestige: e.prestige_level || 0,
                     vps: e.vps || 0,
-                    tier: 0,
+                    tier: getTierFromPrestige(e.prestige_level || 0),
                 }));
             }
         }

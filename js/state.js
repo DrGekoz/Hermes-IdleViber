@@ -497,6 +497,14 @@ function getCurrentTierName(state = G) {
     return tier ? tier.name : 'T' + level;
 }
 
+function getTierFromPrestige(count) {
+    let tier = 0;
+    for (const t of TIERS) {
+        if (count >= t.requires) tier = t.requires;
+    }
+    return tier;
+}
+
 // ---------- ACHIEVEMENTS ----------
 const ACHIEVEMENTS = [
     // Vibe milestones
@@ -1469,7 +1477,7 @@ export {
     ROOM_AUTOCLICKERS,
     PRESTIGE_UPGRADES,
     ACHIEVEMENTS,
-    TIERS, getCurrentTier, getCurrentTierName,
+    TIERS, getCurrentTier, getCurrentTierName, getTierFromPrestige,
     GOLDEN_COOKIE_TYPES,
     GOLDEN_COOKIE_INTERVAL_MIN,
     GOLDEN_COOKIE_INTERVAL_MAX,
