@@ -722,7 +722,10 @@ function getVPS(state = G) {
     let permaMult = 1;
     for (const [upgId, count] of Object.entries(state.prestige_upgrades)) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
-        if (upg && upg.type === 'perma_mult' && count) permaMult *= Math.pow(upg.value, count);
+        if (upg && upg.type === 'perma_mult' && count) {
+            const val = Math.pow(upg.value, count);
+            permaMult = isFinite(val) ? permaMult * val : Number.MAX_VALUE;
+        }
     }
     // VPS boost from golden cookie
     const vpsBoost = getVpsBoostMult();
@@ -736,17 +739,24 @@ function getClickValue(state = G) {
     let clickMult = 1;
     for (const [upgId, count] of Object.entries(state.prestige_upgrades)) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
-        if (upg && upg.type === 'click_mult' && count) clickMult *= Math.pow(upg.value, count);
+        if (upg && upg.type === 'click_mult' && count) {
+            const val = Math.pow(upg.value, count);
+            clickMult = isFinite(val) ? clickMult * val : Number.MAX_VALUE;
+        }
     }
     // Permanent multiplier from prestige chips (count-based)
     let permaMult = 1;
     for (const [upgId, count] of Object.entries(state.prestige_upgrades)) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
-        if (upg && upg.type === 'perma_mult' && count) permaMult *= Math.pow(upg.value, count);
+        if (upg && upg.type === 'perma_mult' && count) {
+            const val = Math.pow(upg.value, count);
+            permaMult = isFinite(val) ? permaMult * val : Number.MAX_VALUE;
+        }
     }
     // Golden cookie click boost
     const gcBoost = getClickBoostMult();
-    return Math.floor(base * clickMult * permaMult * gcBoost);
+    const raw = base * clickMult * permaMult * gcBoost;
+    return isFinite(raw) ? Math.floor(raw) : Number.MAX_SAFE_INTEGER;
 }
 
 // Prestige threshold scales with prestige count: n*(n+9) trillion where n = next prestige #
@@ -788,6 +798,8 @@ function unlockPrestige() {
 }
 
 function formatNumber(n) {
+    // Guard against Infinity/NaN from overflow — prevents infinite loop
+    if (!isFinite(n) || isNaN(n)) return '∞';
     // Suffix system: K M B T Q then a-z skipping k,m,b,t,q then A-Z skipping K,M,B,T,Q
     const suffixes = ['k','M','B','T','Q',
         'a','c','d','e','f','g','h','i','j','l','n','o','p','r','s','u','v','w','x','y','z',
@@ -901,7 +913,8 @@ function buyPrestigeUpgrade(id) {
     const upg = PRESTIGE_UPGRADES.find(u => u.id === id);
     if (!upg) return false;
     const count = G.prestige_upgrades[id] || 0;
-    const cost = Math.floor(upg.baseCost * Math.pow(upg.costMult, count));
+    const rawCost = upg.baseCost * Math.pow(upg.costMult, count);
+    const cost = !isFinite(rawCost) ? Infinity : Math.floor(rawCost);
     if (G.prestige_points >= cost) {
         G.prestige_points -= cost;
         G.prestige_upgrades[id] = count + 1;

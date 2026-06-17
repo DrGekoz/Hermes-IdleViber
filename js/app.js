@@ -1400,8 +1400,14 @@ function renderPrestigeUpgrades() {
     for (const upg of PRESTIGE_UPGRADES) {
         const count = G.prestige_upgrades[upg.id] || 0;
         if (count === 0) continue;
-        if (upg.type === 'click_mult') clickMult *= Math.pow(upg.value, count);
-        if (upg.type === 'perma_mult') vpsMult *= Math.pow(upg.value, count);
+        if (upg.type === 'click_mult') {
+            const val = Math.pow(upg.value, count);
+            clickMult = isFinite(val) ? clickMult * val : Number.MAX_VALUE;
+        }
+        if (upg.type === 'perma_mult') {
+            const val = Math.pow(upg.value, count);
+            vpsMult = isFinite(val) ? vpsMult * val : Number.MAX_VALUE;
+        }
         if (upg.type === 'gw_add') gwAdd += upg.value * count;
         if (upg.type === 'base_vps') baseVps += upg.value * count;
     }
@@ -1416,13 +1422,16 @@ function renderPrestigeUpgrades() {
 
     list.innerHTML = '';
     const sorted = [...PRESTIGE_UPGRADES].sort((a, b) => {
-        const costA = Math.floor(a.baseCost * Math.pow(a.costMult, G.prestige_upgrades[a.id] || 0));
-        const costB = Math.floor(b.baseCost * Math.pow(b.costMult, G.prestige_upgrades[b.id] || 0));
+        const rawA = a.baseCost * Math.pow(a.costMult, G.prestige_upgrades[a.id] || 0);
+        const rawB = b.baseCost * Math.pow(b.costMult, G.prestige_upgrades[b.id] || 0);
+        const costA = !isFinite(rawA) ? Infinity : Math.floor(rawA);
+        const costB = !isFinite(rawB) ? Infinity : Math.floor(rawB);
         return costA - costB;
     });
     sorted.forEach(upg => {
         const count = G.prestige_upgrades[upg.id] || 0;
-        const cost = Math.floor(upg.baseCost * Math.pow(upg.costMult, count));
+        const rawCost = upg.baseCost * Math.pow(upg.costMult, count);
+        const cost = !isFinite(rawCost) ? Infinity : Math.floor(rawCost);
         const canBuy = G.prestige_points >= cost;
         const el = document.createElement('div');
         el.className = `shop-item ${canBuy ? 'affordable' : 'locked'} ${count > 0 ? 'owned' : ''}`;
@@ -2213,7 +2222,8 @@ function buyAllPrestige() {
     // Build sorted list by progressive cost descending
     const withCost = PRESTIGE_UPGRADES.map(upg => {
         const count = G.prestige_upgrades[upg.id] || 0;
-        const cost = Math.floor(upg.baseCost * Math.pow(upg.costMult, count));
+        const rawCost = upg.baseCost * Math.pow(upg.costMult, count);
+        const cost = !isFinite(rawCost) ? Infinity : Math.floor(rawCost);
         return { upg, cost, count };
     }).sort((a, b) => b.cost - a.cost);
 
