@@ -1016,6 +1016,9 @@ body {
 .stat-box {
     flex: 1;
     min-width: 85px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     background: rgba(255,255,255,0.03);
     border: 1px solid #1a1a1a;
     padding: 8px 6px;
@@ -1037,6 +1040,9 @@ body {
 .prestige-stat-box {
     flex: 1;
     min-width: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     background: rgba(255,255,255,0.03);
     border: 1px solid #1a1a1a;
     padding: 6px 4px;

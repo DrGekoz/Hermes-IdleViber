@@ -97,6 +97,13 @@ function migrateBN(state) {
     if (typeof state.lifetime_vibes === 'number') state.lifetime_vibes = bnFromNumber(state.lifetime_vibes);
     if (typeof state.prestige_points === 'number') state.prestige_points = bnFromNumber(state.prestige_points);
     if (typeof state.total_pp_earned === 'number') state.total_pp_earned = bnFromNumber(state.total_pp_earned);
+    // Migrate old gateway_upgrades to prestige_upgrades
+    if (state.gateway_upgrades) {
+        state.prestige_upgrades = state.prestige_upgrades || {};
+        Object.assign(state.prestige_upgrades, state.gateway_upgrades);
+        delete state.gateway_upgrades;
+    }
+    if (!state.prestige_upgrades || typeof state.prestige_upgrades !== 'object') state.prestige_upgrades = {};
 }
 
 // ---- AUTO-LOGIN ----
@@ -1104,6 +1111,13 @@ function initGameLoop() {
         // Fallback: poll local API every 15s
         lbUpdater = setInterval(updateLeaderboardUI, 15000);
         setTimeout(updateLeaderboardUI, 1000); // Initial fetch
+        // Force render with mock data after 4s if still loading
+        setTimeout(() => {
+            const list = dom.leaderboardList;
+            if (list && list.textContent.includes('Loading')) {
+                updateLeaderboardUI();
+            }
+        }, 4000);
     }
 
     // --- RENDER LOOP: 60fps via requestAnimationFrame ---
@@ -1252,7 +1266,17 @@ function updateResourceUI() {
 function updatePrestigeUI() {
     const gain = getPrestigeGain();
     const threshold = getPrestigeThreshold();
-    dom.ppDisplay.textContent = formatNumber(G.prestige_points);
+    const ppFormatted = formatNumber(G.prestige_points);
+    if (ppFormatted.includes('InfZ')) {
+        const parts = ppFormatted.split(' ');
+        if (parts.length >= 2) {
+            dom.ppDisplay.innerHTML = parts[0] + '<br>×<br>' + parts.slice(2).join(' ');
+        } else {
+            dom.ppDisplay.textContent = ppFormatted;
+        }
+    } else {
+        dom.ppDisplay.textContent = ppFormatted;
+    }
     dom.lifetimeDisplay.textContent = formatNumber(G.lifetime_vibes);
     dom.prestigeCount.textContent = formatNumber(G.total_prestiges);
 

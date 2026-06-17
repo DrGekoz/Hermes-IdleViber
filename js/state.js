@@ -1322,7 +1322,7 @@ function saveGame() {
         localStorage.setItem(CONFIG.SAVE_KEY, data);
         return true;
     } catch (e) {
-        console.warn('Save failed:', e);
+        console.warn('Save failed:', e.message, 'data length:', JSON.stringify(G).length);
         return false;
     }
 }
