@@ -573,15 +573,17 @@ function initUIEvents() {
             const vps = getVPS();
             if (bnLe(vps, BN_ZERO)) { showToast('⛔ No VPS — cannot prestige'); return; }
             let count = 0;
-            const MAX_ITER = 5000;
-            // Run in chunks to not freeze the UI
+            // Run in chunks to not freeze the UI — no hard cap, stops when VPS can't reach threshold
             const runBatch = () => {
                 const batchEnd = count + 200;
                 try {
-                    while (count < batchEnd && count < MAX_ITER) {
+                    while (count < batchEnd) {
                         const threshold = getPrestigeThreshold(G);
                         if (!bnGe(G.lifetime_vibes, threshold)) {
                             const needed = bnSub(bnFromNumber(threshold), G.lifetime_vibes);
+                            // If VPS can't reach threshold within reasonable time, stop
+                            const secondsToReach = bnDiv(needed, vps);
+                            if (bnGt(secondsToReach, bnFromNumber(3600))) break; // Stop if > 1 hour
                             addVibes(bnMul(needed, bnFromNumber(1.01)));
                         }
                         if (unlockPrestige() || G.prestige_unlocked) {
@@ -596,7 +598,7 @@ function initUIEvents() {
                 } catch (e) {
                     console.warn('Max prestige batch failed:', e.message);
                 }
-                if (count >= MAX_ITER || !G.prestige_unlocked) {
+                if (count >= 100000 || !G.prestige_unlocked) {
                     finish();
                 } else {
                     setTimeout(runBatch, 0);

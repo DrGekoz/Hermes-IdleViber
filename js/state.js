@@ -966,7 +966,9 @@ function getClickValue(state = G) {
 // 1st: 10T, 2nd: 22T, 3rd: 36T, 4th: 52T, 5th: 70T, 6th: 90T, 7th: 112T, ...
 function getPrestigeThreshold(state = G) {
     const n = (state.total_prestiges || 0) + 1;
-    return n * (n + 9) * 1_000_000_000_000;
+    const vpsRaw = bnToNumber(getVPS(state));
+    const vpsMult = Math.max(1, Math.floor(Math.log2(Math.max(2, vpsRaw))));
+    return Math.floor(1_000_000_000_000 * n * (n + 9) * vpsMult);
 }
 
 function getPrestigeGain(state = G) {
