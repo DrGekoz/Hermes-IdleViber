@@ -573,15 +573,14 @@ function initUIEvents() {
             const vps = getVPS();
             if (bnLe(vps, BN_ZERO)) { showToast('⛔ No VPS — cannot prestige'); return; }
             let count = 0;
-            // Run in chunks to not freeze the UI — no hard cap, stops when VPS can't reach threshold
+            // Run in batches to not freeze the UI — keeps going until threshold unmet
             const runBatch = () => {
-                const batchEnd = count + 200;
+                const startCount = count;
                 try {
-                    while (count < batchEnd) {
+                    while (true) {
                         const threshold = getPrestigeThreshold(G);
                         if (!bnGe(G.lifetime_vibes, threshold)) {
                             const needed = bnSub(bnFromNumber(threshold), G.lifetime_vibes);
-                            // If VPS can't reach threshold within 10 minutes of realtime, stop
                             const secondsToReach = bnDiv(needed, vps);
                             if (bnGt(secondsToReach, bnFromNumber(600))) break;
                             addVibes(bnMul(needed, bnFromNumber(1.01)));
@@ -598,7 +597,7 @@ function initUIEvents() {
                 } catch (e) {
                     console.warn('Max prestige batch failed:', e.message);
                 }
-                if (count >= 100000 || !G.prestige_unlocked) {
+                if (count === startCount || !G.prestige_unlocked) {
                     finish();
                 } else {
                     setTimeout(runBatch, 0);
@@ -1816,7 +1815,7 @@ async function updateLeaderboardUI(externalEntries) {
             if (rankEl) rankEl.textContent = '#' + (i + 1);
             if (vibeEl) vibeEl.textContent = formatNumber(entry.vibes);
             if (vpsEl) vpsEl.textContent = formatNumber(entry.vps || 0);
-            if (prestigeEl) prestigeEl.textContent = String(entry.prestige);
+            if (prestigeEl) prestigeEl.textContent = formatNumber(entry.prestige);
             if (tierEl) tierEl.textContent = TIERS.find(t => t.requires === entry.tier)?.name || '—';
         } else {
             // Create new row
@@ -1838,7 +1837,7 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
                     <span class="lb-vps">${formatNumber(entry.vps || 0)}</span>
                     <span class="lb-pp">${formatNumber(entry.pp)}</span>
-                    <span class="lb-prestige">${entry.prestige}</span>
+                    <span class="lb-prestige">${formatNumber(entry.prestige)}</span>
                     <span class="lb-tier">${TIERS.find(t => t.requires === entry.tier)?.name || '—'}</span>
                 `;
             } else {
@@ -1848,7 +1847,7 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-vibes">${formatNumber(entry.vibes)}</span>
                     <span class="lb-vps">${formatNumber(entry.vps || 0)}</span>
                     <span class="lb-pp">${formatNumber(entry.pp)}</span>
-                    <span class="lb-prestige">${entry.prestige}</span>
+                    <span class="lb-prestige">${formatNumber(entry.prestige)}</span>
                     <span class="lb-tier">${TIERS.find(t => t.requires === entry.tier)?.name || '—'}</span>
                 `;
             }
