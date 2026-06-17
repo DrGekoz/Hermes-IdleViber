@@ -731,7 +731,8 @@ function getVPS(state = G) {
     const vpsBoost = getVpsBoostMult();
     // Wrinkler penalty
     const wrinkleMult = getEffectiveVpsMultiplier(state);
-    return vps * gwMult * roomMult * permaMult * vpsBoost * wrinkleMult;
+    const raw = vps * gwMult * roomMult * permaMult * vpsBoost * wrinkleMult;
+    return isFinite(raw) ? raw : Number.MAX_VALUE;
 }
 
 function getClickValue(state = G) {
@@ -756,7 +757,7 @@ function getClickValue(state = G) {
     // Golden cookie click boost
     const gcBoost = getClickBoostMult();
     const raw = base * clickMult * permaMult * gcBoost;
-    return isFinite(raw) ? Math.floor(raw) : Infinity;
+    return isFinite(raw) ? Math.floor(raw) : Number.MAX_VALUE;
 }
 
 // Prestige threshold scales with prestige count: n*(n+9) trillion where n = next prestige #
@@ -883,8 +884,8 @@ function formatInfinitySimple(totalIdx, scaled, suffixes, S) {
 
 // ---------- STATE ACTIONS ----------
 function addVibes(amount) {
-    G.vibes += amount;
-    G.lifetime_vibes += amount;
+    G.vibes = Math.min(G.vibes + amount, Number.MAX_VALUE);
+    G.lifetime_vibes = Math.min(G.lifetime_vibes + amount, Number.MAX_VALUE);
     notifyStateChange('vibes');
 }
 
@@ -991,8 +992,8 @@ function switchRoom(id) {
 function doPrestige() {
     const gain = getPrestigeGain(G);
     if (gain <= 0) return false;
-    G.total_pp_earned += gain;
-    G.prestige_points += gain;
+    G.total_pp_earned = Math.min(G.total_pp_earned + gain, Number.MAX_VALUE);
+    G.prestige_points = Math.min(G.prestige_points + gain, Number.MAX_VALUE);
     G.total_prestiges += 1;
     G.vibes = 0;
     G.lifetime_vibes = 0;        // Reset lifetime — must earn 10T again
@@ -1087,14 +1088,13 @@ function calculateOfflineProgress(state = G) {
         rate += 0.01 * ampCount;
     }
     const earned = vps * elapsedSec * rate;
-    return { seconds: elapsedSec, vps, earned, rate };
+    return { seconds: elapsedSec, vps, earned: isFinite(earned) ? earned : Number.MAX_VALUE, rate };
 }
 
 function applyOfflineProgress() {
     const progress = calculateOfflineProgress(G);
     if (progress.earned > 0) {
-        G.vibes += progress.earned;
-        G.lifetime_vibes += progress.earned;
+        addVibes(progress.earned);
         console.log(`⏰ Offline progress: +${formatNumber(progress.earned)} vibes (${Math.round(progress.seconds)}s at ${formatNumber(progress.vps)} VPS)`);
         return progress;
     }

@@ -1193,7 +1193,7 @@ function updatePrestigeUI() {
 
     let needMsg;
     if (gain > 0) {
-        needMsg = `✨ Earn ${gain} chips on prestige!`;
+        needMsg = `✨ Earn ${formatNumber(gain)} chips on prestige!`;
     } else if (!G.prestige_unlocked) {
         const totalRoomCost = Object.values(ROOMS).reduce((sum, r) => sum + r.cost, 0);
         const allRoomIds = Object.keys(ROOMS);
