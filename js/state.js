@@ -462,7 +462,7 @@ const TIERS = (function() {
         'Haze','Mist','Fog','Cloud','Sky','Aether','Wind','Gale','Breeze','Zephyr'];
     for (let i = 0; i < 250; i++) {
         const tierNum = i + 1;
-        const base = Math.pow(1.15, i);
+        const base = Math.pow(1.06, i);  // gentler: 1.06^249 ≈ 2M prestiges
         const requires = Math.max(1, Math.round(base));
         const type = types[i % types.length];
         const p1 = prefixes[i % prefixes.length];
@@ -967,8 +967,8 @@ function getClickValue(state = G) {
 function getPrestigeThreshold(state = G) {
     const n = (state.total_prestiges || 0) + 1;
     const vpsRaw = bnToNumber(getVPS(state));
-    const vpsMult = Math.max(1, Math.floor(Math.log2(Math.max(2, vpsRaw))));
-    return Math.floor(1_000_000_000_000 * n * (n + 9) * vpsMult);
+    const vpsLog = Math.max(1, Math.log2(Math.max(2, vpsRaw)));
+    return Math.floor(1_000_000_000_000 * (n + 1) * Math.sqrt(vpsLog));
 }
 
 function getPrestigeGain(state = G) {

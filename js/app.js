@@ -581,9 +581,9 @@ function initUIEvents() {
                         const threshold = getPrestigeThreshold(G);
                         if (!bnGe(G.lifetime_vibes, threshold)) {
                             const needed = bnSub(bnFromNumber(threshold), G.lifetime_vibes);
-                            // If VPS can't reach threshold within reasonable time, stop
+                            // If VPS can't reach threshold within 10 minutes of realtime, stop
                             const secondsToReach = bnDiv(needed, vps);
-                            if (bnGt(secondsToReach, bnFromNumber(3600))) break; // Stop if > 1 hour
+                            if (bnGt(secondsToReach, bnFromNumber(600))) break;
                             addVibes(bnMul(needed, bnFromNumber(1.01)));
                         }
                         if (unlockPrestige() || G.prestige_unlocked) {
