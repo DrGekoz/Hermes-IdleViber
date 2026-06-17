@@ -15,7 +15,7 @@ import {
     activateDecor, unlockRoom, switchRoom, doPrestige,
     BN_ZERO, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnToNumber,
     isPrestigeUnlockable, unlockPrestige, checkAchievements,
-    TIERS, getCurrentTier,
+    getCurrentTier,
     onStateChange, saveGame, loadGame, notifyStateChange,
     getDefaultState,
 } from './state.js';
