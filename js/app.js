@@ -1105,24 +1105,10 @@ function initGameLoop() {
             try { updateLeaderboardUI(entries); } catch (e) { console.warn('LB callback err:', e); }
         }, 50);
         if (typeof unsub === 'function') lbUnsub = unsub;
-        // Fallback: force render if subscription doesn't fire within 5s
-        setTimeout(() => {
-            const list = dom.leaderboardList;
-            if (list && list.textContent.includes('Loading')) {
-                renderLeaderboardFallback(list);
-            }
-        }, 5000);
     } else {
         // Fallback: poll local API every 15s
         lbUpdater = setInterval(updateLeaderboardUI, 15000);
-        setTimeout(updateLeaderboardUI, 1000); // Initial fetch
-        // Force render with mock data after 3s if still loading - fail-safe
-        setTimeout(() => {
-            const list = dom.leaderboardList;
-            if (list && (list.textContent.includes('Loading') || list.children.length <= 1)) {
-                renderLeaderboardFallback(list);
-            }
-        }, 3000);
+        updateLeaderboardUI(); // Immediate first render
     }
 
     // --- RENDER LOOP: runs at display refresh rate (up to 180Hz) ---
