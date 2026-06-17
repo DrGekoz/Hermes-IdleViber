@@ -1095,12 +1095,15 @@ function initGameLoop() {
     // Leaderboard — real-time Firebase subscription (no polling flicker)
     if (fbReady) {
         const unsub = fbSubscribeLeaderboard((entries) => {
-            updateLeaderboardUI(entries);
+            try { updateLeaderboardUI(entries); } catch (e) { console.warn('LB callback err:', e); }
         }, 50);
         if (typeof unsub === 'function') lbUnsub = unsub;
+        // Fallback: force an update after 5s even if Firebase subscription doesn't fire
+        setTimeout(() => { if (!lbUnsub) updateLeaderboardUI(); }, 5000);
     } else {
         // Fallback: poll local API every 15s
         lbUpdater = setInterval(updateLeaderboardUI, 15000);
+        setTimeout(updateLeaderboardUI, 1000); // Initial fetch
     }
 
     // --- RENDER LOOP: 60fps via requestAnimationFrame ---
@@ -1872,7 +1875,7 @@ function renderTiers() {
         el.innerHTML = `
             <span style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-secondary)'};font-size:8px;">${unlocked ? '✅' : '🔒'}</span>
             <div>
-                <div style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-primary)'}"><strong>${tier.name}</strong> — ${tier.requires} prestiges</div>
+                <div style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-primary)'}"><strong>${tier.name}</strong> — ${formatNumber(tier.requires)} prestiges</div>
                 <div style="color:${unlocked ? 'var(--accent-green)' : 'var(--text-secondary)'}">${tier.bonus}</div>
             </div>
         `;
