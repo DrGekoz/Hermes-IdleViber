@@ -1328,39 +1328,32 @@ function drawGatewayHUD(ctx, w, h, state) {
     // Background panel
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     const panelW = 195;
-    const panelH = 62;
+    const panelH = 52;
     const padX = 10;
     const padY = 8;
     ctx.fillRect(w - panelW - padX, padY, panelW, panelH);
 
-    // Connection dot
+    // Connection dot + status
     ctx.fillStyle = color;
     ctx.fillRect(w - panelW - padX + 8, padY + 7, 7, 7);
-
-    // Status line
     ctx.fillStyle = PAL.white;
     ctx.font = '11px monospace';
     ctx.fillText(`${icon} ${label}`, w - panelW - padX + 22, padY + 15);
 
-    // Latency
-    ctx.fillStyle = PAL.lt_gray;
-    ctx.font = '10px monospace';
-    const latency = state._gwLatency || 0;
-    ctx.fillText(`Latency: ${latency}ms`, w - panelW - padX + 8, padY + 30);
-
-    // Combined VPS multiplier
+    // Line 1: VPS multiplier
     ctx.fillStyle = connected ? PAL.neGrn : PAL.lt_gray;
-    ctx.font = '11px monospace';
-    const detail = prestigeBonus > 0 ? ` (lat ${baseMult.toFixed(1)} + pr${prestigeBonus.toFixed(1)})` : '';
-    ctx.fillText(`VPS ×${totalGwMult.toFixed(1)}${detail}`, w - panelW - padX + 8, padY + 46);
+    ctx.font = '10px monospace';
+    ctx.fillText(`VPS ×${totalGwMult.toFixed(1)}`, w - panelW - padX + 8, padY + 30);
 
-    // Prestige boost bar
-    if (prestigeBonus > 0) {
-        ctx.fillStyle = 'rgba(255,215,0,0.15)';
-        ctx.fillRect(w - panelW - padX + 8, padY + 50, panelW - 16, 3);
-        ctx.fillStyle = 'rgba(255,215,0,0.6)';
-        const boostRatio = Math.min(prestigeBonus / 10, 1);
-        ctx.fillRect(w - panelW - padX + 8, padY + 50, (panelW - 16) * boostRatio, 3);
+    // Line 2: latency + prestige breakdown
+    if (connected) {
+        ctx.fillStyle = PAL.lt_gray;
+        ctx.font = '9px monospace';
+        const latencyMs = state._gwLatency || 0;
+        const parts = [];
+        parts.push(`lat ${baseMult.toFixed(1)}`);
+        if (prestigeBonus > 0) parts.push(`pr${prestigeBonus.toFixed(1)}`);
+        ctx.fillText(`(${parts.join(' + ')})`, w - panelW - padX + 8, padY + 45);
     }
 
     ctx.restore();
