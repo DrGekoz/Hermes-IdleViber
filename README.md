@@ -15,20 +15,6 @@ Hermes IdleViber is an **ambient idle/incremental game** that lives in your brow
 
 ---
 
-## ✦ Genre & Vibe
-
-| | |
-|---|---|
-|| **Genre** | Ambient idle / incremental ("cozy incremental") |
-|| **Platform** | Browser (Chrome, Firefox, Edge) |
-|| **Art** | 16-bit pixel art — 78 autoclicker upgrade icons + decor sprites + procedural room rendering |
-|| **Music** | 45 chiptune cover MP3s — video game classics, pop covers, internet hits |
-|| **Progression** | Exponential cost scaling + prestige layer + per-room upgrades + 250 tiers |
-|| **Number System** | k → Z → **InfinityZ ×N** → InfinityZ × InfinityZ (N) — never caps |
-|| **Lock** | 🔒 Hermes gateway bonus — upgradeable multiplier boost |
-
----
-
 ## ✦ How It Works
 
 ### 1. Click ✦ VIBE ✦
