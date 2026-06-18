@@ -13,6 +13,8 @@ Hermes IdleViber is an **ambient idle/incremental game** that lives in your brow
 
 **The twist?** The game pings your local Hermes Agent gateway and turns its latency into a VPS multiplier. The faster your gateway responds, the bigger the bonus. It turns your dev tools into a game mechanic — an upgradeable boost you can invest prestige chips into.
 
+**Sign in** with Google, GitHub, or email/password — your progress follows you across devices via Firestore cloud saves with smart merge (keeps your highest stats).
+
 ---
 
 ## ✦ How It Works
@@ -54,21 +56,31 @@ Reset your run for **Prestige Chips (PP)** — permanent currency that buys esca
 
 All prestige upgrades are **re-buyable** with progressive cost scaling. Use the **Buy All** button or hold-to-spam to burn through chips fast.
 
-Every prestige grants a **Tier** (Bronze I → Silver I → ... up to Ten Quad 10Q), unlocking a corresponding achievement. 250 tiers total, with tiers scaling in cost via a dynamic prestige threshold that adapts to your VPS.
+**⚡ Max Prestige** button runs non-blocking batches (500 prestige cycles via requestAnimationFrame) — no UI freeze. Uses BigNumber math throughout for overflow safety.
+
+Every prestige grants a **Tier** (Bronze I → Silver I → ... up to Formless Expanse), unlocking a corresponding achievement. 500 tiers total, with tiers scaling in cost via a dynamic prestige threshold that adapts to your VPS (log₂ scaling, capped at 1hr, gentler sqrt-log formula for early game, 1.06× tier scaling, accelerating to InfZ territory in the upper half).
 
 ### 6. Gateway Bonus
 The game pings your Hermes gateway every 5 seconds. Your latency determines your VPS multiplier — lower latency = higher bonus. No gateway running? You still earn at base rates. Gateway buffs can also be upgraded with prestige chips for an even bigger boost.
 
+The Gateway tab shows a **2-line HUD**: VPS multiplier on line 1, latency + prestige breakdown on line 2. Manual port override available. Auto-scans common ports instantly, plus the web server range (1024-10000) in ~20s.
+
 ### 7. InfinityZ Number System
-When your vibes exceed Z (the 47th suffix tier), the number system cycles through infinite layers:
+When your vibes exceed Z (the last suffix tier), the number system cycles through infinite layers of InfZ^n notation:
 
 | Layer | Format | Example |
 |-------|--------|---------|
 | Normal | `{value}{suffix}` | `1.23k`, `4.56M` ... `7.89Z` |
-| InfinityZ ×N | `×{count}[{suffix}]` | `×1`, `×1k`, `×1M` ... `×1Z`, `×2` ... |
-| InfinityZ² | `× InfinityZ ({count}[suffix])` | `(1)`, `(1k)`, ... `(1Z)`, `(2)` ... |
+| InfZ^1 | `InfZ ×N[suffix]` | `InfZ ×1`, `InfZ ×1k` ... `InfZ ×1Z`, `InfZ ×2` |
+| InfZ² | `InfZ² (N[suffix])` | `InfZ² (1)`, `InfZ² (1k)` ... `InfZ² (1Z)`, `InfZ² (2)` |
+| InfZ³ | `InfZ³ [N[suffix]]` | `InfZ³ [1]`, `InfZ³ [1k]` ... `InfZ³ [2]` |
+| InfZ⁴ | `InfZ⁴ {N[suffix]}` | `InfZ⁴ {1}`, `InfZ⁴ {1k}` ... |
+| ⋮ | ⋮ | ⋮ |
+| InfZ^∞ | `InfZ^∞` | Final sentinel for numbers beyond comprehension |
 
-Each count cycles 57 times (base + all suffixes). When a count wraps, the next layer takes over. The game literally never runs out of notation.
+Each layer cycles through base + all 47 (or 56 for plain-number) suffixes per count. When a count wraps, the next layer takes over. The game literally never runs out of notation.
+
+Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mantissa, exponent]` arrays in scientific notation, supporting unlimited growth with automatic normalization and overflow guards.
 
 ---
 
@@ -82,16 +94,21 @@ Each count cycles 57 times (base + all suffixes). When a count wraps, the next l
 - **🔔 Real-time sidebar tab indicators** — gold dots pulse on tabs with affordable items, green dot when prestige is ready, cyan dot for new achievements
 - 90 decor items with visual canvas placement (click-and-drag)
 - **InfinityZ number system** — numbers never cap, display scales infinitely
+- **BigNumber (BN) engine** — all game values stored as [mantissa, exponent] arrays, resilient to overflow, with guard recovery for corrupted saves
 - Bulk buy with calculated max-buyable
 - Affordability updates every tick — no tab-hopping required
+- Offline earnings with 10x format above 1000%
 
 ### 🎨 Visual
 - 78 custom autoclicker pixel art icons + 49 prestige/decor icons + 102 decor placement sprites — all generated via Codex CLI (16-bit retro style)
 - 6 unique room backgrounds with atmospheric effects
 - Particle systems: fireflies, matrix rain, cherry blossoms, aurora, smoke, dust, waves
 - Godrays & dynamic lighting
+- **180Hz render loop** with delta-time frame interpolation — particle speed consistent at any framerate
 - Pixel-perfect rendering with `image-rendering: pixelated`
 - Custom chroma-key removal pipeline for transparent icon assets
+- **3-line InfZ display** on prestige chip box and Total This Round stat box
+- Background room animations (.mp4 video files)
 
 ### 🎵 Audio
 - 45 chiptune cover MP3s — game classics (Zelda, Mario, Pokemon, Megaman, Chrono, Castlevania), pop covers (Blinding Lights, Take On Me, Eye of the Tiger), anime hits (Otonoke, Naruto), and memes
@@ -99,28 +116,49 @@ Each count cycles 57 times (base + all suffixes). When a count wraps, the next l
 - Adjustable SFX & music volume
 
 ### 🔌 Integration
+- **Login with Google, GitHub, or email/password** — Firestore-backed authentication
+- User display name management (change freely, no cooldown)
 - Auto-discovers Hermes gateway by scanning 41 common ports
 - Real-time latency display with quality tiers
 - Gateway VPS multiplier updates live
 - Task-in-progress detection (doubles multiplier when gateway is busy)
+- Manual gateway port override in both Gateway tab and Settings
+- Settings overlay with Name, Audio, and Credits tabs
+- Sidebar position toggle (left/right)
 
 ### 💾 Persistence
 - Auto-save every 30s to localStorage
-- **Firebase Firestore realtime leaderboard** — tier names, InfZ values, full BN array accuracy
+- **Firebase Firestore cloud saves** with smart merge — merges local and cloud saves keeping the highest prestiges, PP, and lifetime vibes (never overwrites progress)
+- **P2P WebRTC mesh leaderboard** — real-time score sharing via peer-to-peer data channels with Firestore signaling
+- Hourly Firestore leaderboard sync for persistence
 - Local API server mode for self-hosted accounts
 - Offline earnings calculated on return (10x format above 1000%)
 
 ### 🏆 Achievements
 - 55 base achievements across vibe, click, prestige, room, VPS, gateway, decor, and autoclicker milestones
-- **250 tier achievements** — programmatically generated from Bronze I to Ten Quad (10Q) — one per prestige tier
+- **500 tier achievements** — programmatically generated from Bronze I to Formless Expanse — one per prestige tier
 - Real-time achievement notifications with toast popups
 - Permanent unlock tracking
+- Dev badge with tooltip on hover for contributors
 
 ### 🏅 Leaderboard
-- Firestore-backed realtime leaderboard with live tier column (Bronze, Silver, Gold, etc.)
-- Dev badge tooltip on hover for contributors
-- Stores full BN (BigNumber) arrays for accurate InfinityZ layer display
-- Clear polling on subscription — no double reads, respects Firestore quota
+- **P2P WebRTC Mesh** — players connect directly via data channels using Firestore as a signaling server. Scores update in real-time with zero central server overhead.
+- **Firestore fallback** — when P2P fails (NAT restrictions, no peers), automatically switches to Firestore onSnapshot or polling (30s interval)
+- Live tier column (Bronze → Silver → Gold → ... up to Ten Quad 10Q)
+- Stores full BN arrays for accurate InfinityZ layer display
+- VPS column alongside vibes, prestige, and PP columns
+- Adaptive grid columns that scale with viewport
+- Auto-sorts by prestige level → total PP → score
+- Clear polling when Firestore subscription starts — no double reads, respects quota
+
+### ⚙️ Settings
+- **Display name** — set freely, syncs to cloud, no cooldown
+- **Audio** — independent SFX and music volume sliders
+- **Gateway** — manual port input with sync button, status display
+- **Sidebar** — toggle between left and right positions
+- **Account** — view login status, logout
+- **Support** — Buy Me a Coffee link
+- **Credits** — pixel art, tools, special thanks
 
 ---
 
@@ -146,18 +184,32 @@ node server/index.js
 
 ## ✦ Recent Updates
 
-- **Realtime Firestore Leaderboard** — live tier column (Bronze→Silver→Gold→...), BN-accurate InfZ values, dev badge tooltips, auto-stream with polling cleanup to stay under quota
-- **Prestige Overhaul** — Max Prestige uses a math formula, runs instantly with zero UI freeze; prestige threshold now scales dynamically with VPS (log₂ factor), stops at 1hr cap; gentler sqrt-log formula for early-game pacing
-- **Tier Achievements** — 250 programmatic tier achievements, one per prestige tier (Bronze I → Ten Quad 10Q), generated on the fly
-- **Gateway HUD Redesign** — VPS multiplier on line 1, latency + prestige breakdown on line 2
+- **P2P WebRTC Mesh Leaderboard** — players connect via direct peer-to-peer data channels (WebRTC) using Firestore as a signaling server. Scores broadcast in real-time across the mesh. Automatically falls back to Firestore onSnapshot/polling when P2P is unavailable. Hourly Firestore sync for long-term persistence.
+- **BigNumber System Hardening** — all game values now guarded with `_bnGuard()` for null/undefined/isFinite recovery. `BN_MAX` sentinel prevents infinite exponent overflow. Arithmetic functions return gracefully on overflow instead of crashing. Cloud migration handles malformed BN arrays.
+- **Cloud Save Merge** — instead of blindly overwriting, cloud saves now merge with local saves keeping the highest prestiges, total PP, and lifetime vibes. Smart progress preservation across devices.
+- **Max Prestige Batching** — runs in non-blocking 500-cycle batches via `requestAnimationFrame` — no UI freeze even at extreme VPS levels. BigNumber math throughout.
+- **Prestige Overhaul** — Max Prestige uses math formula, runs instantly; prestige threshold scales dynamically with VPS (log₂ factor), stops at 1hr cap; gentler sqrt-log formula for early-game pacing; 1.06× tier scaling
+- **180Hz Render Loop** — delta-time frame interpolation keeps particle effects and animations smooth and speed-consistent at any refresh rate
+- **3-line InfZ Display** — prestige chip box, Total This Round stat box, and prestige chip gain text all show 3-line InfZ formatted values
+- **Gateway HUD Redesign** — VPS multiplier on line 1, latency + prestige breakdown on line 2; manual port override
+- **Tier Achievements** — 500 programmatic tier achievements, one per prestige tier (Bronze I → Formless Expanse), generated on the fly
+- **Realtime Leaderboard** — live tier column (Bronze→Silver→Gold→...), BN-accurate InfZ values, VPS column, adaptive grid, dev badge tooltip on hover
+- **Google & GitHub OAuth Login** — sign in with Google or GitHub accounts, or email/password. Settings overlay with name, audio, credits tabs, sidebar position toggle, gateway port sync, and Buy Me a Coffee support.
 - **Offline Stats Enhancement** — offline rate switches to 10x format above 1000%
-- **InfinityZ number system** — numbers beyond Z display as `InfinityZ ×1`, `×1k`, `×1M` ... cycling through all suffixes infinitely
+- **InfinityZ number system** — numbers beyond Z display as `InfZ ×N`, `InfZ ×1k`, ... `InfZ ×1Z`, `InfZ ×2` cycling through InfZ^n notation with distinct brackets per power layer
 - **Buy All buttons** — ⚡ Buy All on upgrades, decor, and prestige tabs (buys most expensive first, spends everything)
 - **Hold-to-spam** — works for both autoclicker upgrades AND prestige upgrades
 - **Real-time tab indicators** — sidebar tabs show gold/green/cyan dots when items are affordable or ready
 - **127+ pixel art icons** — 78 autoclicker, 49 prestige/decor, and 102 decor placement sprites — all Codex CLI-generated 16-bit pixel art
 - **Per-room cost progression** — costs track the current room's purchase count, not global
 - **Prestige cost fixes** — progressive cost scaling for all re-buyable prestige upgrades
+- **Dev badge tooltip** — hover over your name on the leaderboard to see contributor status
+- **Icon re-encoding** — all prestige/autoclicker icons re-encoded to smaller file sizes for faster loading
+- **500 Tiers** — expanded from 250 to 500 tiers with cosmic InfZ-themed naming (Infinity, Singularity, Quantum, Wormhole, etc.) and accelerated scaling that reaches 5Qa prestiges by tier 500
+- **InfZ^n Number Display** — number system now shows proper InfZ^n notation with bracket styles: `InfZ ×N` (InfZ^1), `InfZ² (N)` (InfZ²), `InfZ³ [N]` (InfZ³), onward through `InfZ^∞` for numbers beyond all comprehension
+- **Prestige Upgrade BN Pricing** — prestige upgrade costs now use BigNumber arithmetic (`bnPow` + `getPrestigeUpgradeCost`) instead of `Math.pow`, removing the Infinity cap that made high-count upgrades permanently unpurchasable
+- **Max Prestige Silent Batching** — rewritten to suppress all `notifyStateChange` during the batch loop, eliminating the browser lockup that occurred with 1500+ UI rebuilds per click
+- **Prestige UI BN Comparison Fixes** — all `gain > 0`, `gain <= 0`, `chips >= cost` comparisons now use proper BN comparison functions (`bnGt`, `bnLe`, `bnGe`) instead of native JS which silently failed on BN arrays
 
 ---
 
@@ -165,23 +217,39 @@ node server/index.js
 
 ```text
 Hermes-IdleViber/
-├── index.html                  # Entry point — single-page game UI
+├── index.html                  # Entry point — single-page game UI (login + game + settings)
 ├── css/styles.css              # Dark retro pixel styling
 ├── js/
-│   ├── state.js                # Game state engine, formulas, definitions, save/load
+│   ├── state.js                # Game state engine, BN math, formulas, definitions, save/load
 │   ├── gateway.js              # Hermes gateway discovery & health polling
+│   ├── firebase.js             # Firebase auth, Firestore CRUD, leaderboard sync, P2P API export
+│   ├── p2p.js                  # P2P WebRTC mesh leaderboard (Firestore signaling, fallback polling)
 │   ├── sprites.js              # Pixel art sprite definitions & room renderer
+│   ├── sfx.js                  # Sound effect engine
 │   ├── music.js                # Music player — 45 chiptune cover MP3s
-│   └── app.js                  # Main loop, UI binding, event wiring
+│   └── app.js                  # Main loop, UI binding, event wiring, P2P orchestration
 ├── server/                     # Optional self-hosted backend
 │   ├── index.js                # HTTP server with CORS
 │   └── package.json
 ├── audio/                      # 45 chiptune cover MP3s
 ├── sprites/images/
-│   ├── bg/                     # 6 room background images
+│   ├── bg/                     # 6 room background images + .mp4 animations
 │   ├── icons/individual/       # 127 autoclicker + prestige + decor icons (64×64 webp)
 │   └── room_decor/             # 102 decor placement sprites
 ```
+
+### Module Breakdown
+
+| Module | Role |
+|--------|------|
+| `state.js` | Game state object, BigNumber arithmetic (BN), room/upgrade/decor definitions, save/load to localStorage, prestige/tier system, offline earnings |
+| `gateway.js` | Hermes gateway port scanning, latency polling, connection quality assessment |
+| `firebase.js` | Firebase App initialization, Auth (Google/GitHub/Email), Firestore CRUD for saves & leaderboard, `syncLeaderboardToFirestore()`, `getFirestoreApi()` for P2P |
+| `p2p.js` | P2P leaderboard module — WebRTC peer connections via `RTCPeerConnection` + data channels; Firestore signaling (offers/answers/presence); onSnapshot fallback; 30s polling fallback |
+| `sprites.js` | Pixel art sprite rendering on canvas, room backgrounds, particle systems, decor placement |
+| `sfx.js` | 8-bit sound effects for clicks, purchases, prestige, achievements |
+| `music.js` | Chiptune MP3 player with shuffle, play queue, volume control |
+| `app.js` | Game loop (100ms tick, 180Hz render), UI binding, event handlers, P2P initialization + broadcast orchestration, leaderboard UI, settings overlay |
 
 ---
 
@@ -190,8 +258,8 @@ Hermes-IdleViber/
 - **Ambient First** — The primary experience is hanging out in a beautiful pixel space, not optimizing spreadsheets
 - **Gateway as Bonus** — Your Hermes gateway isn't the core loop, it's a tasty VPS multiplier on top. Play without it just fine, but if you've got a snappy gateway you'll climb faster. Prestige chips let you crank that multiplier even higher.
 - **Per-Room Identity** — Every room is a distinct gameplay silo with its own progression, music, and art
-- **Zero External Assets** — Every sprite, every sound, every particle is generated at runtime
-- **Progressive Complexity** — Easy to start (click the button), deep to master (prestige × tiers × 6 rooms × 90 decor × InfinityZ numbers)
+- **Zero External Assets** — Every sprite, every sound, every particle is generated at runtime (music files excluded)
+- **Progressive Complexity** — Easy to start (click the button), deep to master (prestige × tiers × 6 rooms × 90 decor × InfinityZ numbers × P2P leaderboard)
 
 ---
 
