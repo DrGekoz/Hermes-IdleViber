@@ -199,6 +199,9 @@ node server/index.js
 
 ## ✦ Recent Updates
 
+- **!important Fix for Button Text** — all button text now uses `!important` on `color` to correctly override conflicting CSS rules. Previously the `.login-box button` rule with `!important` was winning over the room-themed button block.
+- **Corrupted Cloud Save Guard** — `migrateBN()` now clamps any BN field with exponent at `BN_MAX` level back to `BN_ZERO`, preventing Infinity/NaN from old corrupted saves from displaying as massive InfZ values.
+- **Dead Code Removed** — `setButtonTextContrast()` function removed. Text contrast vars are now set inline.
 - **All Tab Text White + Black Stroke** — active sidebar tabs now use white fill with black stroke instead of inverted colors. Settings tabs added to the main button block for consistent button backgrounds and text styling.
 - **Decor Click-to-Front** — clicking any decor on the canvas brings it to the front by reordering the `placed_decor` object so it renders last (on top of other items).
 - **P2P Retry Hardening** — when broadcast sends 0 peers, now aggressively rescans signaling collection for all online peers (not just when peer list is empty), immediately reconnects failed peers, and queues 1.5s + 2s retry broadcasts to give channels time to establish. Added `forceScan` parameter to `_rescanPeers()` for on-demand full directory scan.
