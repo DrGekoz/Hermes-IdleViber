@@ -211,11 +211,11 @@
       "state": {
         "version": 1,
         "vibes": [
-          1.7976931348623157,
+          3.5953862697246315,
           308
         ],
         "lifetime_vibes": [
-          1.7976931348623157,
+          3.5953862697246315,
           308
         ],
         "prestige_points": [
@@ -237,7 +237,7 @@
         "room_autoclickers": {},
         "prestige_upgrades": {},
         "decor": {},
-        "current_room": "cyber_den",
+        "current_room": "beach_cove",
         "unlocked_rooms": [
           "campfire_grove",
           "cyber_den",
@@ -254,10 +254,10 @@
         "_gwMult": 1,
         "_gwLabel": "Disconnected",
         "_gwLatency": 0,
-        "last_save": 1781766476742,
+        "last_save": 1781766635725,
         "total_clicks": 0,
         "total_gateway_pings": 0,
-        "auth_token": "60b4fce078dd54ee23d80c35960f5819ec772a748553bd1442fd5054f63ab57f",
+        "auth_token": "00c939045c3e6ca1e5faf8301027eadcd99b1984f1895b3a8fb56a484ef20209",
         "auth_mode": "local_api",
         "displayName": null,
         "display_name_last_changed": 0,
@@ -283,7 +283,7 @@
         "userId": "test_bg",
         "username": "test_bg"
       },
-      "updated_at": "2026-06-18T07:07:56.744Z"
+      "updated_at": "2026-06-18T07:10:35.727Z"
     }
   },
   "leaderboard": [
@@ -363,6 +363,11 @@
       "username": "test_bg",
       "created": 1781766191403,
       "expires": 1782370991403
+    },
+    "00c939045c3e6ca1e5faf8301027eadcd99b1984f1895b3a8fb56a484ef20209": {
+      "username": "test_bg",
+      "created": 1781766590064,
+      "expires": 1782371390064
     }
   }
 }

@@ -609,6 +609,11 @@ function p2pBNCompare(a, b) {
 }
 
 // ---- EXPORT ----
+// Get the current player's P2P ID (for row lookups outside p2p.js)
+function p2pGetLocalPlayerId() {
+    return p2pState.playerId;
+}
+
 export {
     p2pInit,
     p2pStart,
@@ -617,4 +622,5 @@ export {
     p2pSubscribe,
     p2pGetLeaderboard,
     p2pEnableFallback,
+    p2pGetLocalPlayerId,
 };

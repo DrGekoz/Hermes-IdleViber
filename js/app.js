@@ -48,7 +48,7 @@ import { initFirebase, onAuthChanged, getCurrentUser, isConfigured,
          getFirestoreApi, getDb } from './firebase.js';
 
 // ---- P2P Leaderboard (WebRTC mesh via Firestore signaling) ----
-import { p2pInit, p2pStart, p2pCleanup, p2pBroadcastScore, p2pSubscribe } from './p2p.js';
+import { p2pInit, p2pStart, p2pCleanup, p2pBroadcastScore, p2pSubscribe, p2pGetLocalPlayerId } from './p2p.js';
 
 // ---- DOM REFS ----
 const $ = (id) => document.getElementById(id);
@@ -67,6 +67,14 @@ let fbSyncTimer = null;     // Hourly Firestore sync timer
 let lbFastTimer = null;     // 50ms leaderboard fast render
 let lastP2PEntries = null;  // Cached P2P entries for fast render
 let p2pBroadcastTick = 0;   // Tick counter for periodic P2P broadcast
+
+// Get the local player's P2P ID (prefer module state over localStorage for scoped identity)
+function getLocalP2PId() {
+    const fromState = p2pGetLocalPlayerId();
+    if (fromState) return fromState;
+    // Fallback: old localStorage key (pre-scoping) — should only hit before P2P init
+    return localStorage.getItem('hermes_idleviber_p2p_id');
+}
 let frameCount = 0;
 let fbReady = false;       // Firebase initialized successfully
 let fbUser = null;         // Firebase auth user object (when logged in via Firebase)
@@ -1297,8 +1305,7 @@ function initGameLoop() {
             // Update local player row from live game state
             updateLocalLeaderboardEntry();
             // Update P2P peer rows from cached entries (lightweight textContent swaps)
-            const localPid = localStorage.getItem('hermes_idleviber_p2p_id');
-            const rows = list.querySelectorAll('.lb-entry');
+            const localPid = getLocalP2PId();
             for (const entry of lastP2PEntries) {
                 if (!entry.playerId || entry.playerId === localPid) continue;
                 const row = list.querySelector(`.lb-entry[data-player-id="${entry.playerId}"]`);
@@ -2017,7 +2024,7 @@ async function updateLeaderboardUI(externalEntries) {
     // Always include local player if not in list (even with Firebase)
     const displayName = G.displayName || G.username || 'Player';
     // Check by playerId first (P2P entries carry identity), then by name
-    const localPlayerId = localStorage.getItem('hermes_idleviber_p2p_id');
+    const localPlayerId = getLocalP2PId();
     // Check by P2P UUID, Firebase UID, and name to prevent duplicate rows
     const localAlreadyInEntries = entries.some(e =>
         e.playerId === localPlayerId ||
@@ -2168,7 +2175,7 @@ function updateLocalLeaderboardEntry() {
     if (!list) return;
 
     // Prefer data-player-id lookup over name matching (avoids duplicate-row confusion)
-    const localPid = localStorage.getItem('hermes_idleviber_p2p_id');
+    const localPid = getLocalP2PId();
     let row = null;
     if (localPid) row = list.querySelector(`.lb-entry[data-player-id="${localPid}"]`);
     // Fallback to Firebase UID if P2P ID not available

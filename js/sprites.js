@@ -1316,14 +1316,10 @@ function _bgDraw(src, ctx, w, h) {
     const iw = src.videoWidth || src.width || 640;
     const ih = src.videoHeight || src.height || 360;
     if (!iw || !ih) return;
-    const ca = w / h, ia = iw / ih;
-    let sx, sy, sw, sh;
-    if (ca > ia) {
-        sh = ih; sw = ih * ca; sx = (iw - sw) / 2; sy = 0;
-    } else {
-        sw = iw; sh = iw / ca; sx = 0; sy = (ih - sh) / 2;
-    }
-    ctx.drawImage(src, sx, sy, sw, sh, 0, 0, w, h);
+    // object-fit: cover — fill canvas, maintain aspect ratio, crop overflow
+    const scale = Math.max(w / iw, h / ih);
+    ctx.drawImage(src, 0, 0, iw, ih,
+        (w - iw * scale) / 2, (h - ih * scale) / 2, iw * scale, ih * scale);
 }
 
 // Debug — exposed for verification; BG_V._ff and BG_V._v not on window
@@ -1396,14 +1392,11 @@ async function drawBackground(roomId, ctx, w, h) {
         ctx.imageSmoothingEnabled = false;
         const iw = img.naturalWidth || img.width;
         const ih = img.naturalHeight || img.height;
-        const ca = w / h, ia = iw / ih;
-        let sx, sy, sw, sh;
-        if (ca > ia) {
-            sh = ih; sw = ih * ca; sx = (iw - sw) / 2; sy = 0;
-        } else {
-            sw = iw; sh = iw / ca; sx = 0; sy = (ih - sh) / 2;
-        }
-        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+        if (!iw || !ih) return false;
+        // object-fit: cover — fill canvas, maintain aspect ratio, crop overflow
+        const scale = Math.max(w / iw, h / ih);
+        ctx.drawImage(img, 0, 0, iw, ih,
+            (w - iw * scale) / 2, (h - ih * scale) / 2, iw * scale, ih * scale);
         return true;
     }
     return false;
