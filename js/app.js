@@ -1869,54 +1869,15 @@ function applyRoomTheme(roomId) {
     root.style.setProperty('--room-btn-sm-img', `url(/sprites/images/ui/${prefix}_btn_sm.webp)`);
     root.style.setProperty('--room-btn-wide-img', `url(/sprites/images/ui/${prefix}_btn_wide.webp)`);
     root.style.setProperty('--room-btn-xl-img', `url(/sprites/images/ui/${prefix}_btn_xl.webp)`);
-    // Auto-detect button brightness and set text contrast
-    setButtonTextContrast(`/sprites/images/ui/${prefix}_btn.webp`);
+    // Set text contrast vars (always white fill + black stroke)
+    root.style.setProperty('--room-btn-text-color', '#ffffff');
+    root.style.setProperty('--room-btn-text-stroke', '#000000');
     // Swap room-themed UI divider
     const divider = document.getElementById('room-theme-divider');
     if (divider) {
         const prefix = ROOM_PREFIX[roomId] || roomId.substring(0, 2);
         divider.src = `sprites/images/ui/${prefix}_ui_divider.png`;
     }
-}
-
-/**
- * Load the room button image, sample its pixels, and set text
- * color + stroke for maximum contrast over the button background.
- */
-function setButtonTextContrast(imageUrl) {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 32;
-        canvas.height = 8;
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(img, 0, 0, 32, 8);
-        const data = ctx.getImageData(0, 0, 32, 8).data;
-        let total = 0, count = 0;
-        for (let i = 0; i < data.length; i += 4) {
-            const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
-            if (a > 128) {
-                total += 0.299 * r + 0.587 * g + 0.114 * b;
-                count++;
-            }
-        }
-        const avg = count > 0 ? total / count : 140;
-        const isDark = avg < 140;
-        const root = document.documentElement;
-        root.style.setProperty('--room-btn-text-color', '#ffffff');
-        root.style.setProperty('--room-btn-text-stroke', '#000000');
-        root.style.setProperty('--room-btn-text-color-inv', '#000000');
-        root.style.setProperty('--room-btn-text-stroke-inv', '#ffffff');
-    };
-    img.onerror = () => {
-        document.documentElement.style.setProperty('--room-btn-text-color', '#ffffff');
-        document.documentElement.style.setProperty('--room-btn-text-stroke', '#000000');
-        document.documentElement.style.setProperty('--room-btn-text-color-inv', '#000000');
-        document.documentElement.style.setProperty('--room-btn-text-stroke-inv', '#ffffff');
-    };
-    img.src = imageUrl;
 }
 
 function updateRoomUI() {
