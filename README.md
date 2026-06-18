@@ -58,7 +58,7 @@ All prestige upgrades are **re-buyable** with progressive cost scaling. Use the 
 
 **⚡ Max Prestige** button runs non-blocking batches (500 prestige cycles via requestAnimationFrame) — no UI freeze. Uses BigNumber math throughout for overflow safety.
 
-Every prestige grants a **Tier** (Bronze I → Silver I → ... up to Formless Expanse), unlocking a corresponding achievement. 500 tiers total, with tiers scaling in cost via a dynamic prestige threshold that adapts to your VPS (log₂ scaling, capped at 1hr, gentler sqrt-log formula for early game, 1.06× tier scaling, accelerating to InfZ territory in the upper half).
+Every prestige grants a **Tier** (Bronze I → Silver I → ... → Formless Expanse), unlocking a corresponding achievement. **500 uniquely-scaling tiers** with requirements going from 1 prestige up to `InfZ^∞`. Tier progression accelerates through normal suffixes into InfZ ×N notation, with the final tiers reaching InfZ^∞ territory. Tiers grant progressively stronger permanent bonuses (×click, ×VPS, ×all, +offline%, room unlock speed) at 65% more conservative scaling than before.
 
 ### 6. Gateway Bonus
 The game pings your Hermes gateway every 5 seconds. Your latency determines your VPS multiplier — lower latency = higher bonus. No gateway running? You still earn at base rates. Gateway buffs can also be upgraded with prestige chips for an even bigger boost.
@@ -205,7 +205,7 @@ node server/index.js
 - **Prestige cost fixes** — progressive cost scaling for all re-buyable prestige upgrades
 - **Dev badge tooltip** — hover over your name on the leaderboard to see contributor status
 - **Icon re-encoding** — all prestige/autoclicker icons re-encoded to smaller file sizes for faster loading
-- **500 Tiers** — expanded from 250 to 500 tiers with cosmic InfZ-themed naming (Infinity, Singularity, Quantum, Wormhole, etc.) and accelerated scaling that reaches 5Qa prestiges by tier 500
+- **500 Tiers** — expanded from 250 to 500 uniquely-scaling tiers with cosmic InfZ-themed naming. Requirements use BN (BigNumber) from tier 1, accelerating from `1 → 2.1M → InfZ ×N → InfZ^∞`. 65% more conservative bonuses. `total_prestiges` is now a BN for infinite precision.
 - **InfZ^n Number Display** — number system now shows proper InfZ^n notation with bracket styles: `InfZ ×N` (InfZ^1), `InfZ² (N)` (InfZ²), `InfZ³ [N]` (InfZ³), onward through `InfZ^∞` for numbers beyond all comprehension
 - **Prestige Upgrade BN Pricing** — prestige upgrade costs now use BigNumber arithmetic (`bnPow` + `getPrestigeUpgradeCost`) instead of `Math.pow`, removing the Infinity cap that made high-count upgrades permanently unpurchasable
 - **Max Prestige Silent Batching** — rewritten to suppress all `notifyStateChange` during the batch loop, eliminating the browser lockup that occurred with 1500+ UI rebuilds per click

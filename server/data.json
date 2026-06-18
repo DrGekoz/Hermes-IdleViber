@@ -53,10 +53,10 @@
         "_gwMult": 1,
         "_gwLabel": "Disconnected",
         "_gwLatency": 0,
-        "last_save": 1781755347726,
+        "last_save": 1781765934409,
         "total_clicks": 0,
         "total_gateway_pings": 0,
-        "auth_token": "e37df96736dad4869c8be224eabe10c0df6207695e6a36e2598e74c38d770f2e",
+        "auth_token": "0488a8237e583c08f159e96d8c8cde7b40c777781dbdac3f844b88cfb19c305d",
         "auth_mode": "local_api",
         "displayName": null,
         "display_name_last_changed": 0,
@@ -75,7 +75,7 @@
         "userId": "testplayer",
         "username": "testplayer"
       },
-      "updated_at": "2026-06-18T04:02:27.728Z"
+      "updated_at": "2026-06-18T06:58:54.410Z"
     },
     "testuser2": {
       "state": {
@@ -261,6 +261,11 @@
       "username": "bgtest",
       "created": 1781763662803,
       "expires": 1782368462803
+    },
+    "0488a8237e583c08f159e96d8c8cde7b40c777781dbdac3f844b88cfb19c305d": {
+      "username": "testplayer",
+      "created": 1781765677920,
+      "expires": 1782370477920
     }
   }
 }

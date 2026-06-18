@@ -109,6 +109,8 @@ function migrateBN(state) {
     if (typeof state.lifetime_vibes === 'number') state.lifetime_vibes = bnFromNumber(state.lifetime_vibes);
     if (typeof state.prestige_points === 'number') state.prestige_points = bnFromNumber(state.prestige_points);
     if (typeof state.total_pp_earned === 'number') state.total_pp_earned = bnFromNumber(state.total_pp_earned);
+    if (typeof state.total_prestiges === 'number') state.total_prestiges = bnFromNumber(state.total_prestiges);
+    if (state.total_prestiges === undefined || state.total_prestiges === null) state.total_prestiges = BN_ZERO;
     // Migrate old gateway_upgrades to prestige_upgrades
     if (state.gateway_upgrades) {
         state.prestige_upgrades = state.prestige_upgrades || {};
@@ -156,7 +158,7 @@ function checkAutoLogin() {
                     G.username = fbUser.displayName || G.username;
 
                     // Restore any progress that's higher than what cloud had
-                    if (G.total_prestiges < localPrestiges) {
+                    if (bnLt(G.total_prestiges, localPrestiges)) {
                         G.total_prestiges = localPrestiges;
                     }
                     if (bnCompare(G.total_pp_earned, localPp) < 0) {
@@ -458,7 +460,7 @@ function initUIEvents() {
                         dom.settingsUpgradeMsg.textContent = '☁️ Cloud save loaded';
                 } else {
                     await fbSave(G);
-                    await fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), G.total_prestiges, bnToNumber(G.total_pp_earned), G.displayName, bnToNumber(getVPS()));
+                    await fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), Math.min(bnToNumber(G.total_prestiges || BN_ZERO), 1e9), bnToNumber(G.total_pp_earned), G.displayName, bnToNumber(getVPS()));
                     dom.settingsUpgradeMsg.textContent = '✅ Google linked! Progress saved to cloud';
                 }
                 updateAllUI();
@@ -484,7 +486,7 @@ function initUIEvents() {
                 G.auth_mode = 'firebase';
                 dom.userDisplay.textContent = G.username; dom.userDisplay.title = G.username;
                 await fbSave(G);
-                    await fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), G.total_prestiges, bnToNumber(G.total_pp_earned), G.displayName);
+                    await fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), Math.min(bnToNumber(G.total_prestiges || BN_ZERO), 1e9), bnToNumber(G.total_pp_earned), G.displayName);
                 dom.settingsUpgradeMsg.textContent = '✅ Email linked! Progress saved to cloud';
                 updateAllUI();
                 saveGame();
@@ -638,7 +640,7 @@ function initUIEvents() {
                     // Direct prestige (inline doPrestige, no notifyStateChange)
                     G.total_pp_earned = bnAdd(G.total_pp_earned, gain);
                     G.prestige_points = bnAdd(G.prestige_points, gain);
-                    G.total_prestiges += 1;
+                    G.total_prestiges = bnAdd(G.total_prestiges, BN_ONE);
                     G.vibes = BN_ZERO;
                     G.lifetime_vibes = BN_ZERO;
                     G.prestige_unlocked = false;
@@ -948,7 +950,7 @@ async function doLogin() {
             } else {
                 // First login — upload local save data to Firebase
                 fbSave(G).catch(() => {});
-                fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
+                fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), Math.min(bnToNumber(G.total_prestiges || BN_ZERO), 1e9), G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
             }
 
             enterGame();
@@ -968,7 +970,7 @@ async function doLogin() {
                 } else {
                     // First login — upload local save
                     fbSave(G).catch(() => {});
-                    fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
+                    fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), Math.min(bnToNumber(G.total_prestiges || BN_ZERO), 1e9), G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
                 }
                 enterGame();
                 return;
@@ -1061,7 +1063,7 @@ async function doGoogleLoginAsync() {
         } else {
             // First login — upload local save
             fbSave(G).catch(() => {});
-            fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
+            fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), Math.min(bnToNumber(G.total_prestiges || BN_ZERO), 1e9), G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
         }
 
         enterGame();
@@ -1188,11 +1190,10 @@ function initGameLoop() {
     // Auto-save every 30s + cloud sync + P2P broadcast
     saver = setInterval(() => {
         saveGame();
-        // Cloud save + leaderboard submit if authenticated
+        // Cloud save if authenticated (leaderboard synced separately via hourly timer)
         if (G.auth_mode === 'firebase' && fbUser) {
             fbSave(G).catch(() => {});
-            fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), G.total_prestiges, G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
-            // P2P broadcast current score to mesh
+            // P2P broadcast current score to mesh (realtime, no Firestore write)
             if (p2pInitialized) {
                 p2pBroadcastScore(G.lifetime_vibes, G.total_prestiges, getVPS(), G.total_pp_earned);
             }
@@ -1313,7 +1314,7 @@ function initGameLoop() {
                 if (prestigeEl) prestigeEl.textContent = formatNumber(entry.prestigeLevel || 0);
                 if (tierEl) {
                     const tierVal = getTierFromPrestige(entry.prestigeLevel || 0);
-                    tierEl.textContent = TIERS.find(t => t.requires === tierVal)?.name || '—';
+                    tierEl.textContent = tierVal >= 0 ? TIERS[tierVal].name : '—';
                 }
             }
         }, 50);
@@ -1895,6 +1896,69 @@ function updateGatewayUI() {
     }
 }
 
+// Deduplicate leaderboard entries by playerId (preferred) or name (fallback)
+// When two entries share an identity, keep the one with most progress
+function deduplicateEntries(entries) {
+    const seenByPid = new Map();
+    const seenByName = new Map();
+    for (const entry of entries) {
+        // Track by playerId
+        if (entry.playerId) {
+            const key = 'pid:' + entry.playerId;
+            const existing = seenByPid.get(key);
+            if (existing) {
+                const winner = pickBetterEntry(entry, existing);
+                seenByPid.set(key, winner);
+            } else {
+                seenByPid.set(key, entry);
+            }
+        }
+        // Also track by name (catches Firebase UID vs P2P UUID for same player)
+        const nameKey = 'name:' + entry.name;
+        const existing = seenByName.get(nameKey);
+        if (existing) {
+            const winner = pickBetterEntry(entry, existing);
+            seenByName.set(nameKey, winner);
+        } else {
+            seenByName.set(nameKey, entry);
+        }
+    }
+    // Build result: take best entry per unique identity (pid preferred, name fallback)
+    // Also deduplicate by name across PIDs (Firebase UID vs P2P UUID for same player)
+    const result = [];
+    const usedNames = new Set();
+    const usedPids = new Set();
+    for (const entry of entries) {
+        const pidKey = entry.playerId ? 'pid:' + entry.playerId : null;
+        const nameKey = 'name:' + entry.name;
+
+        // Skip if we've already output this pid
+        if (pidKey && usedPids.has(pidKey)) continue;
+        // Skip if this name was already output (catches same player with different pid)
+        if (usedNames.has(nameKey)) continue;
+
+        // Output the best version of this identity from our maps
+        const best = pidKey ? seenByPid.get(pidKey) : seenByName.get(nameKey);
+        if (!best) continue;
+
+        if (pidKey) usedPids.add(pidKey);
+        usedNames.add(nameKey);
+        result.push(best);
+    }
+    return result;
+}
+
+// Compare two entries and return the one with higher progress
+function pickBetterEntry(a, b) {
+    if (a.prestige > b.prestige) return a;
+    if (a.prestige < b.prestige) return b;
+    const ppCmp = bnCompare(a.pp, b.pp);
+    if (ppCmp > 0) return a;
+    if (ppCmp < 0) return b;
+    const vibeCmp = bnCompare(a.vibes, b.vibes);
+    return vibeCmp >= 0 ? a : b;
+}
+
 async function updateLeaderboardUI(externalEntries) {
     const list = dom.leaderboardList;
     if (!list) return;
@@ -1954,13 +2018,17 @@ async function updateLeaderboardUI(externalEntries) {
     const displayName = G.displayName || G.username || 'Player';
     // Check by playerId first (P2P entries carry identity), then by name
     const localPlayerId = localStorage.getItem('hermes_idleviber_p2p_id');
-    const localAlreadyInEntries = localPlayerId
-        ? entries.some(e => e.playerId === localPlayerId)
-        : entries.some(e => e.name === displayName || e.name === G.username);
+    // Check by P2P UUID, Firebase UID, and name to prevent duplicate rows
+    const localAlreadyInEntries = entries.some(e =>
+        e.playerId === localPlayerId ||
+        (fbUser && e.playerId === fbUser.uid) ||
+        e.name === displayName ||
+        e.name === G.username
+    );
     if (!localAlreadyInEntries) {
         if (entries.length === 0 || externalEntries || fbHadData || !fbReady) {
             entries.push({
-                playerId: localPlayerId || 'local',
+                playerId: localPlayerId || fbUser?.uid || 'local',
                 name: displayName, vibes: G.lifetime_vibes, pp: G.total_pp_earned,
                 prestige: G.total_prestiges, vps: getVPS(), tier: getCurrentTier(G)
             });
@@ -1973,6 +2041,9 @@ async function updateLeaderboardUI(externalEntries) {
         if (ppCmp !== 0) return ppCmp;
         return bnCompare(b.vibes, a.vibes);
     });
+
+    // Deduplicate: keep only the best entry per playerId (or name as fallback)
+    entries = deduplicateEntries(entries);
 
     // DOM diffing: update in-place without flicker
     const maxRows = 50;
@@ -2042,7 +2113,7 @@ async function updateLeaderboardUI(externalEntries) {
             if (vpsEl) vpsEl.textContent = formatNumber(entry.vps || 0);
             if (ppEl) ppEl.textContent = formatNumber(entry.pp);
             if (prestigeEl) prestigeEl.textContent = formatNumber(entry.prestige);
-            if (tierEl) tierEl.textContent = TIERS.find(t => t.requires === entry.tier)?.name || '—';
+            if (tierEl) tierEl.textContent = entry.tier >= 0 ? TIERS[entry.tier].name : '—';
         } else {
             // Create new row
             const isYou = entry.name === displayName || entry.name === G.username;
@@ -2065,7 +2136,7 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-vps">${formatNumber(entry.vps || 0)}</span>
                     <span class="lb-pp">${formatNumber(entry.pp)}</span>
                     <span class="lb-prestige">${formatNumber(entry.prestige)}</span>
-                    <span class="lb-tier">${TIERS.find(t => t.requires === entry.tier)?.name || '—'}</span>
+                    <span class="lb-tier">${entry.tier >= 0 ? TIERS[entry.tier].name : '—'}</span>
                 `;
             } else {
                 el.innerHTML = `
@@ -2075,7 +2146,7 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-vps">${formatNumber(entry.vps || 0)}</span>
                     <span class="lb-pp">${formatNumber(entry.pp)}</span>
                     <span class="lb-prestige">${formatNumber(entry.prestige)}</span>
-                    <span class="lb-tier">${TIERS.find(t => t.requires === entry.tier)?.name || '—'}</span>
+                    <span class="lb-tier">${entry.tier >= 0 ? TIERS[entry.tier].name : '—'}</span>
                 `;
             }
         }
@@ -2095,25 +2166,42 @@ async function updateLeaderboardUI(externalEntries) {
 function updateLocalLeaderboardEntry() {
     const list = dom.leaderboardList;
     if (!list) return;
-    const entries = list.querySelectorAll('.lb-entry');
-    const displayName = G.displayName || G.username || 'You';
-    for (const row of entries) {
-        const nameEl = row.querySelector('.lb-name');
-        if (!nameEl) continue;
-        const rowName = nameEl.textContent.replace('◆ ', '').replace('⭐ ', '').trim();
-        if (rowName === displayName || rowName === G.username) {
-            const vibeEl = row.querySelector('.lb-vibes');
-            const ppEl = row.querySelector('.lb-pp');
-            const vpsEl = row.querySelector('.lb-vps');
-            const prestigeEl = row.querySelector('.lb-prestige');
-            const tierEl = row.querySelector('.lb-tier');
-            if (vibeEl) vibeEl.textContent = formatNumber(G.lifetime_vibes);
-            if (ppEl) ppEl.textContent = formatNumber(G.total_pp_earned);
-            if (vpsEl) vpsEl.textContent = formatNumber(getVPS());
-            if (prestigeEl) prestigeEl.textContent = formatNumber(G.total_prestiges);
-            if (tierEl) tierEl.textContent = TIERS.find(t => t.requires === getCurrentTier(G))?.name || '—';
-            break;
+
+    // Prefer data-player-id lookup over name matching (avoids duplicate-row confusion)
+    const localPid = localStorage.getItem('hermes_idleviber_p2p_id');
+    let row = null;
+    if (localPid) row = list.querySelector(`.lb-entry[data-player-id="${localPid}"]`);
+    // Fallback to Firebase UID if P2P ID not available
+    if (!row && fbUser) row = list.querySelector(`.lb-entry[data-player-id="${fbUser.uid}"]`);
+    // Fallback to 'local' placeholder ID
+    if (!row) row = list.querySelector('.lb-entry[data-player-id="local"]');
+    // Last resort: name-based fallback
+    if (!row) {
+        const displayName = G.displayName || G.username || 'You';
+        for (const r of list.querySelectorAll('.lb-entry')) {
+            const nameEl = r.querySelector('.lb-name');
+            if (!nameEl) continue;
+            const rowName = nameEl.textContent.replace('◆ ', '').replace('⭐ ', '').trim();
+            if (rowName === displayName || rowName === G.username) {
+                row = r;
+                break;
+            }
         }
+    }
+    if (!row) return;
+
+    const vibeEl = row.querySelector('.lb-vibes');
+    const ppEl = row.querySelector('.lb-pp');
+    const vpsEl = row.querySelector('.lb-vps');
+    const prestigeEl = row.querySelector('.lb-prestige');
+    const tierEl = row.querySelector('.lb-tier');
+    if (vibeEl) vibeEl.textContent = formatNumber(G.lifetime_vibes);
+    if (ppEl) ppEl.textContent = formatNumber(G.total_pp_earned);
+    if (vpsEl) vpsEl.textContent = formatNumber(getVPS());
+    if (prestigeEl) prestigeEl.textContent = formatNumber(G.total_prestiges);
+    if (tierEl) {
+        const cur = getCurrentTier(G);
+        tierEl.textContent = cur >= 0 ? TIERS[cur].name : '—';
     }
 }
 
@@ -2137,16 +2225,16 @@ function renderTiers() {
     const statsEl = document.getElementById('tier-stats');
     if (!list || !TIERS || !statsEl) return;
     const currentTier = getCurrentTier(G);
-    const nextTier = TIERS.find(t => t.requires > G.total_prestiges);
-    const unlocked = TIERS.filter(t => G.total_prestiges >= t.requires).length;
+    const nextTierIdx = TIERS.findIndex(t => bnGt(t.requires, G.total_prestiges));
+    const unlocked = TIERS.filter(t => bnGe(G.total_prestiges, t.requires)).length;
     // Stats bar
     statsEl.innerHTML = '<div class="stat-box prestige-chip-box" style="min-width:100px;"><div class="stat-value chip-value" style="font-size:11px;">' + unlocked + ' / ' + TIERS.length + '</div><div class="stat-label">TIERS UNLOCKED</div></div>'
         + '<div class="stat-box" style="min-width:100px;"><div class="stat-value" style="font-size:11px;color:var(--accent-gold);">' + formatNumber(G.total_prestiges) + '</div><div class="stat-label">TOTAL PRESTIGES</div></div>'
-        + '<div class="stat-box" style="min-width:100px;"><div class="stat-value" style="font-size:11px;color:var(--accent-cyan);">' + (nextTier ? formatNumber(nextTier.requires) : 'MAX') + '</div><div class="stat-label">NEXT TIER AT</div></div>';
+        + '<div class="stat-box" style="min-width:100px;"><div class="stat-value" style="font-size:11px;color:var(--accent-cyan);">' + (nextTierIdx >= 0 ? formatNumber(TIERS[nextTierIdx].requires) : 'MAX') + '</div><div class="stat-label">NEXT TIER AT</div></div>';
     // Tier list
     list.innerHTML = '';
     for (const tier of TIERS) {
-        const unlocked = G.total_prestiges >= tier.requires;
+        const unlocked = bnGe(G.total_prestiges, tier.requires);
         const el = document.createElement('div');
         el.className = `shop-item ${unlocked ? 'affordable' : 'locked'}`;
         el.style.cssText = 'display:grid;grid-template-columns:auto 1fr;gap:4px;padding:4px 6px;font-size:6px;';

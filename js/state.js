@@ -499,7 +499,7 @@ const TRANSCEND_UPGRADES = [
 ];
 
 // ---------- TIERS (prestige-based permanent upgrades) ----------
-// Generated programmatically: 500 tiers scaling from 1 → 2M (base) → 6.5Qa (InfZ territory)
+// Generated programmatically: 500 uniquely-scaling tiers from 1→InfZ^∞
 const TIERS = (function() {
     const tiers = [];
     const types = ['click', 'vps', 'offline', 'all', 'click', 'vps', 'rooms'];
@@ -532,64 +532,72 @@ const TIERS = (function() {
         'VoidWalker','StarForge','WorldTree','Yggdrasil','Bifrost','Celestia','Astralis','Luminara','Umbrara','Noctara',
         'Aetherius','Chronos','Kairos','Telos','Nous','Logos','Psyche','Anima','Animus','Geist',
         'Numen','Lumen','Umbra','Somnium','Expanse','InfiniteVoid','Boundless','Endless','Timeless','Formless'];
-    const MAX_TIER_REQUIRES = 5e15; // keep under Number.MAX_SAFE_INTEGER for precise comparisons
-    const BASE_250 = Math.pow(1.06, 249); // ≈ 2.1M, the 250th tier's base
+    // Base mantissa/exponent matching 1.06^249 ≈ 2,127,492
+    const BASE_M = 2.1275;
+    const BASE_E = 6;
     for (let i = 0; i < 500; i++) {
         const tierNum = i + 1;
-        let requires;
+        let requiresBN;
         if (i < 250) {
-            requires = Math.max(1, Math.round(Math.pow(1.06, i)));
+            requiresBN = bnFromNumber(Math.max(1, Math.round(Math.pow(1.06, i))));
         } else {
-            // Accelerated scaling starting from tier 250 base
-            // Multiplicative boost 1.03^(i-249): gently accelerates to keep last tiers under 5e15
-            const x = i - 249;
-            const boost = Math.pow(1.03, x);
-            requires = Math.min(Math.round(BASE_250 * boost), MAX_TIER_REQUIRES);
-            // Clamp so each tier is at least the previous
-            if (tiers.length > 0 && requires <= tiers[tiers.length - 1].requires) {
-                requires = tiers[tiers.length - 1].requires + 1;
+            const x = i - 249; // 1 to 250
+            // Exponential acceleration: 1.045^x gives strictly unique exponents
+            // At x=1: ~1.045 → exponent ~7
+            // At x=100: ~87 → exponent ~93 → normal suffix
+            // At x=120: ~183 → exponent ~189 → InfZ^1 (>141)
+            // At x=150: ~667 → exponent ~673 → InfZ^4 (423–564)
+            // At x=200: ~6008 → exponent ~6014 → InfZ^∞ (>1410)
+            // At x=249: ~54058 → exponent ~54064 → deep InfZ^∞
+            let expo;
+            if (x < 245) {
+                expo = BASE_E + Math.round(Math.pow(1.045, x));
+            } else {
+                // Last 5 tiers: explicit astronomical exponents for InfZ^∞ display
+                const fin = [100000, 500000, 1000000, 5000000, 25000000];
+                expo = fin[x - 245] || (BASE_E + Math.round(Math.pow(1.045, x)));
             }
+            requiresBN = BN(BASE_M, expo);
         }
-        requires = Math.min(requires, MAX_TIER_REQUIRES);
         const type = types[i % types.length];
         const p1 = prefixes[i % prefixes.length];
         const p2 = prefixes[(i * 3 + 7) % prefixes.length];
         const name = p1 + ' ' + p2;
-        const multFactor = Math.max(1, Math.floor(tierNum / 5) + 1);
+        // 65% more conservative bonuses: original ×35%
+        const multFactor = Math.round(Math.max(1, Math.floor(tierNum / 5) + 1) * 0.35);
         let bonus, value;
         switch (type) {
-            case 'click': value = multFactor; bonus = '×' + value + ' click power'; break;
-            case 'vps': value = multFactor; bonus = '×' + value + ' VPS'; break;
-            case 'offline': value = Math.min(multFactor, 1000); bonus = '+' + value + '% offline'; break;
-            case 'all': value = multFactor; bonus = '×' + value + ' all'; break;
+            case 'click': value = Math.max(1, multFactor); bonus = '×' + value + ' click power'; break;
+            case 'vps': value = Math.max(1, multFactor); bonus = '×' + value + ' VPS'; break;
+            case 'offline': value = Math.min(Math.max(1, multFactor), 1000); bonus = '+' + value + '% offline'; break;
+            case 'all': value = Math.max(1, multFactor); bonus = '×' + value + ' all'; break;
             case 'rooms': value = 1; bonus = 'Unlock rooms faster'; break;
             default: value = 1; bonus = '×' + value; break;
         }
-        tiers.push({ id: 'tier_' + tierNum, name, requires, bonus, type, value });
+        tiers.push({ id: 'tier_' + tierNum, name, requires: requiresBN, bonus, type, value });
     }
     return tiers;
 })();
 function getCurrentTier(state = G) {
-    let tier = 0;
-    for (const t of TIERS) {
-        if (state.total_prestiges >= t.requires) tier = t.requires;
+    let tierIdx = -1;
+    for (let i = 0; i < TIERS.length; i++) {
+        if (bnGe(state.total_prestiges, TIERS[i].requires)) tierIdx = i;
     }
-    return tier;
+    return tierIdx;
 }
 
 function getCurrentTierName(state = G) {
-    const level = getCurrentTier(state);
-    if (level <= 0) return '—';
-    const tier = TIERS.find(t => t.requires === level);
-    return tier ? tier.name : 'T' + level;
+    const idx = getCurrentTier(state);
+    if (idx < 0) return '—';
+    return TIERS[idx].name;
 }
 
 function getTierFromPrestige(count) {
-    let tier = 0;
-    for (const t of TIERS) {
-        if (count >= t.requires) tier = t.requires;
+    let tierIdx = -1;
+    for (let i = 0; i < TIERS.length; i++) {
+        if (bnGe(count, TIERS[i].requires)) tierIdx = i;
     }
-    return tier;
+    return tierIdx;
 }
 
 // ---------- ACHIEVEMENTS ----------
@@ -710,7 +718,7 @@ function getDefaultState() {
         lifetime_vibes: BN_ZERO,
         prestige_points: BN_ZERO,
         total_pp_earned: BN_ZERO,
-        total_prestiges: 0,
+        total_prestiges: BN_ZERO,
         prestige_unlocked: false,    // Prestige must be re-unlocked each time
         transcend_points: 0,
         transcend_upgrades: {},
@@ -916,7 +924,7 @@ function updateWrinklers(state = G) {
     }
 
     // Auto-spawn new wrinklers periodically
-    const maxWrinklers = Math.max(1, Math.min(WRINKLER_COUNT_MAX, Math.floor(state.total_prestiges + 1)));
+    const maxWrinklers = Math.max(1, Math.min(WRINKLER_COUNT_MAX, Math.floor(bnToNumber(state.total_prestiges || BN_ZERO)) + 1));
     if (wrinklerSystem.wrinklers.length < maxWrinklers) {
         const spawnInterval = 60000; // 1 minute per new wrinkler
         if (now - wrinklerSystem.lastWrinklerSpawn > spawnInterval) {
@@ -1061,7 +1069,7 @@ function getClickValue(state = G) {
 // Prestige threshold scales with prestige count: n*(n+9) trillion where n = next prestige #
 // 1st: 10T, 2nd: 22T, 3rd: 36T, 4th: 52T, 5th: 70T, 6th: 90T, 7th: 112T, ...
 function getPrestigeThreshold(state = G) {
-    const n = (state.total_prestiges || 0) + 1;
+    const n = bnToNumber(state.total_prestiges || BN_ZERO) + 1;
     const vpsRaw = bnToNumber(getVPS(state));
     const vpsLog = Math.max(1, Math.log2(Math.max(2, vpsRaw)));
     return Math.floor(1_000_000_000_000 * (n + 1) * Math.sqrt(vpsLog));
@@ -1144,6 +1152,7 @@ function formatInfZ(beyond, suffixes, S, C) {
     ];
     function fmt(b, depth) {
         if (depth >= powers.length) return 'InfZ^∞';
+        if (b > 500000) return 'InfZ^∞'; // Beyond practical display — show the capstone
         const pos = (b - 1) % C;
         const cnt = Math.floor((b - 1) / C) + 1;
         const p = powers[depth];
@@ -1169,6 +1178,8 @@ function formatInfZ(beyond, suffixes, S, C) {
 }
 
 function formatNumber(n) {
+    // Guard against undefined/null (would trigger !isFinite and return 'InfZ')
+    if (n === undefined || n === null) return '0';
     // Handle BigNum arrays — format via the BN system
     if (Array.isArray(n)) return formatBN(n);
     // Guard against Infinity/NaN from overflow
@@ -1336,7 +1347,7 @@ function doPrestige() {
     if (bnLe(gain, BN_ZERO)) return false;
     G.total_pp_earned = bnAdd(G.total_pp_earned, gain);
     G.prestige_points = bnAdd(G.prestige_points, gain);
-    G.total_prestiges += 1;
+    G.total_prestiges = bnAdd(G.total_prestiges, BN_ONE);
     G.vibes = BN_ZERO;
     G.lifetime_vibes = BN_ZERO;        // Reset lifetime — must earn 10T again
     G.prestige_unlocked = false; // Must re-unlock prestige next run
@@ -1367,7 +1378,7 @@ function checkAchievements(state = G, vps = 0) {
                 earned = state.total_clicks >= ach.threshold.value;
                 break;
             case 'prestiges':
-                earned = state.total_prestiges >= ach.threshold.value;
+                earned = bnGe(state.total_prestiges, ach.threshold.value);
                 break;
             case 'room':
                 earned = state.unlocked_rooms.includes(ach.threshold.value);
