@@ -1887,3 +1887,22 @@ button.secondary:hover {
         1px -1px 0 var(--room-btn-text-stroke, transparent),
         -1px 1px 0 var(--room-btn-text-stroke, transparent);
 }
+
+/* Global adaptive text for all UI content */
+.sidebar, .main-area, .music-panel,
+#leaderboard, .popup-content,
+.gateway-info, .prestige-stats,
+.prestige-reset-box, .shop-tooltip-main,
+.click-float, .room-card,
+#tier-stats, #tier-list {
+    color: var(--room-btn-text-color, inherit);
+    text-shadow:
+        1px 0 0 var(--room-btn-text-stroke, transparent),
+        -1px 0 0 var(--room-btn-text-stroke, transparent),
+        0 1px 0 var(--room-btn-text-stroke, transparent),
+        0 -1px 0 var(--room-btn-text-stroke, transparent),
+        1px 1px 0 var(--room-btn-text-stroke, transparent),
+        -1px -1px 0 var(--room-btn-text-stroke, transparent),
+        1px -1px 0 var(--room-btn-text-stroke, transparent),
+        -1px 1px 0 var(--room-btn-text-stroke, transparent);
+}
