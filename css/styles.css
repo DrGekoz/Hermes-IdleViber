@@ -641,8 +641,7 @@ body {
 
 #click-btn {
     padding: 18px 40px;
-    background: linear-gradient(180deg, #ff6b35, #e53935);
-    border: 4px solid #fff;
+    border: none;
     color: #fff;
     font-family: var(--pixel-font);
     font-size: 14px;
