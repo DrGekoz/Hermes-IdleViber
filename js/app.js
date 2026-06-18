@@ -741,6 +741,7 @@ function initUIEvents() {
         }
         if (type === 'prestige' || type === 'reset' || type === 'load') {
             updateAllUI();
+            updateLocalLeaderboardEntry();
             processAchievements();
         }
         if (type === 'rooms' || type === 'room_switch') {
@@ -1868,9 +1869,13 @@ function updateLocalLeaderboardEntry() {
             const vibeEl = row.querySelector('.lb-vibes');
             const ppEl = row.querySelector('.lb-pp');
             const vpsEl = row.querySelector('.lb-vps');
+            const prestigeEl = row.querySelector('.lb-prestige');
+            const tierEl = row.querySelector('.lb-tier');
             if (vibeEl) vibeEl.textContent = formatNumber(G.lifetime_vibes);
             if (ppEl) ppEl.textContent = formatNumber(G.total_pp_earned);
             if (vpsEl) vpsEl.textContent = formatNumber(getVPS());
+            if (prestigeEl) prestigeEl.textContent = formatNumber(G.total_prestiges);
+            if (tierEl) tierEl.textContent = TIERS.find(t => t.requires === getCurrentTier(G))?.name || '—';
             break;
         }
     }

@@ -121,14 +121,21 @@ Each count cycles 57 times (base + all suffixes). When a count wraps, the next l
 
 ### 💾 Persistence
 - Auto-save every 30s to localStorage
-- Firebase cloud save & leaderboard (optional)
+- **Firebase Firestore realtime leaderboard** — tier names, InfZ values, full BN array accuracy
 - Local API server mode for self-hosted accounts
-- Offline earnings calculated on return
+- Offline earnings calculated on return (10x format above 1000%)
 
 ### 🏆 Achievements
-- 55 achievements across vibe, click, prestige, room, VPS, gateway, decor, and autoclicker milestones
-- Real-time achievement notifications
+- 55 base achievements across vibe, click, prestige, room, VPS, gateway, decor, and autoclicker milestones
+- **250 tier achievements** — programmatically generated from Bronze I to Ten Quad (10Q) — one per prestige tier
+- Real-time achievement notifications with toast popups
 - Permanent unlock tracking
+
+### 🏅 Leaderboard
+- Firestore-backed realtime leaderboard with live tier column (Bronze, Silver, Gold, etc.)
+- Dev badge tooltip on hover for contributors
+- Stores full BN (BigNumber) arrays for accurate InfinityZ layer display
+- Clear polling on subscription — no double reads, respects Firestore quota
 
 ---
 
@@ -154,6 +161,11 @@ node server/index.js
 
 ## ✦ Recent Updates
 
+- **Realtime Firestore Leaderboard** — live tier column (Bronze→Silver→Gold→...), BN-accurate InfZ values, dev badge tooltips, auto-stream with polling cleanup to stay under quota
+- **Prestige Overhaul** — Max Prestige uses a math formula, runs instantly with zero UI freeze; prestige threshold now scales dynamically with VPS (log₂ factor), stops at 1hr cap; gentler sqrt-log formula for early-game pacing
+- **Tier Achievements** — 250 programmatic tier achievements, one per prestige tier (Bronze I → Ten Quad 10Q), generated on the fly
+- **Gateway HUD Redesign** — VPS multiplier on line 1, latency + prestige breakdown on line 2
+- **Offline Stats Enhancement** — offline rate switches to 10x format above 1000%
 - **InfinityZ number system** — numbers beyond Z display as `InfinityZ ×1`, `×1k`, `×1M` ... cycling through all suffixes infinitely
 - **Buy All buttons** — ⚡ Buy All on upgrades, decor, and prestige tabs (buys most expensive first, spends everything)
 - **Hold-to-spam** — works for both autoclicker upgrades AND prestige upgrades
