@@ -1819,31 +1819,31 @@ button.secondary:hover {
     background-size: 100% 100% !important;
     background-repeat: no-repeat !important;
     image-rendering: pixelated;
-    color: var(--room-btn-text-color, #4af) !important;
+    color: #ffffff;
     text-shadow:
-        1px 0 0 var(--room-btn-text-stroke, transparent),
-        -1px 0 0 var(--room-btn-text-stroke, transparent),
-        0 1px 0 var(--room-btn-text-stroke, transparent),
-        0 -1px 0 var(--room-btn-text-stroke, transparent),
-        1px 1px 0 var(--room-btn-text-stroke, transparent),
-        -1px -1px 0 var(--room-btn-text-stroke, transparent),
-        1px -1px 0 var(--room-btn-text-stroke, transparent),
-        -1px 1px 0 var(--room-btn-text-stroke, transparent);
+        1px 0 0 #000000,
+        -1px 0 0 #000000,
+        0 1px 0 #000000,
+        0 -1px 0 #000000,
+        1px 1px 0 #000000,
+        -1px -1px 0 #000000,
+        1px -1px 0 #000000,
+        -1px 1px 0 #000000;
 }
 .sidebar-tabs button.active {
     background-image: var(--room-btn-img) !important;
     background-size: 100% 100% !important;
     background-repeat: no-repeat !important;
-    color: var(--room-btn-text-color-inv) !important;
+    color: #000000;
     text-shadow:
-        1px 0 0 var(--room-btn-text-stroke-inv, transparent),
-        -1px 0 0 var(--room-btn-text-stroke-inv, transparent),
-        0 1px 0 var(--room-btn-text-stroke-inv, transparent),
-        0 -1px 0 var(--room-btn-text-stroke-inv, transparent),
-        1px 1px 0 var(--room-btn-text-stroke-inv, transparent),
-        -1px -1px 0 var(--room-btn-text-stroke-inv, transparent),
-        1px -1px 0 var(--room-btn-text-stroke-inv, transparent),
-        -1px 1px 0 var(--room-btn-text-stroke-inv, transparent);
+        1px 0 0 #ffffff,
+        -1px 0 0 #ffffff,
+        0 1px 0 #ffffff,
+        0 -1px 0 #ffffff,
+        1px 1px 0 #ffffff,
+        -1px -1px 0 #ffffff,
+        1px -1px 0 #ffffff,
+        -1px 1px 0 #ffffff;
 }
 /* Small buttons */
 #music-prev, #music-play, #music-next,

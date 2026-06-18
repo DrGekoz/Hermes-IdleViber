@@ -1899,10 +1899,10 @@ function setButtonTextContrast(imageUrl) {
         const avg = count > 0 ? total / count : 140;
         const isDark = avg < 140;
         const root = document.documentElement;
-        root.style.setProperty('--room-btn-text-color', isDark ? '#ffffff' : '#000000');
-        root.style.setProperty('--room-btn-text-stroke', isDark ? '#000000' : '#ffffff');
-        root.style.setProperty('--room-btn-text-color-inv', isDark ? '#000000' : '#ffffff');
-        root.style.setProperty('--room-btn-text-stroke-inv', isDark ? '#ffffff' : '#000000');
+        root.style.setProperty('--room-btn-text-color', '#ffffff');
+        root.style.setProperty('--room-btn-text-stroke', '#000000');
+        root.style.setProperty('--room-btn-text-color-inv', '#000000');
+        root.style.setProperty('--room-btn-text-stroke-inv', '#ffffff');
     };
     img.onerror = () => {
         document.documentElement.style.setProperty('--room-btn-text-color', '#ffffff');
