@@ -375,8 +375,8 @@ body {
     display: none;
 }
 .shop-tooltip-main .tt-icon-img {
-    width: 128px;
-    height: 128px;
+    width: 154px;
+    height: 154px;
     image-rendering: pixelated;
     object-fit: contain;
     flex-shrink: 0;
