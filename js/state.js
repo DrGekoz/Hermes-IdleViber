@@ -539,19 +539,19 @@ const TIERS = (function() {
         const tierNum = i + 1;
         let requiresBN;
         if (i < 250) {
-            requiresBN = bnFromNumber(Math.max(1, Math.round(Math.pow(1.06, i))));
+            // Strictly monotonic: floor(base^i + i) ensures every tier is unique
+            requiresBN = bnFromNumber(Math.max(1, Math.floor(Math.pow(1.06, i) + i)));
         } else {
             const x = i - 249; // 1 to 250
-            // Exponential acceleration: 1.045^x gives strictly unique exponents
-            // At x=1: ~1.045 → exponent ~7
-            // At x=100: ~87 → exponent ~93 → normal suffix
-            // At x=120: ~183 → exponent ~189 → InfZ^1 (>141)
-            // At x=150: ~667 → exponent ~673 → InfZ^4 (423–564)
-            // At x=200: ~6008 → exponent ~6014 → InfZ^∞ (>1410)
-            // At x=249: ~54058 → exponent ~54064 → deep InfZ^∞
+            // Exponential acceleration: 1.045^x with floor(pow+x) for strict uniqueness
+            // At x=1: ~2 → exponent ~8
+            // At x=100: ~187 → exponent ~193 → InfZ^1 (>141)
+            // At x=150: ~817 → exponent ~823 → InfZ^5 (705–846)
+            // At x=200: ~6208 → exponent ~6214 → InfZ^∞ (>1410)
+            // At x=249: ~54258 → exponent ~54264 → deep InfZ^∞
             let expo;
             if (x < 245) {
-                expo = BASE_E + Math.round(Math.pow(1.045, x));
+                expo = BASE_E + Math.floor(Math.pow(1.045, x) + x);
             } else {
                 // Last 5 tiers: explicit astronomical exponents for InfZ^∞ display
                 const fin = [100000, 500000, 1000000, 5000000, 25000000];

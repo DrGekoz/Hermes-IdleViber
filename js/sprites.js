@@ -1282,13 +1282,25 @@ function _bgInit() {
             ffCanvas.height = off.height;
             const sw = off.width, sh = off.height;
             off.getContext('2d').drawImage(v, 0, 0, sw, sh, 0, 0, sw, sh);
-            ffCanvas.getContext('2d').drawImage(v, 0, 0, sw, sh, 0, 0, sw, sh);
-            BG_V._ff[n] = ffCanvas;
             s.dur = v.duration || 1;
 
             if (isPP) {
+                // Ping-pong: capture ff frame now + start frame capture
+                ffCanvas.getContext('2d').drawImage(v, 0, 0, sw, sh, 0, 0, sw, sh);
+                BG_V._ff[n] = ffCanvas;
                 _startPingPongCapture(n, v, s);
             } else {
+                // Loop rooms: capture first frame via requestVideoFrameCallback
+                // (drawImage at loadeddata may capture black — Chrome hasn't decoded yet)
+                const captureFF = function() {
+                    ffCanvas.getContext('2d').drawImage(v, 0, 0, sw, sh, 0, 0, sw, sh);
+                    BG_V._ff[n] = ffCanvas;
+                };
+                if (v.requestVideoFrameCallback) {
+                    v.requestVideoFrameCallback(captureFF);
+                } else {
+                    captureFF();
+                }
                 s.ready = true;
                 v.play().catch(() => {});
             }
@@ -1314,7 +1326,7 @@ function _bgDraw(src, ctx, w, h) {
     ctx.drawImage(src, sx, sy, sw, sh, 0, 0, w, h);
 }
 
-// Temp debug
+// Debug — exposed for verification; BG_V._ff and BG_V._v not on window
 window.__bgDebug = BG_V._s;
 async function drawBackground(roomId, ctx, w, h) {
     const bgName = _bgKey(roomId);
@@ -1355,11 +1367,24 @@ async function drawBackground(roomId, ctx, w, h) {
         } else {
             // Looping: draw from playing video + crossfade at loop seam
             _bgDraw(v, ctx, w, h);
-            if (ff && v.currentTime >= vs.dur - BG_V.CROSSFADE_SEC && v.currentTime < vs.dur) {
-                const alpha = Math.min(1, (v.currentTime - (vs.dur - BG_V.CROSSFADE_SEC)) / BG_V.CROSSFADE_SEC);
-                ctx.globalAlpha = alpha;
-                _bgDraw(ff, ctx, w, h);
-                ctx.globalAlpha = 1;
+            // Crossfade: fade in first frame at the end (alpha 0→1 over CROSSFADE_SEC)
+            // and fade out at the beginning (alpha 1→0) to cover the loop seam
+            // even when Chrome wraps currentTime discontinuously
+            if (ff) {
+                const endFadeStart = vs.dur - BG_V.CROSSFADE_SEC;
+                if (v.currentTime >= endFadeStart) {
+                    // Last CROSSFADE_SEC seconds: fade in first frame
+                    const alpha = Math.min(1, (v.currentTime - endFadeStart) / BG_V.CROSSFADE_SEC);
+                    ctx.globalAlpha = alpha;
+                    _bgDraw(ff, ctx, w, h);
+                    ctx.globalAlpha = 1;
+                } else if (v.currentTime < BG_V.CROSSFADE_SEC) {
+                    // First CROSSFADE_SEC seconds: fade out first frame
+                    const alpha = Math.max(0, 1 - v.currentTime / BG_V.CROSSFADE_SEC);
+                    ctx.globalAlpha = alpha;
+                    _bgDraw(ff, ctx, w, h);
+                    ctx.globalAlpha = 1;
+                }
             }
         }
         return true;

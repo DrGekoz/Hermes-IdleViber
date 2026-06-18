@@ -11,6 +11,10 @@
     "bgtest": {
       "password": "8e102795b787a2a72aac194db0d48411:31f51884f4c8d25a9d6e83fe4b9a88c23b5d864323b3282ca5bfe6ce9ea69112",
       "created_at": "2026-06-18T06:12:13.080Z"
+    },
+    "test_bg": {
+      "password": "37b847d0d4939d1b45d47495d0181d81:4bc8a800825ffe8afc6ba26dcb6eea0dab55feefcb9fa6f72f80021385368e14",
+      "created_at": "2026-06-18T07:03:11.373Z"
     }
   },
   "saves": {
@@ -202,6 +206,84 @@
         "username": "bgtest"
       },
       "updated_at": "2026-06-18T06:23:20.410Z"
+    },
+    "test_bg": {
+      "state": {
+        "version": 1,
+        "vibes": [
+          1.7976931348623157,
+          308
+        ],
+        "lifetime_vibes": [
+          1.7976931348623157,
+          308
+        ],
+        "prestige_points": [
+          0,
+          0
+        ],
+        "total_pp_earned": [
+          0,
+          0
+        ],
+        "total_prestiges": [
+          0,
+          0
+        ],
+        "prestige_unlocked": true,
+        "transcend_points": 0,
+        "transcend_upgrades": {},
+        "autoclickers": {},
+        "room_autoclickers": {},
+        "prestige_upgrades": {},
+        "decor": {},
+        "current_room": "cyber_den",
+        "unlocked_rooms": [
+          "campfire_grove",
+          "cyber_den",
+          "zen_garden",
+          "star_deck",
+          "study_lounge",
+          "beach_cove"
+        ],
+        "owned_decor": [],
+        "active_decor": {},
+        "gateway_history": [],
+        "placed_decor": {},
+        "gateway_bonus_active": false,
+        "_gwMult": 1,
+        "_gwLabel": "Disconnected",
+        "_gwLatency": 0,
+        "last_save": 1781766476742,
+        "total_clicks": 0,
+        "total_gateway_pings": 0,
+        "auth_token": "60b4fce078dd54ee23d80c35960f5819ec772a748553bd1442fd5054f63ab57f",
+        "auth_mode": "local_api",
+        "displayName": null,
+        "display_name_last_changed": 0,
+        "server_online": true,
+        "achievements": [
+          "room_cyber",
+          "room_zen",
+          "room_star",
+          "room_study",
+          "room_beach",
+          "room_all"
+        ],
+        "settings": {
+          "sfx_volume": 0.5,
+          "music_volume": 0.5,
+          "music_playing": true,
+          "music_track_index": 0,
+          "music_shuffle": true,
+          "particle_effects": true,
+          "show_float_text": true,
+          "sidebar_position": "left"
+        },
+        "userId": "test_bg",
+        "username": "test_bg"
+      },
+      "updated_at": "2026-06-18T07:07:56.744Z"
     }
   },
   "leaderboard": [
@@ -224,6 +306,16 @@
       ],
       "vps": 0,
       "updated_at": "2026-06-18T06:12:27.835Z"
+    },
+    {
+      "username": "test_bg",
+      "score": 1.7976931348623157e+308,
+      "prestige_level": [
+        0,
+        0
+      ],
+      "vps": 0,
+      "updated_at": "2026-06-18T07:03:27.229Z"
     },
     {
       "username": "testplayer",
@@ -266,6 +358,11 @@
       "username": "testplayer",
       "created": 1781765677920,
       "expires": 1782370477920
+    },
+    "60b4fce078dd54ee23d80c35960f5819ec772a748553bd1442fd5054f63ab57f": {
+      "username": "test_bg",
+      "created": 1781766191403,
+      "expires": 1782370991403
     }
   }
 }

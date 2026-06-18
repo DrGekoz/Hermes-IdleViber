@@ -17,11 +17,15 @@ function p2pGenerateId() {
         });
 }
 
-function p2pGetOrCreateId() {
-    let id = localStorage.getItem(P2P_ID_KEY);
+function p2pGetOrCreateId(username) {
+    // Scope P2P identity by account so different accounts on the same browser
+    // get unique IDs (two browser tabs playing different accounts can P2P connect)
+    const suffix = username ? '_' + username.replace(/[^a-zA-Z0-9]/g, '') : '';
+    const key = P2P_ID_KEY + suffix;
+    let id = localStorage.getItem(key);
     if (!id) {
         id = p2pGenerateId();
-        localStorage.setItem(P2P_ID_KEY, id);
+        localStorage.setItem(key, id);
     }
     return id;
 }
@@ -65,7 +69,7 @@ let p2pState = {
 // ---- PUBLIC API ----
 
 function p2pInit(db, username, fbGetLeaderboard, firestoreApi) {
-    p2pState.playerId = p2pGetOrCreateId();
+    p2pState.playerId = p2pGetOrCreateId(username);
     p2pState.username = username || 'Player';
     p2pState.db = db;
     p2pState.fbGetLeaderboard = fbGetLeaderboard;
