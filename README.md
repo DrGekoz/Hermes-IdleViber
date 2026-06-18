@@ -21,8 +21,8 @@ Hermes IdleViber is an **ambient idle/incremental game** that lives in your brow
 |---|---|
 || **Genre** | Ambient idle / incremental ("cozy incremental") |
 || **Platform** | Browser (Chrome, Firefox, Edge) |
-|| **Art** | 16-bit pixel art — 92 custom upgrade icons + procedural room rendering |
-|| **Music** | 8-bit chiptune via Web Audio API — 12 tracks across 4 genres |
+|| **Art** | 16-bit pixel art — 78 autoclicker upgrade icons + decor sprites + procedural room rendering |
+|| **Music** | 45 chiptune cover MP3s — video game classics, pop covers, internet hits |
 || **Progression** | Exponential cost scaling + prestige layer + per-room upgrades + 250 tiers |
 || **Number System** | k → Z → **InfinityZ ×N** → InfinityZ × InfinityZ (N) — never caps |
 || **Lock** | 🔒 Hermes gateway bonus — upgradeable multiplier boost |
@@ -100,7 +100,7 @@ Each count cycles 57 times (base + all suffixes). When a count wraps, the next l
 - Affordability updates every tick — no tab-hopping required
 
 ### 🎨 Visual
-- 92 custom pixel art upgrade icons generated via Codex CLI (16-bit retro style)
+- 78 custom autoclicker pixel art icons + 49 prestige/decor icons + 102 decor placement sprites — all generated via Codex CLI (16-bit retro style)
 - 6 unique room backgrounds with atmospheric effects
 - Particle systems: fireflies, matrix rain, cherry blossoms, aurora, smoke, dust, waves
 - Godrays & dynamic lighting
@@ -108,13 +108,12 @@ Each count cycles 57 times (base + all suffixes). When a count wraps, the next l
 - Custom chroma-key removal pipeline for transparent icon assets
 
 ### 🎵 Audio
-- Chiptune engine via Web Audio API — zero audio files
-- 4 genres: Chill, Cyber, Jazz, Nature — 12 tracks total
-- Room-based music auto-switching
+- 45 chiptune cover MP3s — game classics (Zelda, Mario, Pokemon, Megaman, Chrono, Castlevania), pop covers (Blinding Lights, Take On Me, Eye of the Tiger), anime hits (Otonoke, Naruto), and memes
+- Shuffle play across the full playlist
 - Adjustable SFX & music volume
 
 ### 🔌 Integration
-- Auto-discovers Hermes gateway on 6 port ranges
+- Auto-discovers Hermes gateway by scanning 41 common ports
 - Real-time latency display with quality tiers
 - Gateway VPS multiplier updates live
 - Task-in-progress detection (doubles multiplier when gateway is busy)
@@ -170,7 +169,7 @@ node server/index.js
 - **Buy All buttons** — ⚡ Buy All on upgrades, decor, and prestige tabs (buys most expensive first, spends everything)
 - **Hold-to-spam** — works for both autoclicker upgrades AND prestige upgrades
 - **Real-time tab indicators** — sidebar tabs show gold/green/cyan dots when items are affordable or ready
-- **78 pixel art upgrade icons** — each room's 13 upgrades have custom Codex CLI-generated pixel art
+- **127+ pixel art icons** — 78 autoclicker, 49 prestige/decor, and 102 decor placement sprites — all Codex CLI-generated 16-bit pixel art
 - **Per-room cost progression** — costs track the current room's purchase count, not global
 - **Prestige cost fixes** — progressive cost scaling for all re-buyable prestige upgrades
 
@@ -178,7 +177,7 @@ node server/index.js
 
 ## ✦ Architecture
 
-```
+```text
 Hermes-IdleViber/
 ├── index.html                  # Entry point — single-page game UI
 ├── css/styles.css              # Dark retro pixel styling
@@ -186,13 +185,16 @@ Hermes-IdleViber/
 │   ├── state.js                # Game state engine, formulas, definitions, save/load
 │   ├── gateway.js              # Hermes gateway discovery & health polling
 │   ├── sprites.js              # Pixel art sprite definitions & room renderer
-│   ├── music.js                # Web Audio API chiptune engine
+│   ├── music.js                # Music player — 45 chiptune cover MP3s
 │   └── app.js                  # Main loop, UI binding, event wiring
 ├── server/                     # Optional self-hosted backend
 │   ├── index.js                # HTTP server with CORS
 │   └── package.json
-└── sprites/images/
-    └── icons/individual/       # 92 pixel art upgrade icons (64×64 webp)
+├── audio/                      # 45 chiptune cover MP3s
+├── sprites/images/
+│   ├── bg/                     # 6 room background images
+│   ├── icons/individual/       # 127 autoclicker + prestige + decor icons (64×64 webp)
+│   └── room_decor/             # 102 decor placement sprites
 ```
 
 ---
