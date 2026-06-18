@@ -7,6 +7,8 @@ import { PRESTIGE_UPGRADES } from './state.js';
 
 // --- FREE PLACEMENT (no grid snap) ---
 const PLACEMENT_SNAP = 1;  // Pixel-perfect placement
+// Decor render size: 40% of 256x256 webp source
+const DECOR_RENDER_SIZE = 102;
 
 // --- PLACEMENT STATE ---
 const placementState = {
@@ -706,8 +708,8 @@ function getSpriteGridSize(spriteId) {
 function getSpritePixelSize(spriteId) {
     const def = SPRITES[spriteId];
     if (def) return { w: def.w * 2, h: def.h * 2 };
-    // Room decor items (IDs with underscores) use ~26x26 on canvas (40% of original 64x64)
-    if (spriteId && spriteId.includes('_')) return { w: 26, h: 26 };
+    // Room decor items render at 40% of source size (256x256 → 102x102)
+    if (spriteId && spriteId.includes('_')) return { w: DECOR_RENDER_SIZE, h: DECOR_RENDER_SIZE };
     return { w: 32, h: 32 };
 }
 
@@ -1437,17 +1439,18 @@ function drawPlacementGhost(ctx, state) {
 
     // For room decor, try loading the external PNG sprite (cached)
     if (decorId && decorId.includes('_')) {
-        loadExternalSprite(`sprites/images/room_decor/icons/${decorId}.png`).then(img => {
+        loadExternalSprite(`sprites/images/room_decor/icons/${decorId}.webp`).then(img => {
             if (!img) return;
+            const ds = { w: DECOR_RENDER_SIZE, h: DECOR_RENDER_SIZE };
             ctx.save();
             ctx.globalAlpha = 0.5;
-            ctx.drawImage(img, ghostX, ghostY);
+            ctx.drawImage(img, ghostX, ghostY, ds.w, ds.h);
             ctx.restore();
             ctx.save();
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
             ctx.lineWidth = 1;
             ctx.setLineDash([4, 4]);
-            ctx.strokeRect(ghostX, ghostY, img.width, img.height);
+            ctx.strokeRect(ghostX, ghostY, ds.w, ds.h);
             ctx.restore();
         });
         return;
@@ -1560,7 +1563,7 @@ function renderRoom(roomId, canvas, state) {
                     let sprite = null;
                     if (spriteId.length > 2 && spriteId.includes('_')) {
                         decorPromises.push(
-                            loadExternalSprite(`sprites/images/room_decor/icons/${spriteId}.png`).then(img => {
+                            loadExternalSprite(`sprites/images/room_decor/icons/${spriteId}.webp`).then(img => {
                                 if (img) return { decorKey, index: i, sprite: img, p };
                                 // Fall back to generated sprite
                                 return { decorKey, index: i, sprite: generateSprite(spriteId, 2), p };
@@ -1583,19 +1586,20 @@ function renderRoom(roomId, canvas, state) {
                 }
             }
         }
-        // Draw async loaded decor images
+        // Draw async loaded decor images (at 40% size for external webp)
         Promise.all(decorPromises).then(results => {
             for (const r of results) {
                 if (!r || !r.sprite || !r.sprite.width) continue;
                 const snapped = snapToGrid(r.p.x, r.p.y);
+                const ds = getSpritePixelSize(decorToSprite(r.decorKey));
                 if (dragState.active && dragState.decorKey === r.decorKey && dragState.index === r.index) {
                     ctx.save();
-                    ctx.translate(dragState.currentX + r.sprite.width/2, dragState.currentY + r.sprite.height/2);
+                    ctx.translate(dragState.currentX + ds.w/2, dragState.currentY + ds.h/2);
                     ctx.rotate(dragState.rotation || 0);
-                    ctx.drawImage(r.sprite, -r.sprite.width/2, -r.sprite.height/2);
+                    ctx.drawImage(r.sprite, -ds.w/2, -ds.h/2, ds.w, ds.h);
                     ctx.restore();
                 } else {
-                    ctx.drawImage(r.sprite, snapped.x, snapped.y);
+                    ctx.drawImage(r.sprite, snapped.x, snapped.y, ds.w, ds.h);
                 }
             }
             drawGodrays(ctx, w, h);
@@ -1697,7 +1701,7 @@ function startDrag(decorKey, index, mouseX, mouseY, decorX, decorY) {
 function updateDrag(mx, my) {
     if (!dragState.active) return;
 
-    // Calculate velocity (for inertia + rotation wobble)
+    // Calculate velocity (for rotation wobble)
     const rawVx = (mx - dragState.mouseX);
     const rawVy = (my - dragState.mouseY);
     dragState.velocityX = rawVx * 0.3;
@@ -1713,11 +1717,9 @@ function updateDrag(mx, my) {
     dragState.rotation += (dragState.targetRotation - dragState.rotation) * 0.15;
 
     // Target decor position: mouse minus the local offset (keeps grab point under cursor)
-    const targetX = mx - dragState.localOffsetX;
-    const targetY = my - dragState.localOffsetY;
-    // Apply with lerp for smooth follow (0.5 = snappy but smooth)
-    dragState.currentX += (targetX - dragState.currentX) * 0.5;
-    dragState.currentY += (targetY - dragState.currentY) * 0.5;
+    // Direct follow — no lerp smoothing, pixel-precise
+    dragState.currentX = mx - dragState.localOffsetX;
+    dragState.currentY = my - dragState.localOffsetY;
 }
 
 function endDrag(state, finalX, finalY) {

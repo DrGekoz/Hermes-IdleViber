@@ -1765,18 +1765,24 @@ function updateDecorUI() {
             if (!owned) {
                 if (canBuy && buyDecor(item.id)) {
                     playPurchase();
-                    // Enter placement mode
-                    startDecorPlacement(item.id);
-                    showToast(`🎯 Click on the screen to place ${item.name}`);
+                    // Only enter placement mode if no saved positions exist
+                    if (!G.saved_decor_placements || !G.saved_decor_placements[item.id]) {
+                        startDecorPlacement(item.id);
+                        showToast(`🎯 Click on the screen to place ${item.name}`);
+                    } else {
+                        showToast(`✅ ${item.name} restored!`);
+                    }
                     updateAllUI();
                 }
             } else if (!active) {
                 activateDecor(item.id);
-                startDecorPlacement(item.id);
+                // No placement mode — decor restores to saved positions automatically
+                showToast(`✅ ${item.name} equipped!`);
                 updateAllUI();
             } else {
                 // Deactivate — toggle off and remove from canvas
                 activateDecor(item.id);
+                showToast(`❌ ${item.name} removed from canvas`);
                 updateAllUI();
             }
         };
