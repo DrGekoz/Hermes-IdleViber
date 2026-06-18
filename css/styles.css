@@ -1676,21 +1676,13 @@ input[type="range"]::-webkit-slider-thumb {
 }
 #music-shuffle.active {
     color: #0f0;
-    border-top-color: #0f0;
-    border-left-color: #0f0;
-    border-right-color: #0f0;
-    border-bottom-color: #0f0;
     box-shadow: 0 0 8px rgba(0,255,0,0.5), 0 0 16px rgba(0,255,0,0.2);
 }
 
 /* ---- PIXEL ART BUTTON STYLES ---- */
 .pixel-btn, .pixel-btn-sm {
     background: #14182d;
-    border: 2px solid;
-    border-top-color: #4af;
-    border-left-color: #3ad;
-    border-right-color: #28c;
-    border-bottom-color: #18b;
+    border: none;
     color: #4af;
     font-family: var(--pixel-font);
     font-size: 8px;
@@ -1707,17 +1699,11 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .pixel-btn:hover, .pixel-btn-sm:hover {
     background: #1e2a4d;
-    border-top-color: #8df;
-    border-left-color: #6cf;
-    border-right-color: #4af;
-    border-bottom-color: #2af;
     color: #8df;
     box-shadow: 0 0 12px rgba(68,170,255,0.4);
 }
 .pixel-btn:active, .pixel-btn-sm:active {
     transform: translate(1px, 1px);
-    border-top-color: #18b;
-    border-bottom-color: #4af;
     box-shadow: none;
 }
 
@@ -1729,11 +1715,7 @@ input[type="range"]::-webkit-slider-thumb {
 .settings-tab,
 .sidebar-tabs button {
     background: #14182d !important;
-    border: 2px solid !important;
-    border-top-color: #4af !important;
-    border-left-color: #3ad !important;
-    border-right-color: #28c !important;
-    border-bottom-color: #18b !important;
+    border: none !important;
     color: #4af !important;
     font-family: var(--pixel-font) !important;
     font-size: 7px !important;
@@ -1749,10 +1731,6 @@ input[type="range"]::-webkit-slider-thumb {
 .settings-tab:hover,
 .sidebar-tabs button:hover {
     background: #1e2a4d !important;
-    border-top-color: #8df !important;
-    border-left-color: #6cf !important;
-    border-right-color: #4af !important;
-    border-bottom-color: #2af !important;
     color: #8df !important;
     box-shadow: 0 0 12px rgba(68,170,255,0.4) !important;
 }
@@ -1766,7 +1744,6 @@ input[type="range"]::-webkit-slider-thumb {
 /* Sidebar tabs active state override */
 .sidebar-tabs button.active {
     background: #1e3a5d !important;
-    border-color: #8df !important;
     color: #fff !important;
 }
 
@@ -1861,6 +1838,7 @@ button.secondary:hover {
     background-repeat: no-repeat !important;
 }
 /* Small buttons */
+#music-prev, #music-play, #music-next,
 .shop-item .shop-btn,
 #music-toggle-btn, #music-shuffle {
     background-image: var(--room-btn-sm-img) !important;
