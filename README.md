@@ -142,13 +142,15 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 - Dev badge with tooltip on hover for contributors
 
 ### 🏅 Leaderboard
-- **P2P WebRTC Mesh** — players connect directly via data channels using Firestore as a signaling server. Scores update in real-time with zero central server overhead.
+- **P2P ECDSA Crypto Mesh** — players connect via direct peer-to-peer data channels (WebRTC) using Firestore as a signaling server. Every broadcast is signed with ECDSA P-256 and verified by the receiving peer. 100-byte binary packets carry all columns.
+- **Live All-Column Sync** — VIBES, VPS, PP, PRESTIGE, and TIER columns update in real-time across the mesh.
 - **Firestore fallback** — when P2P fails (NAT restrictions, no peers), automatically switches to Firestore onSnapshot or polling (30s interval)
-- Live tier column (Bronze → Silver → Gold → ... up to Ten Quad 10Q)
+- **Deterministic Offerer Tiebreaker** — keyId → random nonce → username always picks one peer as the offerer, no stalemates
+- **Bulletproof formatting** — every cell wrapped in try/catch with type guards and safe fallbacks
 - Stores full BN arrays for accurate InfinityZ layer display
 - VPS column alongside vibes, prestige, and PP columns
 - Adaptive grid columns that scale with viewport
-- Auto-sorts by prestige level → total PP → score
+- **Sort chain**: highest tier → prestige → PP → VPS → Vibes (all descending)
 - Clear polling when Firestore subscription starts — no double reads, respects quota
 
 ### ⚙️ Settings
@@ -185,6 +187,13 @@ node server/index.js
 ## ✦ Recent Updates
 
 - **P2P WebRTC Mesh Leaderboard** — players connect via direct peer-to-peer data channels (WebRTC) using Firestore as a signaling server. Scores broadcast in real-time across the mesh. Automatically falls back to Firestore onSnapshot/polling when P2P is unavailable. Hourly Firestore sync for long-term persistence.
+- **ECDSA P-256 Crypto Layer** — every broadcast packet is signed with ECDSA P-256 and verified by the receiving peer. 100-byte binary packets carry VIBES, VPS, PP, prestige, and a 64-byte signature. All values are `Math.floor`'d and `isFinite`-guarded before signing to eliminate float64 stringification ambiguity across peers.
+- **Deterministic Offerer Tiebreaker** — when two peers discover each other, a guaranteed-decidable tournament (keyId → random nonce → username) picks one side to create the WebRTC offer. No more "both wait for the other" stalemates.
+- **5-Second Ping Discovery** — every peer refreshes its Firestore signaling doc every 5 seconds. Peers appear and disappear in real-time, with automatic reconnection on failure.
+- **Stale Signaling Cleanup** — old offer/answer docs from failed connection attempts are auto-deleted instead of looping on retry forever.
+- **Double-Init Race Guard** — `p2pStarting` mutex prevents two concurrent P2P initialization attempts from creating conflicting managers.
+- **Live All-Column Sync** — VIBES, VPS, PP, PRESTIGE, and TIER columns update in real-time across the mesh, not just score.
+- **Bulletproof Leaderboard Formatting** — every cell is wrapped in `fmtAll()` with try/catch, `isFinite`/`isNaN`/`Array.isArray` type guards, string→number coercion, BN array handling, and a safe fallback — one bad value can never crash the render loop.
 - **BigNumber System Hardening** — all game values now guarded with `_bnGuard()` for null/undefined/isFinite recovery. `BN_MAX` sentinel prevents infinite exponent overflow. Arithmetic functions return gracefully on overflow instead of crashing. Cloud migration handles malformed BN arrays.
 - **Cloud Save Merge** — instead of blindly overwriting, cloud saves now merge with local saves keeping the highest prestiges, total PP, and lifetime vibes. Smart progress preservation across devices.
 - **Max Prestige Batching** — runs in non-blocking 500-cycle batches via `requestAnimationFrame` — no UI freeze even at extreme VPS levels. BigNumber math throughout.
@@ -245,7 +254,8 @@ Hermes-IdleViber/
 | `state.js` | Game state object, BigNumber arithmetic (BN), room/upgrade/decor definitions, save/load to localStorage, prestige/tier system, offline earnings |
 | `gateway.js` | Hermes gateway port scanning, latency polling, connection quality assessment |
 | `firebase.js` | Firebase App initialization, Auth (Google/GitHub/Email), Firestore CRUD for saves & leaderboard, `syncLeaderboardToFirestore()`, `getFirestoreApi()` for P2P |
-| `p2p.js` | P2P leaderboard module — WebRTC peer connections via `RTCPeerConnection` + data channels; Firestore signaling (offers/answers/presence); onSnapshot fallback; 30s polling fallback |
+| `p2p-crypto.js` | **ECDSA P-256 crypto P2P mesh** — binary packet encode/decode, WebRTC signaling via Firestore, deterministic offerer tiebreaker, 5-second ping discovery, auto-reconnect, 15-min cloud backup election |
+| `p2p.js` | Legacy P2P leaderboard module — WebRTC peer connections (pre-crypto, kept for reference) |
 | `sprites.js` | Pixel art sprite rendering on canvas, room backgrounds, particle systems, decor placement |
 | `sfx.js` | 8-bit sound effects for clicks, purchases, prestige, achievements |
 | `music.js` | Chiptune MP3 player with shuffle, play queue, volume control |
