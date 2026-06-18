@@ -1837,10 +1837,10 @@ function applyRoomTheme(roomId) {
     root.style.setProperty('--room-resource-bg', t.resource_bg);
     // Set room-themed button background images
     const prefix = ROOM_PREFIX[roomId] || roomId.substring(0, 2);
-    root.style.setProperty('--room-btn-img', `url(sprites/images/ui/${prefix}_btn.webp)`);
-    root.style.setProperty('--room-btn-sm-img', `url(sprites/images/ui/${prefix}_btn_sm.webp)`);
-    root.style.setProperty('--room-btn-wide-img', `url(sprites/images/ui/${prefix}_btn_wide.webp)`);
-    root.style.setProperty('--room-btn-xl-img', `url(sprites/images/ui/${prefix}_btn_xl.webp)`);
+    root.style.setProperty('--room-btn-img', `url(/sprites/images/ui/${prefix}_btn.webp)`);
+    root.style.setProperty('--room-btn-sm-img', `url(/sprites/images/ui/${prefix}_btn_sm.webp)`);
+    root.style.setProperty('--room-btn-wide-img', `url(/sprites/images/ui/${prefix}_btn_wide.webp)`);
+    root.style.setProperty('--room-btn-xl-img', `url(/sprites/images/ui/${prefix}_btn_xl.webp)`);
     // Swap room-themed UI divider
     const divider = document.getElementById('room-theme-divider');
     if (divider) {

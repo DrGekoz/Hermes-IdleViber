@@ -16,6 +16,11 @@
 <!-- LOGIN SCREEN -->
 <!-- ========================================== -->
 <div id="login-screen">
+    <!-- Login video wallpaper (full-screen looping, crossfade at loop seam) -->
+    <div id="login-bg" class="login-bg">
+        <canvas id="login-bg-canvas"></canvas>
+        <video id="login-video-a" class="login-video" muted playsinline preload="auto" src="sprites/images/bg/login_screen.mp4"></video>
+    </div>
     <div class="login-box">
         <h1><img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon" alt=""> HERMES <img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon" alt=""><br>IDLEVIBER</h1>
         <div class="login-subtitle">~ THE AMBIENT GATEWAY ~</div>
@@ -493,5 +498,9 @@
     <script type="module" src="js/music.js?v=75"></script>
 <script type="module" src="js/app.js?v=75"></script>
 
+<!-- Login video background crossfade (single-video + first-frame canvas) -->
+<script>
+(function(){'use strict';var ls=document.getElementById('login-screen');if(!ls)return;var v=document.getElementById('login-video-a'),c=document.getElementById('login-bg-canvas'),CF=1.5,bc=null,cap=0;if(!v||!c)return;var cx=c.getContext('2d');v.addEventListener('loadeddata',function(){if(cap)return;cap=1;c.width=v.videoWidth||640;c.height=v.videoHeight||360;cx.imageSmoothingEnabled=false;cx.drawImage(v,0,0,c.width,c.height);bc=document.createElement('canvas');bc.width=c.width;bc.height=c.height;bc.getContext('2d').drawImage(v,0,0)});v.play().catch(function(){});setInterval(function(){if(!cap||!bc)return;var t=v.currentTime,d=v.duration;if(!d||d===Infinity)return;var fs=d-CF;if(t>=fs){var a=Math.min(1,(t-fs)/CF);c.style.opacity=a;cx.clearRect(0,0,c.width,c.height);cx.drawImage(bc,0,0)}else if(t<CF){var a=Math.max(0,1-t/CF);c.style.opacity=a;cx.clearRect(0,0,c.width,c.height);cx.drawImage(bc,0,0)}else{c.style.opacity=0}})()})();
+</script>
 </body>
 </html>

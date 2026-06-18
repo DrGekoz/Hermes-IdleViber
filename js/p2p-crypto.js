@@ -130,24 +130,13 @@ class P2PLeaderboardManager {
         }, 5000);
 
         this._reconnectTimer = setInterval(() => {
-            const { doc:fdoc, getDoc } = this.fs;
-            for (const [k, p] of this.peers) {
-                if (p.ch?.readyState === 'open') continue;
-                if (!p.pc || p.pc.connectionState === 'failed' || p.pc.connectionState === 'disconnected') {
-                    console.log('🔄 P2P reconnecting to', k);
-                    this._onPeerGone(k);
-                    getDoc(fdoc(this.fs.db, 'sig', k)).then(snap => {
-                        if (!snap.exists()) return;
-                        const d = snap.data();
-                        crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']).then(pub => {
-                            this.peers.set(k, { pc:null, ch:null, pub, name: d.u||'?', seq:0, keyId: d.kid||k, nonce: d.nonce||0 });
-                            this._connect(k, d.kid, d.nonce||0);
-                        });
-                    }).catch(() => {});
-                    break;
-                }
-            }
+            this._rescanPeers();
         }, 15000);
+
+        // Peer discovery failsafe: actively scan when few peers
+        this._scanTimer = setInterval(() => {
+            if (this.peers.size === 0) this._rescanPeers();
+        }, 30000);
 
         if (!this._uploadTimer) this._uploadTimer = setInterval(() => this._uploadIfElected(), 900000);
     }

@@ -1203,11 +1203,12 @@ function loadExternalSprite(path) {
 // - Campfire & Study: ping-pong (forward→backward→forward)
 //   Frames pre-captured via requestVideoFrameCallback, then
 //   animated through the array — no seeking needed
-// - Cyber, Zen, Star, Beach: native loop + crossfade at seam
+// - Cyber, Zen, Star, Beach: dual-video seamless handoff
+//   Two non-looping videos, crossfade at handoff — no pause
 // ============================================================
 const BG_V = {
-    FPS: 12, FRAME_MS: 1000 / 12, CROSSFADE_SEC: 0.8,
-    _v: {}, _s: {}, _ff: {}, _pp: {}, _inited: false
+    FPS: 12, FRAME_MS: 1000 / 12, CROSSFADE_SEC: 1.5,
+    _v: {}, _v2: {}, _s: {}, _ff: {}, _pp: {}, _inited: false
 };
 const _BG_PP = { campfire_grove:1, study_lounge:1 }; // ping-pong rooms
 
@@ -1263,11 +1264,20 @@ function _bgInit() {
         const isPP = n === 'bg_campfire' || n === 'bg_study_lounge';
         const v = document.createElement('video');
         v.muted = true; v.playsInline = true; v.preload = 'auto';
-        v.loop = !isPP;
+        v.loop = false; // No native loop — dual-video handoff instead
         v.src = `sprites/images/bg/${n}.mp4`;
         v.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-1;';
         document.body.appendChild(v);
         BG_V._v[n] = v;
+
+        // Second video for seamless handoff (no native loop — avoid pause)
+        const v2 = document.createElement('video');
+        v2.muted = true; v2.playsInline = true; v2.preload = 'auto';
+        v2.loop = false;
+        v2.src = `sprites/images/bg/${n}.mp4`;
+        v2.style.cssText = v.style.cssText;
+        document.body.appendChild(v2);
+        BG_V._v2[n] = v2;
 
         const off = document.createElement('canvas');
         const ffCanvas = document.createElement('canvas');
@@ -1308,6 +1318,7 @@ function _bgInit() {
             }
         });
         v.load();
+        v2.load();
         if (!isPP) v.play().catch(() => {});
     }
 }
@@ -1363,26 +1374,43 @@ async function drawBackground(roomId, ctx, w, h) {
                 _bgDraw(vs.off, ctx, w, h);
             }
         } else {
-            // Looping: draw from playing video + crossfade at loop seam
-            _bgDraw(v, ctx, w, h);
-            // Crossfade: fade in first frame at the end (alpha 0→1 over CROSSFADE_SEC)
-            // and fade out at the beginning (alpha 1→0) to cover the loop seam
-            // even when Chrome wraps currentTime discontinuously
-            if (ff) {
-                const endFadeStart = vs.dur - BG_V.CROSSFADE_SEC;
-                if (v.currentTime >= endFadeStart) {
-                    // Last CROSSFADE_SEC seconds: fade in first frame
-                    const alpha = Math.min(1, (v.currentTime - endFadeStart) / BG_V.CROSSFADE_SEC);
+            // Looping: dual-video handoff for seamless loop (no native loop pause)
+            const v2 = BG_V._v2[bgName];
+            if (vs.dur && v.currentTime >= vs.dur - BG_V.CROSSFADE_SEC) {
+                // Approaching end — start standby video
+                if (v2.paused) {
+                    v2.currentTime = 0;
+                    v2.play().catch(() => {});
+                }
+                // Crossfade: fade in standby, keep primary
+                const alpha = Math.min(1, (v.currentTime - (vs.dur - BG_V.CROSSFADE_SEC)) / BG_V.CROSSFADE_SEC);
+                _bgDraw(v, ctx, w, h);
+                if (!v2.paused) {
                     ctx.globalAlpha = alpha;
-                    _bgDraw(ff, ctx, w, h);
-                    ctx.globalAlpha = 1;
-                } else if (v.currentTime < BG_V.CROSSFADE_SEC) {
-                    // First CROSSFADE_SEC seconds: fade out first frame
-                    const alpha = Math.max(0, 1 - v.currentTime / BG_V.CROSSFADE_SEC);
-                    ctx.globalAlpha = alpha;
-                    _bgDraw(ff, ctx, w, h);
+                    _bgDraw(v2, ctx, w, h);
                     ctx.globalAlpha = 1;
                 }
+                // When primary reaches end, swap roles
+                if (v.ended || v.currentTime >= vs.dur - 0.05) {
+                    v.pause();
+                    v.currentTime = 0;
+                    BG_V._v[bgName] = v2;
+                    BG_V._v2[bgName] = v;
+                }
+            } else if (v.currentTime < BG_V.CROSSFADE_SEC && !v2.paused) {
+                // Just swapped — fade out the old standby (now in v2) during first seconds
+                const alpha = Math.max(0, 1 - v.currentTime / BG_V.CROSSFADE_SEC);
+                _bgDraw(v, ctx, w, h);
+                ctx.globalAlpha = alpha;
+                _bgDraw(v2, ctx, w, h);
+                ctx.globalAlpha = 1;
+                // Once past crossfade window, pause standby
+                if (v.currentTime >= BG_V.CROSSFADE_SEC) {
+                    v2.pause();
+                    v2.currentTime = 0;
+                }
+            } else {
+                _bgDraw(v, ctx, w, h);
             }
         }
         return true;
