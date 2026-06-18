@@ -1411,9 +1411,13 @@ function buyDecor(id) {
         G.vibes = bnSub(G.vibes, bnFromNumber(item.cost));
         G.owned_decor.push(id);
         G.active_decor[id] = true; // Auto-activate on purchase
-        // Restore saved placement positions from previous runs
+        // Restore saved placement positions from previous runs (max 1 per decor),
+        // or create a default placement so the item is always visible on canvas
         if (G.saved_decor_placements && G.saved_decor_placements[id]) {
-            G.placed_decor[id] = JSON.parse(JSON.stringify(G.saved_decor_placements[id]));
+            const saved = G.saved_decor_placements[id];
+            G.placed_decor[id] = [saved[0]]; // Only keep first placement
+        } else {
+            G.placed_decor[id] = [{ x: 50, y: 50 }]; // Default position
         }
         notifyStateChange('decor');
         return true;
@@ -1439,9 +1443,13 @@ function activateDecor(id) {
         }
     } else {
         G.active_decor[id] = true;
-        // Restore saved placement positions when re-activating after prestige
+        // Restore saved placement positions when re-activating after prestige (max 1 per decor),
+        // or create a default placement so the item is always visible on canvas
         if (G.saved_decor_placements && G.saved_decor_placements[id]) {
-            G.placed_decor[id] = JSON.parse(JSON.stringify(G.saved_decor_placements[id]));
+            const saved = G.saved_decor_placements[id];
+            G.placed_decor[id] = [saved[0]]; // Only keep first placement
+        } else if (!G.placed_decor[id] || G.placed_decor[id].length === 0) {
+            G.placed_decor[id] = [{ x: 50, y: 50 }]; // Default position
         }
     }
     notifyStateChange('decor_active');
@@ -1654,6 +1662,21 @@ function loadGame() {
         }
         if (!G.achievements) G.achievements = [];
         if (!G.placed_decor) G.placed_decor = {};
+        // Migration: truncate any decor with multiple placements to max 1
+        if (G.placed_decor) {
+            for (const key of Object.keys(G.placed_decor)) {
+                if (Array.isArray(G.placed_decor[key]) && G.placed_decor[key].length > 1) {
+                    G.placed_decor[key] = [G.placed_decor[key][0]];
+                }
+            }
+        }
+        if (G.saved_decor_placements) {
+            for (const key of Object.keys(G.saved_decor_placements)) {
+                if (Array.isArray(G.saved_decor_placements[key]) && G.saved_decor_placements[key].length > 1) {
+                    G.saved_decor_placements[key] = [G.saved_decor_placements[key][0]];
+                }
+            }
+        }
         // Per-room autoclickers migration
         if (!G.room_autoclickers) {
             G.room_autoclickers = {};

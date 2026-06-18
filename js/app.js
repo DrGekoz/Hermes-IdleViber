@@ -52,6 +52,16 @@ import { p2pInit, p2pStart, p2pCleanup, p2pBroadcastScore, p2pSubscribe, p2pGetL
 import { P2PLeaderboardManager } from './p2p-crypto.js?v=61';
 let p2pCrypto = null;
 
+// Room ID → file prefix mapping (roomId.substring(0,2) doesn't match actual file names)
+const ROOM_PREFIX = {
+    campfire_grove: 'cg',
+    cyber_den: 'cd',
+    zen_garden: 'zg',
+    star_deck: 'sd',
+    study_lounge: 'sl',
+    beach_cove: 'bc',
+};
+
 // ---- DOM REFS ----
 const $ = (id) => document.getElementById(id);
 
@@ -742,9 +752,10 @@ function initUIEvents() {
         const decorId = getPlacingDecorId();
         if (!decorId) return;
 
-        // Add placement
+        // Add/replace placement (max 1 per decor)
         if (!G.placed_decor[decorId]) G.placed_decor[decorId] = [];
-        G.placed_decor[decorId].push({ x: snapped.x, y: snapped.y });
+        G.placed_decor[decorId][0] = { x: snapped.x, y: snapped.y }; // Replace or set first
+        if (G.placed_decor[decorId].length > 1) G.placed_decor[decorId].length = 1; // Trim extras
         // Sync to saved placements so they survive prestige
         if (!G.saved_decor_placements) G.saved_decor_placements = {};
         G.saved_decor_placements[decorId] = JSON.parse(JSON.stringify(G.placed_decor[decorId]));
@@ -1825,7 +1836,7 @@ function applyRoomTheme(roomId) {
     root.style.setProperty('--room-vibe-color', t.vibe_color);
     root.style.setProperty('--room-resource-bg', t.resource_bg);
     // Set room-themed button background images
-    const prefix = roomId.substring(0, 2);
+    const prefix = ROOM_PREFIX[roomId] || roomId.substring(0, 2);
     root.style.setProperty('--room-btn-img', `url(sprites/images/ui/${prefix}_btn.webp)`);
     root.style.setProperty('--room-btn-sm-img', `url(sprites/images/ui/${prefix}_btn_sm.webp)`);
     root.style.setProperty('--room-btn-wide-img', `url(sprites/images/ui/${prefix}_btn_wide.webp)`);
@@ -1833,15 +1844,15 @@ function applyRoomTheme(roomId) {
     // Swap room-themed UI divider
     const divider = document.getElementById('room-theme-divider');
     if (divider) {
-        const prefix = roomId.substring(0, 2);
-        divider.src = `sprites/images/ui/${prefix}_ui_divider.webp`;
+        const prefix = ROOM_PREFIX[roomId] || roomId.substring(0, 2);
+        divider.src = `sprites/images/ui/${prefix}_ui_divider.png`;
     }
 }
 
 function updateRoomUI() {
-    const prefix = (G.current_room || '').substring(0, 2);
+    const prefix = ROOM_PREFIX[G.current_room] || (G.current_room || '').substring(0, 2);
     const divider = document.getElementById('current-room');
-    if (divider) divider.src = `sprites/images/ui/${prefix}_ui_divider.webp`;
+    if (divider) divider.src = `sprites/images/ui/${prefix}_ui_divider.png`;
     applyRoomTheme(G.current_room);
     if (dom.currentRoomUpgradeLabel) {
         dom.currentRoomUpgradeLabel.textContent = ROOMS[G.current_room]?.name || 'Campfire Grove';
@@ -2803,6 +2814,7 @@ function buyAllDecor() {
     if (bought > 0) {
         playPurchase();
         updateAllUI();
+        showToast(`✅ ${bought} decor items restored to canvas`);
     }
 }
 

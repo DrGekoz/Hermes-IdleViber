@@ -205,7 +205,6 @@ body {
     display: flex;
     flex-direction: column;
     z-index: 100;
-    overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -681,10 +680,11 @@ body {
     pointer-events: none;
 }
 .room-divider-img {
-    width: 200px;
-    height: 28px;
+    width: 1000px;
+    height: 140px;
     image-rendering: pixelated;
     object-fit: contain;
+    object-position: top center;
     display: block;
 }
 .room-overlay .room-genre { font-size: 6px; color: var(--accent-cyan); margin-top: 3px; }
