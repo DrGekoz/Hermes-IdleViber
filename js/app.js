@@ -1097,6 +1097,8 @@ function initGameLoop() {
 
     // Leaderboard — real-time Firebase subscription (no polling flicker)
     if (fbReady) {
+        // Clear polling interval from first initGameLoop call
+        if (lbUpdater) { clearInterval(lbUpdater); lbUpdater = null; }
         const unsub = fbSubscribeLeaderboard((entries) => {
             try { updateLeaderboardUI(entries); } catch (e) { console.warn('LB callback err:', e); }
         }, 50);
