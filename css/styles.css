@@ -359,7 +359,7 @@ body {
     background: rgba(255,255,255,0.03);
 }
 .sidebar-tabs button.active {
-    color: #ffffff;
+    color: #ffffff !important;
     border-bottom-color: var(--room-accent, var(--accent-gold));
     background: var(--room-tab-active, rgba(255,215,0,0.05));
     box-shadow:
@@ -1851,7 +1851,7 @@ button.secondary:hover {
     background-size: 100% 100% !important;
     background-repeat: no-repeat !important;
     image-rendering: pixelated;
-    color: var(--room-btn-text-color, #ffffff);
+    color: var(--room-btn-text-color, #ffffff) !important;
     text-shadow:
         1px 0 0 #000000,
         -1px 0 0 #000000,
