@@ -1929,7 +1929,7 @@ function updateRoomUI() {
             if (unlocked) {
                 switchRoom(room.id);
                 updateAllUI();
-            } else if (canUnlock) {
+            } else if (bnGe(G.vibes, room.cost)) {
                 if (unlockRoom(room.id)) {
                     playUnlock();
                     switchRoom(room.id);
