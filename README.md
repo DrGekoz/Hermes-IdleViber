@@ -152,6 +152,7 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 ### 🏅 Leaderboard
 - **P2P ECDSA Crypto Mesh** — players connect via direct peer-to-peer data channels (WebRTC) using Firestore as a signaling server. Every broadcast is signed with ECDSA P-256 and verified by the receiving peer. 100-byte binary packets carry all columns.
 - **Live All-Column Sync** — VIBES, VPS, PP, PRESTIGE, and TIER columns update in real-time across the mesh.
+- **P2P Failsafes** — when broadcast reaches 0 peers, automatically rescans the signaling directory, re-fetches peer keys, and initiates fresh WebRTC connections. Three-layer safety: per-tick reconnect on 0-sent (100ms), 15s repair timer, 30s full directory scan when isolated.
 - **Firestore fallback** — when P2P fails (NAT restrictions, no peers), automatically switches to Firestore onSnapshot or polling (30s interval)
 - **Deterministic Offerer Tiebreaker** — keyId → random nonce → username always picks one peer as the offerer, no stalemates
 - **Bulletproof formatting** — every cell wrapped in try/catch with type guards and safe fallbacks
@@ -194,6 +195,13 @@ node server/index.js
 
 ## ✦ Recent Updates
 
+- **Decor Canvas Overhaul** — decor items now render at 40% size (102×102) on canvas, single instance per decor type enforced, equip/unequip restores to saved positions without placement mode, drag reworked for instant cursor follow (no lerp lag), positions survive prestige via `saved_decor_placements`
+- **Room Divider Images** — switched from webp to user-cropped PNG banners, room prefix lookup fixed (was using `roomId.substring(0,2)` which produced wrong filenames), 5× larger with `object-position: top center` to prevent top cropping
+- **Login Screen Video Wallpaper** — looping MP4 covers full screen behind login box with seamless 1.5s crossfade using single-video + first-frame canvas overlay (same technique as room backgrounds)
+- **Smooth Room Backgrounds** — replaced native `<video loop>` (which has a built-in seek pause) with dual-video handoff: two non-looping videos crossfade at 1.5s margin, no native loop, no pause. CROSSFADE_SEC increased from 0.8 to 1.5.
+- **P2P Connection Failsafes** — `broadcast()` now triggers `_rescanPeers()` when 0 peers are reachable. New `_rescanPeers()` method reconnects failed peers and scans the full Firestore signaling directory for undiscovered players. Three-layer: per-tick (100ms), 15s repair, 30s full scan.
+- **Real-time Room Affordability** — room cards in the Rooms tab now update their `affordable` CSS class every tick without needing to switch tabs. Added `data-room-id` attribute for per-card lookup.
+- **Server MIME Types** — added `.webp` (image/webp) and `.mp4` (video/mp4) to the dev server's MIME types so browsers correctly render webp images and mp4 videos.
 - **P2P WebRTC Mesh Leaderboard** — players connect via direct peer-to-peer data channels (WebRTC) using Firestore as a signaling server. Scores broadcast in real-time across the mesh. Automatically falls back to Firestore onSnapshot/polling when P2P is unavailable. Hourly Firestore sync for long-term persistence.
 - **ECDSA P-256 Crypto Layer (JSON Messaging)** — every broadcast is signed with ECDSA P-256 and verified by the receiving peer. Messages are JSON text carrying full BN arrays `[mantissa, exponent]` — no float64 precision loss, no Infinity overflow. `formatBN` renders the exact InfZ notation on the receiving end.
 - **Deterministic Offerer Tiebreaker** — when two peers discover each other, a guaranteed-decidable tournament (keyId → random nonce → username) picks one side to create the WebRTC offer. No more "both wait for the other" stalemates.
