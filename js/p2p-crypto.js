@@ -258,6 +258,57 @@ class P2PLeaderboardManager {
             if (peer.ch?.readyState === 'open') try { peer.ch.send(msg); sent++; } catch (_) {}
         }
         if (this.seq % 50 === 0) console.log('📡 P2P bcast #', this.seq, 'sent', sent, 'score:', score, 'vps:', vps, 'pp:', pp, 'prestige:', prestige);
+        // Failsafe: if nothing sent and we have peers, reconnect them
+        // If no peers at all, actively scan signaling for anyone online
+        if (sent === 0) {
+            if (this.peers.size > 0) {
+                // We have peer entries but no open channels — force reconnect
+                this._rescanPeers();
+            } else if (this.seq % 10 === 0) {
+                // No peers at all — scan signaling collection
+                this._rescanPeers();
+            }
+        }
+    }
+
+    // Scan signaling collection for online peers and initiate connections
+    async _rescanPeers() {
+        const { db, doc:fdoc, getDoc, getDocs, collection } = this.fs;
+        if (!db || !getDocs) return;
+        try {
+            // Check existing peers for reconnect
+            for (const [k, p] of this.peers) {
+                if (p.ch?.readyState === 'open') continue;
+                if (!p.pc || p.pc.connectionState === 'failed' || p.pc.connectionState === 'disconnected') {
+                    console.log('🔄 P2P reconnecting to', k);
+                    this._onPeerGone(k);
+                    const snap = await getDoc(fdoc(db, 'sig', k));
+                    if (!snap.exists()) continue;
+                    const d = snap.data();
+                    if (!d?.k) continue;
+                    const pub = await crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']);
+                    this.peers.set(k, { pc:null, ch:null, pub, name: d.u||'?', seq:0, keyId: d.kid||k, nonce: d.nonce||0 });
+                    this._connect(k, d.kid, d.nonce||0);
+                }
+            }
+            // Scan for any online peers we don't know about yet
+            if (this.peers.size === 0) {
+                const snap = await getDocs(collection(db, 'sig'));
+                for (const s of snap.docs) {
+                    const k = s.id;
+                    if (k === this.username) continue;
+                    if (this.peers.has(k)) continue;
+                    const d = s.data();
+                    if (!d?.k || !d?.on) continue;
+                    console.log('📡 P2P discovered peer via scan:', k);
+                    const pub = await crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']);
+                    this.peers.set(k, { pc:null, ch:null, pub, name: d.u||'?', seq:0, keyId: d.kid||k, nonce: d.nonce||0 });
+                    this._connect(k, d.kid, d.nonce||0);
+                }
+            }
+        } catch (e) {
+            console.warn('📡 P2P rescan error:', e.message);
+        }
     }
 
     _elect() {
@@ -279,6 +330,7 @@ class P2PLeaderboardManager {
         clearInterval(this._uploadTimer);
         clearInterval(this._pingTimer);
         clearInterval(this._reconnectTimer);
+        clearInterval(this._scanTimer);
         for (const [k] of this.peers) this._onPeerGone(k);
         if (this._unsubPeers) this._unsubPeers();
         if (this._unsubOffers) this._unsubOffers();

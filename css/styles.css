@@ -1825,6 +1825,13 @@ button.secondary:hover {
     background-size: 100% 100% !important;
     background-repeat: no-repeat !important;
     image-rendering: pixelated;
+    color: var(--room-btn-text-color, #4af) !important;
+    -webkit-text-stroke: 1.5px var(--room-btn-text-stroke, transparent);
+    text-shadow:
+        1px 0 0 var(--room-btn-text-stroke, transparent),
+        -1px 0 0 var(--room-btn-text-stroke, transparent),
+        0 1px 0 var(--room-btn-text-stroke, transparent),
+        0 -1px 0 var(--room-btn-text-stroke, transparent);
 }
 .sidebar-tabs button.active {
     background-image: var(--room-btn-img) !important;
@@ -1837,16 +1844,37 @@ button.secondary:hover {
     background-image: var(--room-btn-sm-img) !important;
     background-size: 100% 100% !important;
     background-repeat: no-repeat !important;
+    color: var(--room-btn-text-color, #4af) !important;
+    -webkit-text-stroke: 1px var(--room-btn-text-stroke, transparent);
+    text-shadow:
+        1px 0 0 var(--room-btn-text-stroke, transparent),
+        -1px 0 0 var(--room-btn-text-stroke, transparent),
+        0 1px 0 var(--room-btn-text-stroke, transparent),
+        0 -1px 0 var(--room-btn-text-stroke, transparent);
 }
 /* Wide buttons */
 .buy-all-btn, .social-btn {
     background-image: var(--room-btn-wide-img) !important;
     background-size: 100% 100% !important;
     background-repeat: no-repeat !important;
+    color: var(--room-btn-text-color, #4af) !important;
+    -webkit-text-stroke: 1.5px var(--room-btn-text-stroke, transparent);
+    text-shadow:
+        1px 0 0 var(--room-btn-text-stroke, transparent),
+        -1px 0 0 var(--room-btn-text-stroke, transparent),
+        0 1px 0 var(--room-btn-text-stroke, transparent),
+        0 -1px 0 var(--room-btn-text-stroke, transparent);
 }
 /* XL buttons */
 #prestige-btn, #click-btn {
     background-image: var(--room-btn-xl-img) !important;
     background-size: 100% 100% !important;
     background-repeat: no-repeat !important;
+    color: var(--room-btn-text-color, #4af) !important;
+    -webkit-text-stroke: 1.5px var(--room-btn-text-stroke, transparent);
+    text-shadow:
+        1px 0 0 var(--room-btn-text-stroke, transparent),
+        -1px 0 0 var(--room-btn-text-stroke, transparent),
+        0 1px 0 var(--room-btn-text-stroke, transparent),
+        0 -1px 0 var(--room-btn-text-stroke, transparent);
 }
