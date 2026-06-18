@@ -68,6 +68,7 @@ class P2PLeaderboardManager {
         this.peers = new Map(); this.kp = null; this.kid = null;
         this.seq = 0; this._uploadTimer = null; this._pingTimer = null; this._reconnectTimer = null;
         this._nonce = Math.floor(Math.random() * 2147483647);
+        this._retryPending = null;
     }
 
     async init() {
@@ -258,21 +259,37 @@ class P2PLeaderboardManager {
             if (peer.ch?.readyState === 'open') try { peer.ch.send(msg); sent++; } catch (_) {}
         }
         if (this.seq % 50 === 0) console.log('📡 P2P bcast #', this.seq, 'sent', sent, 'score:', score, 'vps:', vps, 'pp:', pp, 'prestige:', prestige);
-        // Failsafe: if nothing sent and we have peers, reconnect them
-        // If no peers at all, actively scan signaling for anyone online
+        // Aggressive retry when nothing gets through
         if (sent === 0) {
-            if (this.peers.size > 0) {
-                // We have peer entries but no open channels — force reconnect
-                this._rescanPeers();
-            } else if (this.seq % 10 === 0) {
-                // No peers at all — scan signaling collection
-                this._rescanPeers();
+            // Immediate full peer scan + reconnect
+            this._rescanPeers(true);
+            // Retry broadcast after a short delay to give channels time to open
+            if (!this._retryPending) {
+                this._retryPending = setTimeout(() => {
+                    this._retryPending = null;
+                    // Re-sign with same seq so duplicates are ignored by peers
+                    const retryMsg = this.seq;
+                    let retrySent = 0;
+                    for (const [, peer] of this.peers) {
+                        if (peer.ch?.readyState === 'open') try { peer.ch.send(msg); retrySent++; } catch (_) {}
+                    }
+                    if (retrySent === 0 && this.peers.size > 0) {
+                        // Still nothing — hard-rescan and retry once more
+                        this._rescanPeers(true);
+                        setTimeout(() => {
+                            let retry2 = 0;
+                            for (const [, peer] of this.peers) {
+                                if (peer.ch?.readyState === 'open') try { peer.ch.send(msg); retry2++; } catch (_) {}
+                            }
+                        }, 2000);
+                    }
+                }, 1500);
             }
         }
     }
 
     // Scan signaling collection for online peers and initiate connections
-    async _rescanPeers() {
+    async _rescanPeers(forceScan) {
         const { db, doc:fdoc, getDoc, getDocs, collection } = this.fs;
         if (!db || !getDocs) return;
         try {
@@ -291,8 +308,8 @@ class P2PLeaderboardManager {
                     this._connect(k, d.kid, d.nonce||0);
                 }
             }
-            // Scan for any online peers we don't know about yet
-            if (this.peers.size === 0) {
+            // Always scan for new/online peers when forced, otherwise scan when none known
+            if (forceScan || this.peers.size === 0) {
                 const snap = await getDocs(collection(db, 'sig'));
                 for (const s of snap.docs) {
                     const k = s.id;
@@ -331,6 +348,7 @@ class P2PLeaderboardManager {
         clearInterval(this._pingTimer);
         clearInterval(this._reconnectTimer);
         clearInterval(this._scanTimer);
+        if (this._retryPending) { clearTimeout(this._retryPending); this._retryPending = null; }
         for (const [k] of this.peers) this._onPeerGone(k);
         if (this._unsubPeers) this._unsubPeers();
         if (this._unsubOffers) this._unsubOffers();

@@ -156,7 +156,7 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 ### 🏅 Leaderboard
 - **P2P ECDSA Crypto Mesh** — players connect via direct peer-to-peer data channels (WebRTC) using Firestore as a signaling server. Every broadcast is signed with ECDSA P-256 and verified by the receiving peer. 100-byte binary packets carry all columns.
 - **Live All-Column Sync** — VIBES, VPS, PP, PRESTIGE, and TIER columns update in real-time across the mesh.
-- **P2P Failsafes** — when broadcast reaches 0 peers, automatically rescans the signaling directory, re-fetches peer keys, and initiates fresh WebRTC connections. Three-layer safety: per-tick reconnect on 0-sent (100ms), 15s repair timer, 30s full directory scan when isolated.
+- **P2P Failsafes** — when broadcast reaches 0 peers, immediately rescans the full signaling directory (forceScan), reconnects every failed peer, and queues 1.5s + 2s retry broadcasts. Three-layer safety: per-tick retry chain, 15s repair timer, 30s full directory scan when isolated.
 - **Firestore fallback** — when P2P fails (NAT restrictions, no peers), automatically switches to Firestore onSnapshot or polling (30s interval)
 - **Deterministic Offerer Tiebreaker** — keyId → random nonce → username always picks one peer as the offerer, no stalemates
 - **Bulletproof formatting** — every cell wrapped in try/catch with type guards and safe fallbacks
@@ -198,6 +198,8 @@ node server/index.js
 ---
 
 ## ✦ Recent Updates
+
+- **P2P Retry Hardening** — when broadcast sends 0 peers, now aggressively rescans signaling collection for all online peers (not just when peer list is empty), immediately reconnects failed peers, and queues 1.5s + 2s retry broadcasts to give channels time to establish. Added `forceScan` parameter to `_rescanPeers()` for on-demand full directory scan.
 
 - **Tab & Login Text Standardized** — all sidebar tab text (inactive, hover, active) now uses hardcoded white fill with black stroke instead of room-themed colors. Login page title, subtitle, divider, and messages also use white fill + black stroke for consistency.
 - **Vibe Button Cleanup** — removed white 4px border and orange gradient background from the VIBE click button. Button now uses only the room-themed XL button image as its background with the 3D box-shadow depth effect.
