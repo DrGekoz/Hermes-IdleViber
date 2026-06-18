@@ -19,33 +19,59 @@ const CONFIG = {
 const BN = (m, e) => [m, e];
 const BN_ZERO = BN(0, 0);
 const BN_ONE = BN(1, 0);
+const BN_MAX = BN(1, Number.MAX_SAFE_INTEGER); // Hard cap sentinel
+
+// Guard: ensure a value is a valid BN array, recovering gracefully
+function _bnGuard(v) {
+    if (Array.isArray(v) && v.length === 2 && typeof v[0] === 'number' && typeof v[1] === 'number') return v;
+    if (v === null || v === undefined) return BN_ZERO;
+    if (typeof v === 'number') return bnFromNumber(v);
+    if (Array.isArray(v)) {
+        // Malformed BN — try to recover
+        const m = typeof v[0] === 'number' && isFinite(v[0]) ? v[0] : 0;
+        const e = typeof v[1] === 'number' && isFinite(v[1]) ? v[1] : 0;
+        return BN(m, e);
+    }
+    return BN_ZERO;
+}
 
 function bnNormalize(bn) {
+    bn = _bnGuard(bn);
     let [m, e] = bn;
     if (m === 0 || !isFinite(m)) return BN_ZERO;
-    if (!isFinite(e)) return BN(1, Number.MAX_SAFE_INTEGER);
+    if (!isFinite(e) || e > Number.MAX_SAFE_INTEGER) return BN_MAX;
+    if (e < -Number.MAX_SAFE_INTEGER) return BN_ZERO;
     while (m >= 10) { m /= 10; e++; }
     while (m < 1 && m > 0) { m *= 10; e--; }
+    if (!isFinite(e) || e > Number.MAX_SAFE_INTEGER) return BN_MAX;
     return BN(m, e);
 }
 
 function bnFromNumber(n) {
-    if (n === 0 || !isFinite(n)) return BN_ZERO;
+    if (n === 0 || n === null || n === undefined) return BN_ZERO;
+    if (typeof n !== 'number') n = Number(n);
+    if (!isFinite(n)) return BN_MAX;
     const abs = Math.abs(n);
+    if (abs === 0) return BN_ZERO;
     const e = Math.floor(Math.log10(abs));
     const m = abs / Math.pow(10, e);
+    if (!isFinite(m) || !isFinite(e)) return BN_MAX;
     return BN(n < 0 ? -m : m, e);
 }
 
 function bnToNumber(bn) {
+    bn = _bnGuard(bn);
     if (bn[0] === 0) return 0;
     const [m, e] = bn;
+    if (!isFinite(m) || !isFinite(e)) return e > 0 ? Infinity : 0;
     if (e > 308) return Infinity;
     if (e < -308) return 0;
-    return m * Math.pow(10, e);
+    const result = m * Math.pow(10, e);
+    return isFinite(result) ? result : (e > 0 ? Infinity : 0);
 }
 
 function bnAdd(a, b) {
+    a = _bnGuard(a); b = _bnGuard(b);
     if (a[0] === 0) return b;
     if (b[0] === 0) return a;
     let [m1, e1] = a;
@@ -54,10 +80,12 @@ function bnAdd(a, b) {
     if (diff > 15) return e1 > e2 ? a : b;
     const minE = Math.min(e1, e2);
     const sum = m1 * Math.pow(10, e1 - minE) + m2 * Math.pow(10, e2 - minE);
+    if (!isFinite(sum)) return e1 > e2 ? a : b;
     return bnNormalize(BN(sum, minE));
 }
 
 function bnSub(a, b) {
+    a = _bnGuard(a); b = _bnGuard(b);
     if (b[0] === 0) return a;
     let [m1, e1] = a;
     let [m2, e2] = b;
@@ -65,40 +93,50 @@ function bnSub(a, b) {
     if (diff > 15) return e1 > e2 ? a : BN_ZERO;
     const minE = Math.min(e1, e2);
     const diff2 = m1 * Math.pow(10, e1 - minE) - m2 * Math.pow(10, e2 - minE);
-    if (diff2 <= 0) return BN_ZERO;
+    if (!isFinite(diff2) || diff2 <= 0) return BN_ZERO;
     return bnNormalize(BN(diff2, minE));
 }
 
 function bnMul(a, b) {
+    a = _bnGuard(a); b = _bnGuard(b);
     if (a[0] === 0 || b[0] === 0) return BN_ZERO;
-    return bnNormalize(BN(a[0] * b[0], a[1] + b[1]));
+    const m = a[0] * b[0];
+    const e = a[1] + b[1];
+    if (!isFinite(m) || !isFinite(e)) return BN_MAX;
+    return bnNormalize(BN(m, e));
 }
 
 function bnDiv(a, b) {
-    if (b[0] === 0) return BN(1, Number.MAX_SAFE_INTEGER);
+    a = _bnGuard(a); b = _bnGuard(b);
+    if (b[0] === 0) return BN_MAX;
     if (a[0] === 0) return BN_ZERO;
-    return bnNormalize(BN(a[0] / b[0], a[1] - b[1]));
+    const m = a[0] / b[0];
+    const e = a[1] - b[1];
+    if (!isFinite(m) || !isFinite(e)) return BN_MAX;
+    return bnNormalize(BN(m, e));
 }
 
 function bnCompare(a, b) {
-    // Accept both BN arrays and regular numbers
-    if (typeof a === 'number') a = bnFromNumber(a);
-    if (typeof b === 'number') b = bnFromNumber(b);
+    a = _bnGuard(a); b = _bnGuard(b);
     if (a[0] === 0 && b[0] === 0) return 0;
-    if (a[0] === 0) return -1;
+    if (a[0] === 0) return b[0] === 0 ? 0 : -1;
     if (b[0] === 0) return 1;
     if (a[1] > b[1]) return 1;
     if (a[1] < b[1]) return -1;
-    return a[0] > b[0] ? 1 : a[0] < b[0] ? -1 : 0;
+    if (a[0] > b[0]) return 1;
+    if (a[0] < b[0]) return -1;
+    return 0;
 }
 
 function bnFloor(bn) {
+    bn = _bnGuard(bn);
     if (bn[0] === 0) return BN_ZERO;
     let [m, e] = bn;
     if (e < 0) return BN_ZERO;
     if (e > 15) return bn;
     const val = Math.floor(m * Math.pow(10, e));
-    return bnFromNumber(val);
+    if (!isFinite(val)) return bn;
+    return bnFromNumber(Math.max(0, val));
 }
 
 function bnLt(a, b) { return bnCompare(a, b) < 0; }
@@ -106,6 +144,31 @@ function bnLe(a, b) { return bnCompare(a, b) <= 0; }
 function bnGt(a, b) { return bnCompare(a, b) > 0; }
 function bnGe(a, b) { return bnCompare(a, b) >= 0; }
 function bnEq(a, b) { return bnCompare(a, b) === 0; }
+
+// BN exponentiation: base^exp for non-negative integer exp (binary exponentiation)
+function bnPow(base, exp) {
+    if (exp === 0) return BN_ONE;
+    let result = BN_ONE;
+    let b = base;
+    let e = exp;
+    while (e > 0) {
+        if (e & 1) result = bnMul(result, b);
+        b = bnMul(b, b);
+        e >>= 1;
+        if (b[0] === BN_MAX[0] && b[1] === BN_MAX[1]) break; // overflow sentinel
+    }
+    return result;
+}
+
+// Prestige upgrade cost as BN: baseCost * costMult^count
+function getPrestigeUpgradeCost(id, state = G) {
+    const upg = PRESTIGE_UPGRADES.find(u => u.id === id);
+    if (!upg) return BN_MAX;
+    const count = (state.prestige_upgrades && state.prestige_upgrades[id]) || 0;
+    if (count === 0) return bnFromNumber(upg.baseCost);
+    const mult = bnPow(bnFromNumber(upg.costMult), count);
+    return bnMul(bnFromNumber(upg.baseCost), mult);
+}
 
 // ---------- ROOMS & THEMES ----------
 const ROOMS = {
@@ -436,8 +499,7 @@ const TRANSCEND_UPGRADES = [
 ];
 
 // ---------- TIERS (prestige-based permanent upgrades) ----------
-// ---------- TIERS (prestige-based permanent upgrades) ----------
-// Generated programmatically: 250 tiers scaling from 1 to 10Q prestiges
+// Generated programmatically: 500 tiers scaling from 1 → 2M (base) → 6.5Qa (InfZ territory)
 const TIERS = (function() {
     const tiers = [];
     const types = ['click', 'vps', 'offline', 'all', 'click', 'vps', 'rooms'];
@@ -459,11 +521,36 @@ const TIERS = (function() {
         'Coral','Reef','Tide','Wave','Swell','Current','Drift','Flow','Stream','River',
         'Moss','Fern','Leaf','Petal','Bloom','Grove','Forest','Jungle','Thicket','Wild',
         'Dune','Rock','Stone','Pebble','Boulder','Cliff','Crag','Summit','Peak','Ridge',
-        'Haze','Mist','Fog','Cloud','Sky','Aether','Wind','Gale','Breeze','Zephyr'];
-    for (let i = 0; i < 250; i++) {
+        'Haze','Mist','Fog','Cloud','Sky','Aether','Wind','Gale','Breeze','Zephyr',
+        // Cosmic InfZ tiers
+        'Infinity','InfinityZ','Transcend','Singularity','EventHorizon','Nexus','Omni','Proto','Quantum','ZeroPoint',
+        'Entropy','Paradox','Tesseract','Stargate','Wormhole','Supernova','Hypernova','Magnetar','DarkMatter','Antimatter',
+        'Chrono','Temporal','Aeon','Epoch','Genesis','Nirvana','Samsara','Karma','Mantra','Zen',
+        'Binary','Digital','Hologram','Photon','Neutrino','Graviton','Quark','Boson','Fermion','Hadron',
+        'Axiom','Theorem','Fractal','Chaos','Harmony','Resonance','Prism','Spectrum','Laser','Plasma',
+        'Nebula','Orbit','Eclipse','Equinox','Solstice','Umbra','Penumbra','NovaBurst','StarFall','MoonRise',
+        'VoidWalker','StarForge','WorldTree','Yggdrasil','Bifrost','Celestia','Astralis','Luminara','Umbrara','Noctara',
+        'Aetherius','Chronos','Kairos','Telos','Nous','Logos','Psyche','Anima','Animus','Geist',
+        'Numen','Lumen','Umbra','Somnium','Expanse','InfiniteVoid','Boundless','Endless','Timeless','Formless'];
+    const MAX_TIER_REQUIRES = 5e15; // keep under Number.MAX_SAFE_INTEGER for precise comparisons
+    const BASE_250 = Math.pow(1.06, 249); // ≈ 2.1M, the 250th tier's base
+    for (let i = 0; i < 500; i++) {
         const tierNum = i + 1;
-        const base = Math.pow(1.06, i);  // gentler: 1.06^249 ≈ 2M prestiges
-        const requires = Math.max(1, Math.round(base));
+        let requires;
+        if (i < 250) {
+            requires = Math.max(1, Math.round(Math.pow(1.06, i)));
+        } else {
+            // Accelerated scaling starting from tier 250 base
+            // Multiplicative boost 1.03^(i-249): gently accelerates to keep last tiers under 5e15
+            const x = i - 249;
+            const boost = Math.pow(1.03, x);
+            requires = Math.min(Math.round(BASE_250 * boost), MAX_TIER_REQUIRES);
+            // Clamp so each tier is at least the previous
+            if (tiers.length > 0 && requires <= tiers[tiers.length - 1].requires) {
+                requires = tiers[tiers.length - 1].requires + 1;
+            }
+        }
+        requires = Math.min(requires, MAX_TIER_REQUIRES);
         const type = types[i % types.length];
         const p1 = prefixes[i % prefixes.length];
         const p2 = prefixes[(i * 3 + 7) % prefixes.length];
@@ -570,7 +657,7 @@ const ACHIEVEMENTS = [
     { id: 'auto_10',      name: 'Automation Begins',  desc: 'Buy 10 total autoclickers',   icon: '🤖', threshold: { type: 'autoclickers', value: 10 } },
     { id: 'auto_50',      name: 'Robot Army',         desc: 'Buy 50 total autoclickers',   icon: '🦾', threshold: { type: 'autoclickers', value: 50 } },
     { id: 'auto_100',     name: 'Fully Automated',    desc: 'Buy 100 total autoclickers',  icon: '🤖', threshold: { type: 'autoclickers', value: 100 } },
-    // Tier milestones — 250 achievements, one per tier
+    // Tier milestones — achievements, one per tier
     ...(() => {
         const names = [];
         const prefixes = ['Bronze','Silver','Gold','Platinum','Diamond','Master','Grand','Royal','Noble','Solar',
@@ -591,9 +678,18 @@ const ACHIEVEMENTS = [
             'Coral','Reef','Tide','Wave','Swell','Current','Drift','Flow','Stream','River',
             'Moss','Fern','Leaf','Petal','Bloom','Grove','Forest','Jungle','Thicket','Wild',
             'Dune','Rock','Stone','Pebble','Boulder','Cliff','Crag','Summit','Peak','Ridge',
-            'Haze','Mist','Fog','Cloud','Sky','Aether','Wind','Gale','Breeze','Zephyr'];
+            'Haze','Mist','Fog','Cloud','Sky','Aether','Wind','Gale','Breeze','Zephyr',
+            'Infinity','InfinityZ','Transcend','Singularity','EventHorizon','Nexus','Omni','Proto','Quantum','ZeroPoint',
+            'Entropy','Paradox','Tesseract','Stargate','Wormhole','Supernova','Hypernova','Magnetar','DarkMatter','Antimatter',
+            'Chrono','Temporal','Aeon','Epoch','Genesis','Nirvana','Samsara','Karma','Mantra','Zen',
+            'Binary','Digital','Hologram','Photon','Neutrino','Graviton','Quark','Boson','Fermion','Hadron',
+            'Axiom','Theorem','Fractal','Chaos','Harmony','Resonance','Prism','Spectrum','Laser','Plasma',
+            'Nebula','Orbit','Eclipse','Equinox','Solstice','Umbra','Penumbra','NovaBurst','StarFall','MoonRise',
+            'VoidWalker','StarForge','WorldTree','Yggdrasil','Bifrost','Celestia','Astralis','Luminara','Umbrara','Noctara',
+            'Aetherius','Chronos','Kairos','Telos','Nous','Logos','Psyche','Anima','Animus','Geist',
+            'Numen','Lumen','Umbra','Somnium','Expanse','InfiniteVoid','Boundless','Endless','Timeless','Formless'];
         const icons = ['🥉','🥈','🥇','💎','💠','🎖️','👑','🌟','🔮','⚡','🕳️','🌀','∞','🚀','💥','🌍','💰','🏛️','🪐','🌌','⭐','✨','🔥','💫','🌈','🦄','🐉','🦅','🦊','🐺','🦁','🐯','🦈','🐋','🦀','🐙','🦑','🐍','🦎','🐢'];
-        for (let i = 0; i < 250; i++) {
+        for (let i = 0; i < TIERS.length; i++) {
             const tierNum = i + 1;
             const t = TIERS[i];
             if (!t) break;
@@ -1025,33 +1121,51 @@ function formatBN(bn) {
     if (groupIdx <= S) {
         return scaled.toFixed(2) + suffixesList[groupIdx - 1];
     }
-    // InfZ system: compute from exponent directly
+    // InfZ system: InfZ^n with recursive bracket layers
     const C = S + 1; // 48 states per layer
     let beyond = groupIdx - S;
-    let pos = (beyond - 1) % C;
-    let count = Math.floor((beyond - 1) / C) + 1;
-    // Format the layer count
-    let countIdx = 0;
-    let tmp = count;
-    while (tmp >= 1000) { tmp /= 1000; countIdx++; }
-    let prefix;
-    if (countIdx <= S) {
-        let cntStr = String(Math.floor(count));
-        if (countIdx > 0) cntStr = (count / Math.pow(1000, countIdx)).toFixed(2) + suffixesList[countIdx - 1];
-        prefix = 'InfZ x (' + cntStr;
-    } else {
-        // Multi-layer — rare but handled
-        let innerBeyond = countIdx - S;
-        let innerPos = (innerBeyond - 1) % C;
-        let innerCount = Math.floor((innerBeyond - 1) / C) + 1;
-        let innerStr = 'InfZ x InfZ (' + (innerCount > 0 ? innerCount : '1');
-        if (innerPos > 0) innerStr += suffixesList[innerPos - 1];
-        innerStr += ')';
-        return innerStr;
+    return formatInfZ(beyond, suffixesList, S, C);
+
+}
+
+// Recursive InfZ^n formatter: InfZ × N → InfZ² (N) → InfZ³ [N] → ... → InfZ^∞
+function formatInfZ(beyond, suffixes, S, C) {
+    const powers = [
+        { label: '',   open: ' ×', close: '' },    // InfZ^1
+        { label: '²',  open: ' (', close: ')' },    // InfZ²
+        { label: '³',  open: ' [', close: ']' },    // InfZ³
+        { label: '⁴',  open: ' {', close: '}' },    // InfZ⁴
+        { label: '⁵',  open: ' <', close: '>' },    // InfZ⁵
+        { label: '⁶',  open: ' |', close: '|' },    // InfZ⁶
+        { label: '⁷',  open: ' ⌈', close: '⌉' },    // InfZ⁷
+        { label: '⁸',  open: ' ⌊', close: '⌋' },    // InfZ⁸
+        { label: '⁹',  open: ' ⟨', close: '⟩' },    // InfZ⁹
+        { label: '^10', open: ' ⟪', close: '⟫' },   // InfZ^10
+    ];
+    function fmt(b, depth) {
+        if (depth >= powers.length) return 'InfZ^∞';
+        const pos = (b - 1) % C;
+        const cnt = Math.floor((b - 1) / C) + 1;
+        const p = powers[depth];
+        let cntStr;
+        if (cnt < 1000) {
+            cntStr = String(Math.floor(cnt));
+        } else {
+            let idx = 0, tmp = cnt;
+            while (tmp >= 1000) { tmp /= 1000; idx++; }
+            if (idx <= S) {
+                cntStr = (cnt / Math.pow(1000, idx)).toFixed(2) + suffixes[idx - 1];
+            } else {
+                // Count itself needs deeper InfZ — recurse, outer absorbs into inner
+                return fmt(idx - S, depth + 1);
+            }
+        }
+        let result = 'InfZ' + p.label + p.open + cntStr;
+        if (pos > 0) result += suffixes[pos - 1];
+        result += p.close;
+        return result;
     }
-    if (pos > 0) prefix += suffixesList[pos - 1];
-    prefix += ')';
-    return prefix;
+    return fmt(beyond, 0);
 }
 
 function formatNumber(n) {
@@ -1107,37 +1221,7 @@ function formatNumberSuffix(val, suffixes, S) {
 function formatInfinitySimple(totalIdx, scaled, suffixes, S) {
     const C = S + 1; // 57 states per count
     let beyond = totalIdx - S;
-    let pos = (beyond - 1) % C;
-    let count = Math.floor((beyond - 1) / C) + 1;
-
-    // If the count itself is in InfinityZ range (its idx > S),
-    // then we need a multi-layer display.
-    let countIdx = 0;
-    let tmp = count;
-    while (tmp >= 1000) { tmp /= 1000; countIdx++; }
-
-    let prefix;
-    if (countIdx <= S) {
-        // Count is in normal range — just format it
-        prefix = 'InfZ x (' + formatNumberSuffix(count, suffixes, S);
-    } else {
-        // Count itself needs InfinityZ — wrap recursively
-        // Show: InfZ x InfZ (inner_count + suffix)
-        let innerBeyond = countIdx - S;
-        let innerPos = (innerBeyond - 1) % C;
-        let innerCount = Math.floor((innerBeyond - 1) / C) + 1;
-        
-        let innerStr = 'InfZ x InfZ (' + formatNumberSuffix(innerCount, suffixes, S);
-        if (innerPos > 0) innerStr += suffixes[innerPos - 1];
-        innerStr += ')';
-        return innerStr;
-    }
-
-    if (pos > 0) {
-        prefix += suffixes[pos - 1];
-    }
-    prefix += ')';
-    return prefix;
+    return formatInfZ(beyond, suffixes, S, C);
 }
 
 // ---------- STATE ACTIONS ----------
@@ -1175,12 +1259,10 @@ function buyAutoclicker(id, quantity = 1) {
 function buyPrestigeUpgrade(id) {
     const upg = PRESTIGE_UPGRADES.find(u => u.id === id);
     if (!upg) return false;
-    const count = G.prestige_upgrades[id] || 0;
-    const rawCost = upg.baseCost * Math.pow(upg.costMult, count);
-    const cost = !isFinite(rawCost) ? Infinity : Math.floor(rawCost);
+    const cost = getPrestigeUpgradeCost(id);
     if (bnGe(G.prestige_points, cost)) {
-        G.prestige_points = bnSub(G.prestige_points, bnFromNumber(cost));
-        G.prestige_upgrades[id] = count + 1;
+        G.prestige_points = bnSub(G.prestige_points, cost);
+        G.prestige_upgrades[id] = (G.prestige_upgrades[id] || 0) + 1;
         notifyStateChange('gateway_upgrades');
         return true;
     }
@@ -1510,7 +1592,8 @@ export {
     unlockPrestige,
     checkAchievements,
     formatNumber,
-    BN_ZERO, BN_ONE, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnEq, bnToNumber,
+    BN_ZERO, BN_ONE, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnEq, bnToNumber, bnPow,
+    getPrestigeUpgradeCost,
     calculateOfflineProgress,
     applyOfflineProgress,
     addVibes,

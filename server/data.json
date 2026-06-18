@@ -1,6 +1,266 @@
 {
-  "users": {},
-  "saves": {},
-  "leaderboard": [],
-  "tokens": {}
+  "users": {
+    "testplayer": {
+      "password": "cabbc0e1512f2768abaaad03a978cb1f:0eb8e04c78d6ff54dcbbd9aa4bd67b99ba22a67e024998980276354514549a5d",
+      "created_at": "2026-06-18T04:00:57.645Z"
+    },
+    "testuser2": {
+      "password": "67404fe3e9354636ef369a43e646b042:2474b4c65e573b4a68913570d17e9c65e353e99280651fb6ac8c633cd50d10a7",
+      "created_at": "2026-06-18T05:11:23.040Z"
+    },
+    "bgtest": {
+      "password": "8e102795b787a2a72aac194db0d48411:31f51884f4c8d25a9d6e83fe4b9a88c23b5d864323b3282ca5bfe6ce9ea69112",
+      "created_at": "2026-06-18T06:12:13.080Z"
+    }
+  },
+  "saves": {
+    "testplayer": {
+      "state": {
+        "version": 1,
+        "vibes": [
+          2.220000000000014,
+          9007199254740992
+        ],
+        "lifetime_vibes": [
+          2.220000000000014,
+          9007199254740992
+        ],
+        "prestige_points": [
+          0,
+          0
+        ],
+        "total_pp_earned": [
+          0,
+          0
+        ],
+        "total_prestiges": 0,
+        "prestige_unlocked": true,
+        "transcend_points": 0,
+        "transcend_upgrades": {},
+        "autoclickers": {},
+        "room_autoclickers": {},
+        "prestige_upgrades": {},
+        "decor": {},
+        "current_room": "campfire_grove",
+        "unlocked_rooms": [
+          "campfire_grove"
+        ],
+        "owned_decor": [],
+        "active_decor": {},
+        "gateway_history": [],
+        "placed_decor": {},
+        "gateway_bonus_active": false,
+        "_gwMult": 1,
+        "_gwLabel": "Disconnected",
+        "_gwLatency": 0,
+        "last_save": 1781755347726,
+        "total_clicks": 0,
+        "total_gateway_pings": 0,
+        "auth_token": "e37df96736dad4869c8be224eabe10c0df6207695e6a36e2598e74c38d770f2e",
+        "auth_mode": "local_api",
+        "displayName": null,
+        "display_name_last_changed": 0,
+        "server_online": true,
+        "achievements": [],
+        "settings": {
+          "sfx_volume": 0.5,
+          "music_volume": 0.5,
+          "music_playing": true,
+          "music_track_index": 0,
+          "music_shuffle": true,
+          "particle_effects": true,
+          "show_float_text": true,
+          "sidebar_position": "left"
+        },
+        "userId": "testplayer",
+        "username": "testplayer"
+      },
+      "updated_at": "2026-06-18T04:02:27.728Z"
+    },
+    "testuser2": {
+      "state": {
+        "version": 1,
+        "vibes": [
+          1.7976931348623157,
+          308
+        ],
+        "lifetime_vibes": [
+          1.7976931348623157,
+          308
+        ],
+        "prestige_points": [
+          0,
+          0
+        ],
+        "total_pp_earned": [
+          0,
+          0
+        ],
+        "total_prestiges": 0,
+        "prestige_unlocked": false,
+        "transcend_points": 0,
+        "transcend_upgrades": {},
+        "autoclickers": {},
+        "room_autoclickers": {},
+        "prestige_upgrades": {},
+        "decor": {},
+        "current_room": "campfire_grove",
+        "unlocked_rooms": [
+          "campfire_grove"
+        ],
+        "owned_decor": [],
+        "active_decor": {},
+        "gateway_history": [],
+        "placed_decor": {},
+        "gateway_bonus_active": false,
+        "_gwMult": 1,
+        "_gwLabel": "Disconnected",
+        "_gwLatency": 0,
+        "last_save": 1781759792090,
+        "total_clicks": 0,
+        "total_gateway_pings": 0,
+        "auth_token": "31e89fbcd2717156242919db4b0c48d99bbf3f8161938f1b7740829874d8226f",
+        "auth_mode": "local_api",
+        "displayName": null,
+        "display_name_last_changed": 0,
+        "server_online": true,
+        "achievements": [],
+        "settings": {
+          "sfx_volume": 0.5,
+          "music_volume": 0.5,
+          "music_playing": true,
+          "music_track_index": 0,
+          "music_shuffle": true,
+          "particle_effects": true,
+          "show_float_text": true,
+          "sidebar_position": "left"
+        },
+        "userId": "testuser2",
+        "username": "testuser2"
+      },
+      "updated_at": "2026-06-18T05:16:32.092Z"
+    },
+    "bgtest": {
+      "state": {
+        "version": 1,
+        "vibes": [
+          3.5953862697246315,
+          308
+        ],
+        "lifetime_vibes": [
+          3.5953862697246315,
+          308
+        ],
+        "prestige_points": [
+          0,
+          0
+        ],
+        "total_pp_earned": [
+          0,
+          0
+        ],
+        "total_prestiges": 0,
+        "prestige_unlocked": false,
+        "transcend_points": 0,
+        "transcend_upgrades": {},
+        "autoclickers": {},
+        "room_autoclickers": {},
+        "prestige_upgrades": {},
+        "decor": {},
+        "current_room": "campfire_grove",
+        "unlocked_rooms": [
+          "campfire_grove"
+        ],
+        "owned_decor": [],
+        "active_decor": {},
+        "gateway_history": [],
+        "placed_decor": {},
+        "gateway_bonus_active": false,
+        "_gwMult": 1,
+        "_gwLabel": "Disconnected",
+        "_gwLatency": 0,
+        "last_save": 1781763800407,
+        "total_clicks": 0,
+        "total_gateway_pings": 0,
+        "auth_token": "7fe65d226dffd82693a398ddfc95b758db39fb0393d983985ac160164dd5591f",
+        "auth_mode": "local_api",
+        "displayName": null,
+        "display_name_last_changed": 0,
+        "server_online": true,
+        "achievements": [],
+        "settings": {
+          "sfx_volume": 0.5,
+          "music_volume": 0.5,
+          "music_playing": true,
+          "music_track_index": 0,
+          "music_shuffle": true,
+          "particle_effects": true,
+          "show_float_text": true,
+          "sidebar_position": "left"
+        },
+        "userId": "bgtest",
+        "username": "bgtest"
+      },
+      "updated_at": "2026-06-18T06:23:20.410Z"
+    }
+  },
+  "leaderboard": [
+    {
+      "username": "testuser2",
+      "score": 1.7976931348623157e+308,
+      "prestige_level": [
+        0,
+        0
+      ],
+      "vps": 0,
+      "updated_at": "2026-06-18T05:11:42.263Z"
+    },
+    {
+      "username": "bgtest",
+      "score": 1.7976931348623157e+308,
+      "prestige_level": [
+        0,
+        0
+      ],
+      "vps": 0,
+      "updated_at": "2026-06-18T06:12:27.835Z"
+    },
+    {
+      "username": "testplayer",
+      "score": 0,
+      "prestige_level": [
+        0,
+        0
+      ],
+      "vps": 1e+308,
+      "updated_at": "2026-06-18T04:01:05.882Z"
+    }
+  ],
+  "tokens": {
+    "e37df96736dad4869c8be224eabe10c0df6207695e6a36e2598e74c38d770f2e": {
+      "username": "testplayer",
+      "created": 1781755257657,
+      "expires": 1782360057657
+    },
+    "31e89fbcd2717156242919db4b0c48d99bbf3f8161938f1b7740829874d8226f": {
+      "username": "testuser2",
+      "created": 1781759483059,
+      "expires": 1782364283059
+    },
+    "1bc6a01b5a218aa701274bbddcac7b25c836e1a60e920b5469e37cb2e6dfd75a": {
+      "username": "bgtest",
+      "created": 1781763133457,
+      "expires": 1782367933457
+    },
+    "39bf01b44de8112ed498b6c627d1e085ceb5ae4803fe916f82d2fab3f042fa0b": {
+      "username": "bgtest",
+      "created": 1781763147110,
+      "expires": 1782367947110
+    },
+    "7fe65d226dffd82693a398ddfc95b758db39fb0393d983985ac160164dd5591f": {
+      "username": "bgtest",
+      "created": 1781763662803,
+      "expires": 1782368462803
+    }
+  }
 }

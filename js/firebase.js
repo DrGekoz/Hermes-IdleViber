@@ -17,6 +17,37 @@ let currentUser = null;
 let unsubLeaderboard = null;
 let authListeners = [];
 
+// Firestore SDK cache (loaded lazily)
+let _firestoreApi = null;
+
+async function _ensureFirestoreApi() {
+    if (_firestoreApi) return _firestoreApi;
+    const mod = await import(`${FB_BASE}firebase-firestore.js`);
+    _firestoreApi = {
+        db,
+        doc: mod.doc,
+        setDoc: mod.setDoc,
+        getDoc: mod.getDoc,
+        deleteDoc: mod.deleteDoc,
+        collection: mod.collection,
+        query: mod.query,
+        where: mod.where,
+        orderBy: mod.orderBy,
+        limit: mod.limit,
+        onSnapshot: mod.onSnapshot,
+        getDocs: mod.getDocs,
+        Timestamp: mod.Timestamp,
+    };
+    return _firestoreApi;
+}
+
+// Expose Firestore API for P2P module (avoids double-loading the SDK)
+function getFirestoreApi() {
+    // Synchronous — _ensureFirestoreApi() is preloaded during initFirebase()
+    return _firestoreApi;
+}
+function getDb() { return db; }
+
 // ---- INIT ----
 async function initFirebase() {
     if (firebaseLoaded) return true;
@@ -43,6 +74,8 @@ async function initFirebase() {
         });
 
         firebaseLoaded = true;
+        // Preload Firestore API for P2P module
+        _ensureFirestoreApi().catch(() => {});
         console.log('🔥 Firebase initialized');
         return true;
     } catch (e) {
@@ -329,6 +362,46 @@ async function claimDisplayName(name, oldName) {
     }
 }
 
+// ---- PERIODIC SYNC (hourly + prestige) ----
+
+// Sync our score to Firestore leaderboard (called by timer and on prestige)
+async function syncLeaderboardToFirestore(username, score, prestigeLevel, totalPp, displayName, vps) {
+    if (!currentUser || !db) return { error: 'Not logged in' };
+    const { doc, setDoc, Timestamp } = await import(`${FB_BASE}firebase-firestore.js`);
+    try {
+        const ref = doc(db, 'leaderboard', currentUser.uid);
+        const safeScore = Array.isArray(score) ? Math.floor(Math.min(p2pBNToNumber(score), 1e15)) || 0 : Math.floor(score) || 0;
+        const safePp = Array.isArray(totalPp) ? Math.floor(Math.min(p2pBNToNumber(totalPp), 1e15)) || 0 : totalPp || 0;
+        const safeVps = Array.isArray(vps) ? Math.floor(Math.min(p2pBNToNumber(vps), 1e15)) || 0 : vps || 0;
+        const score_full = Array.isArray(score) ? score : [Math.floor(score) || 0, 0];
+        const pp_full = Array.isArray(totalPp) ? totalPp : [totalPp || 0, 0];
+        const vps_full = Array.isArray(vps) ? vps : [vps || 0, 0];
+        await setDoc(ref, {
+            username: displayName || username || currentUser.displayName || 'Player',
+            score: safeScore,
+            prestige_level: prestigeLevel || 0,
+            total_pp: safePp,
+            vps: safeVps,
+            score_full, pp_full, vps_full,
+            display_name: displayName || '',
+            updated_at: Timestamp.now(),
+        }, { merge: true });
+        return { success: true };
+    } catch (e) {
+        console.warn('🔥 LB sync failed:', e.message);
+        return { error: e.message };
+    }
+}
+
+// Helper: convert BN to Number safely for Firestore storage
+function p2pBNToNumber(bn) {
+    if (!Array.isArray(bn)) return bn || 0;
+    if (bn[0] === 0) return 0;
+    const [m, e] = bn;
+    if (e > 15) return 1e15; // cap for Firestore storage
+    return m * Math.pow(10, e);
+}
+
 // ---- EXPORTS ----
 export {
     initFirebase,
@@ -347,4 +420,7 @@ export {
     loadPlayerData,
     checkDisplayNameAvailable,
     claimDisplayName,
+    syncLeaderboardToFirestore,
+    getFirestoreApi,
+    getDb,
 };

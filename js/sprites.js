@@ -1196,44 +1196,192 @@ function loadExternalSprite(path) {
     return promise;
 }
 
-async function drawBackground(roomId, ctx, w, h) {
-    const bgMap = {
-        'campfire_grove': 'bg_campfire',
-        'cyber_den': 'bg_cyber',
-        'zen_garden': 'bg_zen_garden',
-        'star_deck': 'bg_star_deck',
-        'study_lounge': 'bg_study_lounge',
-        'beach_cove': 'bg_beach_cove',
-    };
-    const bgName = bgMap[roomId];
-    if (bgName) {
-        const img = await loadExternalSprite(`sprites/images/bg/${bgName}.png`);
-        if (img) {
-            ctx.imageSmoothingEnabled = false;
-            // Center-weighted cover: crop image to match canvas aspect ratio
-            const iw = img.naturalWidth || img.width;
-            const ih = img.naturalHeight || img.height;
-            const canvasAspect = w / h;
-            const imgAspect = iw / ih;
-            let sx, sy, sw, sh;
-            if (canvasAspect > imgAspect) {
-                // Canvas is wider relative to image → crop top/bottom
-                sh = ih;
-                sw = ih * canvasAspect;
-                sx = (iw - sw) / 2;
-                sy = 0;
-            } else {
-                // Canvas is taller relative to image → crop left/right
-                sw = iw;
-                sh = iw / canvasAspect;
-                sx = 0;
-                sy = (ih - sh) / 2;
-            }
-            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
-            return true;
+// ============================================================
+// Video Background System
+// - Campfire & Study: ping-pong (forward→backward→forward)
+//   Frames pre-captured via requestVideoFrameCallback, then
+//   animated through the array — no seeking needed
+// - Cyber, Zen, Star, Beach: native loop + crossfade at seam
+// ============================================================
+const BG_V = {
+    FPS: 12, FRAME_MS: 1000 / 12, CROSSFADE_SEC: 0.8,
+    _v: {}, _s: {}, _ff: {}, _pp: {}, _inited: false
+};
+const _BG_PP = { campfire_grove:1, study_lounge:1 }; // ping-pong rooms
+
+function _bgKey(roomId) {
+    return { campfire_grove:'bg_campfire',cyber_den:'bg_cyber',zen_garden:'bg_zen_garden',
+             star_deck:'bg_star_deck',study_lounge:'bg_study_lounge',beach_cove:'bg_beach_cove' }[roomId];
+}
+
+function _startPingPongCapture(n, v, s) {
+    // Capture frames via requestVideoFrameCallback
+    const cw = Math.min(v.videoWidth || 640, 640);
+    const ch = Math.min(v.videoHeight || 360, 360);
+    const frames = [];
+    let frameCount = 0;
+    const maxFrames = Math.ceil(v.duration * 24) + 5; // 24fps est.
+
+    function onFrame(now, metadata) {
+        if (s.done) return;
+        const c = document.createElement('canvas');
+        c.width = cw;
+        c.height = ch;
+        c.getContext('2d').drawImage(v, 0, 0, cw, ch);
+        frames.push(c);
+        frameCount++;
+
+        if (v.currentTime >= v.duration - 0.05 || frameCount >= maxFrames) {
+            // Capture complete
+            v.pause();
+            s.frames = frames;
+            s.done = true;
+            s.ready = true;
+            // Store first frame for pre-capture display
+            s.off.width = cw;
+            s.off.height = ch;
+            s.off.getContext('2d').drawImage(frames[0], 0, 0);
+            return;
         }
+        v.requestVideoFrameCallback(onFrame);
     }
-    return false; // Fall back to programmatic
+
+    v.play().then(() => {
+        v.requestVideoFrameCallback(onFrame);
+    }).catch(() => {
+        s.ready = true; // fallback to static image
+    });
+}
+
+function _bgInit() {
+    if (BG_V._inited) return;
+    BG_V._inited = true;
+    const names = ['bg_campfire','bg_cyber','bg_zen_garden','bg_star_deck','bg_study_lounge','bg_beach_cove'];
+    for (const n of names) {
+        const isPP = n === 'bg_campfire' || n === 'bg_study_lounge';
+        const v = document.createElement('video');
+        v.muted = true; v.playsInline = true; v.preload = 'auto';
+        v.loop = !isPP;
+        v.src = `sprites/images/bg/${n}.mp4`;
+        v.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-1;';
+        document.body.appendChild(v);
+        BG_V._v[n] = v;
+
+        const off = document.createElement('canvas');
+        const ffCanvas = document.createElement('canvas');
+        // Ping-pong state: off for fallback frame, frames[], dir, t, lastTick, done
+        const s = { off, ready: false, dur: 0, dir: 1, t: 0, lastTick: 0,
+                    frames: null, done: false };
+        BG_V._s[n] = s;
+
+        v.addEventListener('loadeddata', () => {
+            if (s.ready) return;
+            off.width = v.videoWidth || 640;
+            off.height = v.videoHeight || 360;
+            ffCanvas.width = off.width;
+            ffCanvas.height = off.height;
+            const sw = off.width, sh = off.height;
+            off.getContext('2d').drawImage(v, 0, 0, sw, sh, 0, 0, sw, sh);
+            ffCanvas.getContext('2d').drawImage(v, 0, 0, sw, sh, 0, 0, sw, sh);
+            BG_V._ff[n] = ffCanvas;
+            s.dur = v.duration || 1;
+
+            if (isPP) {
+                _startPingPongCapture(n, v, s);
+            } else {
+                s.ready = true;
+                v.play().catch(() => {});
+            }
+        });
+        v.load();
+        if (!isPP) v.play().catch(() => {});
+    }
+}
+
+function _bgDraw(src, ctx, w, h) {
+    if (!src) return;
+    ctx.imageSmoothingEnabled = false;
+    const iw = src.videoWidth || src.width || 640;
+    const ih = src.videoHeight || src.height || 360;
+    if (!iw || !ih) return;
+    const ca = w / h, ia = iw / ih;
+    let sx, sy, sw, sh;
+    if (ca > ia) {
+        sh = ih; sw = ih * ca; sx = (iw - sw) / 2; sy = 0;
+    } else {
+        sw = iw; sh = iw / ca; sx = 0; sy = (ih - sh) / 2;
+    }
+    ctx.drawImage(src, sx, sy, sw, sh, 0, 0, w, h);
+}
+
+// Temp debug
+window.__bgDebug = BG_V._s;
+async function drawBackground(roomId, ctx, w, h) {
+    const bgName = _bgKey(roomId);
+    if (!bgName) return false;
+
+    _bgInit();
+    const vs = BG_V._s[bgName];
+    const v = BG_V._v[bgName];
+    const isPP = !!_BG_PP[roomId];
+    const ff = BG_V._ff[bgName];
+
+    if (vs && vs.ready && v) {
+        if (isPP) {
+            // Ping-pong: animate through pre-captured frames
+            const frames = vs.frames;
+            if (frames && frames.length > 1) {
+                const now = performance.now();
+                if (now - vs.lastTick >= BG_V.FRAME_MS) {
+                    vs.lastTick = now;
+                    const dt = 1 / BG_V.FPS;
+                    vs.t += dt * vs.dir;
+                    if (vs.dir > 0 && vs.t >= vs.dur) {
+                        vs.t = Math.max(0, vs.dur - dt);
+                        vs.dir = -1;
+                    } else if (vs.dir < 0 && vs.t <= 0) {
+                        vs.t = 0;
+                        vs.dir = 1;
+                    }
+                }
+                // Map t to frame index
+                const progress = Math.max(0, Math.min(1, vs.t / vs.dur));
+                const idx = Math.round(progress * (frames.length - 1));
+                _bgDraw(frames[Math.max(0, Math.min(frames.length - 1, idx))], ctx, w, h);
+            } else if (vs.off) {
+                // Still capturing — use cached first frame
+                _bgDraw(vs.off, ctx, w, h);
+            }
+        } else {
+            // Looping: draw from playing video + crossfade at loop seam
+            _bgDraw(v, ctx, w, h);
+            if (ff && v.currentTime >= vs.dur - BG_V.CROSSFADE_SEC && v.currentTime < vs.dur) {
+                const alpha = Math.min(1, (v.currentTime - (vs.dur - BG_V.CROSSFADE_SEC)) / BG_V.CROSSFADE_SEC);
+                ctx.globalAlpha = alpha;
+                _bgDraw(ff, ctx, w, h);
+                ctx.globalAlpha = 1;
+            }
+        }
+        return true;
+    }
+
+    // --- Fallback to static image ---
+    const img = await loadExternalSprite(`sprites/images/bg/${bgName}.webp`);
+    if (img) {
+        ctx.imageSmoothingEnabled = false;
+        const iw = img.naturalWidth || img.width;
+        const ih = img.naturalHeight || img.height;
+        const ca = w / h, ia = iw / ih;
+        let sx, sy, sw, sh;
+        if (ca > ia) {
+            sh = ih; sw = ih * ca; sx = (iw - sw) / 2; sy = 0;
+        } else {
+            sw = iw; sh = iw / ca; sx = 0; sy = (ih - sh) / 2;
+        }
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+        return true;
+    }
+    return false;
 }
 function drawGodrays(ctx, w, h) {
     const t = Date.now() / 1000;
