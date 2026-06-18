@@ -92,23 +92,30 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 - **⚡ Buy All** buttons on upgrades, decor, and prestige tabs (most expensive first)
 - **🖱 Hold-to-spam** rapid-purchase on all shop items (autoclickers + prestige)
 - **🔔 Real-time sidebar tab indicators** — gold dots pulse on tabs with affordable items, green dot when prestige is ready, cyan dot for new achievements
-- 90 decor items with visual canvas placement (click-and-drag)
+- **90 decor items** with visual canvas placement — 40% smaller render, single instance per decor, click-and-drag, drag reworked for instant cursor follow (no lerp lag)
+- **Equip/unequip decor** — clicking an active decor removes all instances from canvas; clicking EQUIP restores them at saved positions without entering placement mode
+- **Decor positions survive prestige** — positions saved to localStorage, restored when re-buying via Buy All or single purchase
+- **Buy All places decor at saved positions** — items with previous positions restore automatically, first-time purchases enter placement mode
 - **InfinityZ number system** — numbers never cap, display scales infinitely
 - **BigNumber (BN) engine** — all game values stored as [mantissa, exponent] arrays, resilient to overflow, with guard recovery for corrupted saves
 - Bulk buy with calculated max-buyable
-- Affordability updates every tick — no tab-hopping required
+- **Rooms affordability updates every tick** — room cards unlock visually in real-time without tab-hopping
 - Offline earnings with 10x format above 1000%
 
 ### 🎨 Visual
 - 78 custom autoclicker pixel art icons + 49 prestige/decor icons + 102 decor placement sprites — all generated via Codex CLI (16-bit retro style)
 - 6 unique room backgrounds with atmospheric effects
+- **Login screen video wallpaper** — looping MP4 with seamless 1.5s crossfade (dual canvas/video handoff)
+- **Room backgrounds use dual-video handoff** — instead of native `<video loop>` (which has a built-in seek pause), two non-looping videos crossfade at 1.5s for perfectly seamless looping
+- **Ping-pong mode** for Campfire & Study — pre-captured frames animated forward/backward
 - Particle systems: fireflies, matrix rain, cherry blossoms, aurora, smoke, dust, waves
 - Godrays & dynamic lighting
 - **180Hz render loop** with delta-time frame interpolation — particle speed consistent at any framerate
 - Pixel-perfect rendering with `image-rendering: pixelated`
 - Custom chroma-key removal pipeline for transparent icon assets
 - **3-line InfZ display** on prestige chip box and Total This Round stat box
-- Background room animations (.mp4 video files)
+- **Room-themed pixel art buttons** for all 6 rooms (cg/cd/zg/sd/sl/bc) with auto-detected text contrast
+- **Room divider images** — PNG banners at top of sidebar and canvas overlay, room-switching via proper prefix lookup
 
 ### 🎵 Audio
 - 45 chiptune cover MP3s — game classics (Zelda, Mario, Pokemon, Megaman, Chrono, Castlevania), pop covers (Blinding Lights, Take On Me, Eye of the Tiger), anime hits (Otonoke, Naruto), and memes
@@ -125,6 +132,7 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 - Manual gateway port override in both Gateway tab and Settings
 - Settings overlay with Name, Audio, and Credits tabs
 - Sidebar position toggle (left/right)
+- Server MIME types fixed for `.webp` and `.mp4` delivery
 
 ### 💾 Persistence
 - Auto-save every 30s to localStorage
