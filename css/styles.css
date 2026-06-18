@@ -135,15 +135,22 @@ body {
 
 .login-box h1 {
     font-size: 20px;
-    color: var(--accent-gold);
-    text-shadow: 2px 2px 0 #000, 0 0 20px rgba(255,215,0,0.3);
+    color: #ffffff;
+    text-shadow:
+        2px 2px 0 #000,
+        1px 0 0 #000000, -1px 0 0 #000000,
+        0 1px 0 #000000, 0 -1px 0 #000000,
+        0 0 20px rgba(255,215,0,0.3);
     margin-bottom: 10px;
     line-height: 1.6;
 }
 
 .login-subtitle {
     font-size: 8px;
-    color: var(--text-secondary);
+    color: #ffffff;
+    text-shadow:
+        1px 0 0 #000000, -1px 0 0 #000000,
+        0 1px 0 #000000, 0 -1px 0 #000000;
     margin-bottom: 25px;
     letter-spacing: 3px;
 }
@@ -187,16 +194,21 @@ body {
 
 .pixel-divider {
     margin: 15px 0;
-    color: #444;
+    color: #ffffff;
+    text-shadow:
+        1px 0 0 #000000, -1px 0 0 #000000,
+        0 1px 0 #000000, 0 -1px 0 #000000;
     font-size: 8px;
     letter-spacing: 5px;
 }
 
 #login-message {
-    color: var(--accent-pink);
+    color: #ffffff;
+    text-shadow:
+        1px 0 0 #000000, -1px 0 0 #000000,
+        0 1px 0 #000000, 0 -1px 0 #000000;
     font-size: 8px;
     margin-top: 10px;
-    min-height: 15px;
 }
 
 /* --- GAME SCREEN --- */
@@ -325,22 +337,39 @@ body {
     background: var(--room-tab-inactive, transparent);
     border: none;
     border-bottom: 2px solid transparent;
-    color: var(--room-tab-text-inactive, var(--text-secondary));
+    color: #ffffff;
+    text-shadow:
+        1px 0 0 #000000,
+        -1px 0 0 #000000,
+        0 1px 0 #000000,
+        0 -1px 0 #000000;
     font-family: var(--pixel-font);
     font-size: 7px;
     cursor: pointer;
     transition: all 0.15s;
     white-space: nowrap;
 }
-.sidebar-tabs button:hover { color: var(--room-tab-text-active); background: rgba(255,255,255,0.03); }
+.sidebar-tabs button:hover {
+    color: #ffffff;
+    text-shadow:
+        1px 0 0 #000000,
+        -1px 0 0 #000000,
+        0 1px 0 #000000,
+        0 -1px 0 #000000;
+    background: rgba(255,255,255,0.03);
+}
 .sidebar-tabs button.active {
-    color: var(--room-tab-text-active, var(--accent-gold));
+    color: var(--room-btn-text-color-inv, #000000);
     border-bottom-color: var(--room-accent, var(--accent-gold));
     background: var(--room-tab-active, rgba(255,215,0,0.05));
     box-shadow:
         inset 0 0 10px var(--room-accent),
         0 0 8px var(--room-accent);
-    text-shadow: 0 0 6px var(--room-accent);
+    text-shadow:
+        1px 0 0 #ffffff,
+        -1px 0 0 #ffffff,
+        0 1px 0 #ffffff,
+        0 -1px 0 #ffffff;
 }
 
 /* --- TAB PANELS --- */
