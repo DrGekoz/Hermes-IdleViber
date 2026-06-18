@@ -23,7 +23,7 @@ Hermes IdleViber is an **ambient idle/incremental game** that lives in your brow
 Hit the big glowing button. Each click earns vibes (the game's currency). Click power scales with upgrades.
 
 ### 2. Buy Autoclickers
-Each room has **13 unique upgrade tiers**, from a simple Spark Tinder to the transcendent Forest Spirit. Every upgrade adds passive VPS (Vibes Per Second). Costs scale exponentially (1.15× per purchase).
+Each room has **15 unique upgrade tiers**, themed to that room. Every upgrade adds passive VPS (Vibes Per Second). Costs scale exponentially (1.15× per purchase).
 
 **⚡ Buy All** button on every upgrade tab — sorts by most expensive first and spends every last vibe.
 
@@ -44,7 +44,7 @@ Each room has **13 unique upgrade tiers**, from a simple Spark Tinder to the tra
 Each room's autoclickers track their own purchase count — buying cheap upgrades in a new room doesn't reset your expensive ones from other rooms. All room VPS stacks together globally.
 
 ### 4. Decor Every Room
-15 decor items per room (90 total across all rooms). Each adds a permanent VPS multiplier to that room. Decor items are placed visually on the canvas — drag, drop, rearrange. **Buy All** is also available on the decor tab.
+15 decor items per room (90 total across all rooms, matching upgrade icons). Each adds a permanent VPS multiplier to that room.
 
 ### 5. Prestige & Tiers
 Reset your run for **Prestige Chips (PP)** — permanent currency that buys escalating upgrades:
@@ -87,7 +87,7 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 ## ✦ Features
 
 ### 🎮 Gameplay
-- 6 rooms × 13 unique autoclickers = **78 distinct upgrades**, each with its own pixel art icon
+- 6 rooms × 15 unique autoclickers = **90 distinct upgrades**, each with its own pixel art icon
 - Per-room cost progression (buy cheap in new rooms!)
 - **⚡ Buy All** buttons on upgrades, decor, and prestige tabs (most expensive first)
 - **🖱 Hold-to-spam** rapid-purchase on all shop items (autoclickers + prestige)
@@ -103,7 +103,11 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 - Offline earnings with 10x format above 1000%
 
 ### 🎨 Visual
-- 78 custom autoclicker pixel art icons + 49 prestige/decor icons + 102 decor placement sprites — all generated via Codex CLI (16-bit retro style)
+- **270+ pixel art icons** — 90 room upgrade icons + 90 decor icons + tier/prestige/P2P icons + PC tiers + synergy icons, all generated via Codex CLI (16-bit retro style) chroma-key processed to 256×256 lossless WebP
+- **24 room-themed pixel art button frames** — 6 materials × 4 sizes (wood grain rivets for Campfire Grove, glowing circuit traces for Cyber Den, mossy cobblestone for Zen Garden, brushed stainless steel for Star Deck, brass+gold engraved for Study Lounge, light wood+seashell for Beach Cove). Applied to all buttons via `background-image: var(--room-btn-img)` with `image-rendering: pixelated` and auto-switching per room
+- **Adaptive text contrast** — all UI text uses white fill with 8-direction black text-shadow outer stroke for readability over any button image. Active sidebar tab inverts to black fill + white stroke. Buttons dim via `filter: brightness(0.85)` on hover instead of solid background overlay (button image stays visible)
+- **Room-colored active tab glow** — selected sidebar tab gets `inset box-shadow` + `box-shadow` + `text-shadow` using the room's accent color
+- Smoother hover/active states — no cyan borders on any buttons, only the button image
 - 6 unique room backgrounds with atmospheric effects
 - **Login screen video wallpaper** — looping MP4 with seamless 1.5s crossfade (dual canvas/video handoff)
 - **Room backgrounds use dual-video handoff** — instead of native `<video loop>` (which has a built-in seek pause), two non-looping videos crossfade at 1.5s for perfectly seamless looping
@@ -195,6 +199,13 @@ node server/index.js
 
 ## ✦ Recent Updates
 
+- **Room-Themed Button System** — 24 pixel art button frames (6 rooms × 4 sizes) generated via Codex CLI: wood grain with rivets (Campfire Grove), glowing cyan circuit traces (Cyber Den), mossy cobblestone (Zen Garden), brushed stainless steel (Star Deck), brass+gold engraved (Study Lounge), light wood+seashell (Beach Cove). All buttons dynamically swap per room via CSS custom properties with `image-rendering: pixelated` and `background-size: 100% 100%`.
+- **Unified Text Contrast System** — all UI text uses white fill with 8-direction black outer stroke via `text-shadow` for consistent readability over any background. Active sidebar tab inverts to black fill + white stroke. Colored functional text (gold prestige, cyan values) retains its fill color. Buttons dim via `filter: brightness(0.85)` on hover instead of solid background overlay (button image stays visible, text keeps color).
+- **Cyan Borders Removed** — all pixel buttons, sidebar tabs, login buttons, and music controls had their 2px cyan borders removed. The button image IS the button now. Active tab gets a room-colored glow (`box-shadow` + `text-shadow`) instead of a blue border.
+- **Adaptive Tab Labels** — sidebar tab text uses adaptive contrast. Tab labels cleaned up (emojis removed).
+- **Icon Overhaul** — all 90 room upgrade icons + 90 room decor icons regenerated via Codex CLI with new item names (cg_log_stool→cg_fire_ring, cd_digital_clock→cd_holographic_display, etc.). Chroma-key processed with aspect-ratio preservation to 256×256 lossless WebP. Decor `.png` references in sprites.js updated to `.webp`.
+- **Tooltip Icons 20% Larger** — `.tt-icon-img` increased from 128px to 154px for better visibility.
+
 - **Decor Canvas Overhaul** — decor items now render at 40% size (102×102) on canvas, single instance per decor type enforced, equip/unequip restores to saved positions without placement mode, drag reworked for instant cursor follow (no lerp lag), positions survive prestige via `saved_decor_placements`
 - **Room Divider Images** — switched from webp to user-cropped PNG banners, room prefix lookup fixed (was using `roomId.substring(0,2)` which produced wrong filenames), 5× larger with `object-position: top center` to prevent top cropping
 - **Login Screen Video Wallpaper** — looping MP4 covers full screen behind login box with seamless 1.5s crossfade using single-video + first-frame canvas overlay (same technique as room backgrounds)
@@ -261,8 +272,9 @@ Hermes-IdleViber/
 ├── audio/                      # 45 chiptune cover MP3s
 ├── sprites/images/
 │   ├── bg/                     # 6 room background images + .mp4 animations
-│   ├── icons/individual/       # 127 autoclicker + prestige + decor icons (64×64 webp)
-│   └── room_decor/             # 102 decor placement sprites
+│   ├── icons/individual/       # 90 room upgrade + tier/prestige/synergy icons (256×256 webp)
+│   ├── room_decor/icons/       # 90 room decor placement icons (256×256 webp)
+│   └── ui/                     # 24 room-themed button frames + 6 room dividers
 ```
 
 ### Module Breakdown
