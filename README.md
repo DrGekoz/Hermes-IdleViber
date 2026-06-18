@@ -199,6 +199,7 @@ node server/index.js
 
 ## ✦ Recent Updates
 
+- **All Tab Text White + Black Stroke** — active sidebar tabs now use white fill with black stroke instead of inverted colors. Settings tabs added to the main button block for consistent button backgrounds and text styling.
 - **Decor Click-to-Front** — clicking any decor on the canvas brings it to the front by reordering the `placed_decor` object so it renders last (on top of other items).
 - **P2P Retry Hardening** — when broadcast sends 0 peers, now aggressively rescans signaling collection for all online peers (not just when peer list is empty), immediately reconnects failed peers, and queues 1.5s + 2s retry broadcasts to give channels time to establish. Added `forceScan` parameter to `_rescanPeers()` for on-demand full directory scan.
 
