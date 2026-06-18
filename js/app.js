@@ -1901,10 +1901,14 @@ function setButtonTextContrast(imageUrl) {
         const root = document.documentElement;
         root.style.setProperty('--room-btn-text-color', isDark ? '#ffffff' : '#000000');
         root.style.setProperty('--room-btn-text-stroke', isDark ? '#000000' : '#ffffff');
+        root.style.setProperty('--room-btn-text-color-inv', isDark ? '#000000' : '#ffffff');
+        root.style.setProperty('--room-btn-text-stroke-inv', isDark ? '#ffffff' : '#000000');
     };
     img.onerror = () => {
         document.documentElement.style.setProperty('--room-btn-text-color', '#ffffff');
         document.documentElement.style.setProperty('--room-btn-text-stroke', '#000000');
+        document.documentElement.style.setProperty('--room-btn-text-color-inv', '#000000');
+        document.documentElement.style.setProperty('--room-btn-text-stroke-inv', '#ffffff');
     };
     img.src = imageUrl;
 }

@@ -1698,8 +1698,7 @@ input[type="range"]::-webkit-slider-thumb {
     padding: 3px 8px;
 }
 .pixel-btn:hover, .pixel-btn-sm:hover {
-    background: #1e2a4d;
-    color: #8df;
+    filter: brightness(0.85);
     box-shadow: 0 0 12px rgba(68,170,255,0.4);
 }
 .pixel-btn:active, .pixel-btn-sm:active {
@@ -1730,8 +1729,7 @@ input[type="range"]::-webkit-slider-thumb {
 #gw-connect-btn:hover,
 .settings-tab:hover,
 .sidebar-tabs button:hover {
-    background: #1e2a4d !important;
-    color: #8df !important;
+    filter: brightness(0.85) !important;
     box-shadow: 0 0 12px rgba(68,170,255,0.4) !important;
 }
 .login-box button:active,
@@ -1836,6 +1834,16 @@ button.secondary:hover {
     background-image: var(--room-btn-img) !important;
     background-size: 100% 100% !important;
     background-repeat: no-repeat !important;
+    color: var(--room-btn-text-color-inv) !important;
+    text-shadow:
+        1px 0 0 var(--room-btn-text-stroke-inv, transparent),
+        -1px 0 0 var(--room-btn-text-stroke-inv, transparent),
+        0 1px 0 var(--room-btn-text-stroke-inv, transparent),
+        0 -1px 0 var(--room-btn-text-stroke-inv, transparent),
+        1px 1px 0 var(--room-btn-text-stroke-inv, transparent),
+        -1px -1px 0 var(--room-btn-text-stroke-inv, transparent),
+        1px -1px 0 var(--room-btn-text-stroke-inv, transparent),
+        -1px 1px 0 var(--room-btn-text-stroke-inv, transparent);
 }
 /* Small buttons */
 #music-prev, #music-play, #music-next,
