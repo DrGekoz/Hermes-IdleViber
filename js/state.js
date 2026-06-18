@@ -1227,7 +1227,7 @@ function unlockPrestige() {
 
 // ---------- BIG NUMBER FORMATTING ----------
 function formatBN(bn) {
-    if (bn[0] === 0) return '0';
+    if (bn[0] === 0 || !isFinite(bn[0]) || !isFinite(bn[1])) return '0';
     let [m, e] = bn;
     // m is in [1, 10)
     // Small numbers
@@ -1733,7 +1733,7 @@ export {
     isPrestigeUnlockable,
     unlockPrestige,
     checkAchievements,
-    formatNumber,
+    formatNumber, formatBN,
     BN_ZERO, BN_ONE, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnEq, bnToNumber, bnPow,
     getPrestigeUpgradeCost,
     calculateOfflineProgress,

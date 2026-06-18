@@ -706,8 +706,8 @@ function getSpriteGridSize(spriteId) {
 function getSpritePixelSize(spriteId) {
     const def = SPRITES[spriteId];
     if (def) return { w: def.w * 2, h: def.h * 2 };
-    // Room decor items (IDs with underscores) use 64x64 PNG icons
-    if (spriteId && spriteId.includes('_')) return { w: 64, h: 64 };
+    // Room decor items (IDs with underscores) use ~26x26 on canvas (40% of original 64x64)
+    if (spriteId && spriteId.includes('_')) return { w: 26, h: 26 };
     return { w: 32, h: 32 };
 }
 

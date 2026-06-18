@@ -45,6 +45,12 @@ html, body { width: 100%; height: 100%; overflow: hidden; }
     --room-highlight: #ffdd88;
     --room-vibe-color: #ff6b35;
     --room-resource-bg: #1a0e0a;
+    
+    /* Room button images (set by JS) */
+    --room-btn-img: none;
+    --room-btn-sm-img: none;
+    --room-btn-wide-img: none;
+    --room-btn-xl-img: none;
 }
 
 body {
@@ -669,14 +675,17 @@ body {
     top: 15px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 40;
-    background: rgba(0,0,0,0.6);
-    padding: 8px 20px;
-    border: 1px solid #333;
+    z-index: 1000;
     text-align: center;
     pointer-events: none;
 }
-.room-overlay .room-name { font-size: 9px; color: var(--room-title-color, var(--text-primary)); }
+.room-divider-img {
+    width: 200px;
+    height: 28px;
+    image-rendering: pixelated;
+    object-fit: contain;
+    display: block;
+}
 .room-overlay .room-genre { font-size: 6px; color: var(--accent-cyan); margin-top: 3px; }
 
 /* --- LEADERBOARD (bottom left, clickable fullscreen) --- */
@@ -857,6 +866,8 @@ body {
 .lb-pp { color: var(--accent-cyan); text-align: right; white-space: nowrap; }
 .lb-prestige { color: var(--accent-pink); text-align: right; white-space: nowrap; }
 .lb-tier { color: var(--accent-gold); text-align: right; white-space: nowrap; }
+.lb-tier-icon { flex: 0 0 18px; display: flex; align-items: center; justify-content: center; }
+.lb-tier-img { width: 14px; height: 14px; image-rendering: pixelated; object-fit: contain; display: block; }
 
 /* Leaderboard header row — generated inside leaderboard-list so columns align */
 .lb-header {
@@ -1027,7 +1038,7 @@ body {
 .toast {
     position: fixed;
     top: 20px;
-    left: 50%;
+    left: calc(300px + (100vw - 300px) / 2);
     transform: translateX(-50%);
     background: rgba(0,0,0,0.9);
     border: 2px solid var(--accent-green);
@@ -1777,4 +1788,42 @@ button.secondary:hover {
     border-bottom-color: #444 !important;
     color: #aaa !important;
     background: #1a1a1a !important;
+}
+
+/* Room-themed button images for all UI buttons (at end to override earlier styles) */
+.sidebar-tabs button,
+.pixel-btn, .pixel-btn-sm,
+#prestige-btn, #prestige-max-btn,
+#click-btn, #gw-connect-btn,
+.buy-all-btn, .social-btn,
+#login-btn, #settings-btn,
+.prestige-instant-toggle {
+    background-image: var(--room-btn-img) !important;
+    background-size: 100% 100% !important;
+    background-repeat: no-repeat !important;
+    image-rendering: pixelated;
+}
+.sidebar-tabs button.active {
+    background-image: var(--room-btn-img) !important;
+    background-size: 100% 100% !important;
+    background-repeat: no-repeat !important;
+}
+/* Small buttons */
+.shop-item .shop-btn,
+#music-toggle-btn, #music-shuffle {
+    background-image: var(--room-btn-sm-img) !important;
+    background-size: 100% 100% !important;
+    background-repeat: no-repeat !important;
+}
+/* Wide buttons */
+.buy-all-btn, .social-btn {
+    background-image: var(--room-btn-wide-img) !important;
+    background-size: 100% 100% !important;
+    background-repeat: no-repeat !important;
+}
+/* XL buttons */
+#prestige-btn, #click-btn {
+    background-image: var(--room-btn-xl-img) !important;
+    background-size: 100% 100% !important;
+    background-repeat: no-repeat !important;
 }

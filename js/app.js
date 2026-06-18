@@ -8,7 +8,7 @@ import {
     goldenCookieSystem, spawnGoldenCookie, collectGoldenCookie, getClickBoostMult, getVpsBoostMult,
     wrinklerSystem, SYNERGIES, getSynergyBonus, getWrinklerPenalty, getEffectiveVpsMultiplier,
     updateWrinklers, popWrinkler, popAllWrinklers,
-    getVPS, getClickValue, getPrestigeGain, getPrestigeThreshold, formatNumber,
+    getVPS, getClickValue, getPrestigeGain, getPrestigeThreshold, formatNumber, formatBN,
     getActiveDecorVpsMult, calculateOfflineProgress, applyOfflineProgress,
     getBulkCost, getMaxBuyable,
     addVibes, buyAutoclicker, buyPrestigeUpgrade, buyDecor,
@@ -1188,11 +1188,24 @@ async function tryInitP2P() {
                 const rows = l.querySelectorAll('.lb-entry');
                 for (const r of rows) {
                     const n = r.querySelector('.lb-name'); if (!n) continue;
-                    if (n.textContent.replace('◆ ','').replace('⭐ ','').trim() !== e.username) continue;
+                    const rowName = n.textContent.replace('◆ ','').replace('⭐ ','').replace(/\(DEV\).*/s, '').trim();
+                    if (rowName !== e.username) continue;
                     const v=r.querySelector('.lb-vibes'), s=r.querySelector('.lb-vps'), pp=r.querySelector('.lb-pp'), pr=r.querySelector('.lb-prestige'), t=r.querySelector('.lb-tier');
-                    if (v) v.textContent = fmtSafe(e.score);
-                    if (s) s.textContent = fmtSafe(e.vps);
-                    if (pp) pp.textContent = fmtSafe(e.pp);
+                    if (v) {
+                        let txt;
+                        try {
+                            if (Array.isArray(e.score)) txt = formatBN(e.score);
+                            else if (typeof e.score === 'number') txt = formatNumber(e.score);
+                            else txt = String(e.score);
+                        } catch(e2) { txt = '0'; console.warn('P2P fmt err', e2); }
+                        v.textContent = txt;
+                    }
+                    if (s) {
+                        try { s.textContent = Array.isArray(e.vps) ? formatBN(e.vps) : formatNumber(e.vps); } catch(_){}
+                    }
+                    if (pp) {
+                        try { pp.textContent = Array.isArray(e.pp) ? formatBN(e.pp) : formatNumber(e.pp); } catch(_){}
+                    }
                     if (pr) pr.textContent = fmtSafe(e.prestige);
                     if (t) { const ti = getTierFromPrestige(e.prestige ?? 0); t.textContent = ti >= 0 ? TIERS[ti].name : '—'; }
                     break;
@@ -1225,7 +1238,7 @@ function initGameLoop() {
         }
         // Crypto P2P broadcast every tick (~100ms, 10x/sec)
         if (p2pCrypto) {
-            p2pCrypto.broadcast(bnToNumber(G.lifetime_vibes), bnToNumber(G.total_prestiges), bnToNumber(getVPS()), bnToNumber(G.total_pp_earned));
+            p2pCrypto.broadcast(G.lifetime_vibes, bnToNumber(G.total_prestiges), getVPS(), G.total_pp_earned);
         }
         // Update sidebar tab indicators every tick (lightweight)
         updateSidebarTabIndicators();
@@ -1805,6 +1818,12 @@ function applyRoomTheme(roomId) {
     root.style.setProperty('--room-highlight', t.highlight);
     root.style.setProperty('--room-vibe-color', t.vibe_color);
     root.style.setProperty('--room-resource-bg', t.resource_bg);
+    // Set room-themed button background images
+    const prefix = roomId.substring(0, 2);
+    root.style.setProperty('--room-btn-img', `url(sprites/images/ui/${prefix}_btn.webp)`);
+    root.style.setProperty('--room-btn-sm-img', `url(sprites/images/ui/${prefix}_btn_sm.webp)`);
+    root.style.setProperty('--room-btn-wide-img', `url(sprites/images/ui/${prefix}_btn_wide.webp)`);
+    root.style.setProperty('--room-btn-xl-img', `url(sprites/images/ui/${prefix}_btn_xl.webp)`);
     // Swap room-themed UI divider
     const divider = document.getElementById('room-theme-divider');
     if (divider) {
@@ -1814,8 +1833,9 @@ function applyRoomTheme(roomId) {
 }
 
 function updateRoomUI() {
-    dom.roomDisplay.textContent = ROOMS[G.current_room]?.name || 'Unknown';
-    dom.roomDisplay.style.color = 'var(--room-title-color)';
+    const prefix = (G.current_room || '').substring(0, 2);
+    const divider = document.getElementById('current-room');
+    if (divider) divider.src = `sprites/images/ui/${prefix}_ui_divider.webp`;
     applyRoomTheme(G.current_room);
     if (dom.currentRoomUpgradeLabel) {
         dom.currentRoomUpgradeLabel.textContent = ROOMS[G.current_room]?.name || 'Campfire Grove';
@@ -2110,7 +2130,7 @@ async function updateLeaderboardUI(externalEntries) {
     // Generate header row (inside list so columns align with entries)
     const hdrEl = document.createElement('div');
     hdrEl.className = 'lb-entry lb-header';
-    hdrEl.innerHTML = '<span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span><span class="lb-tier">TIER</span>';
+    hdrEl.innerHTML = '<span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span><span class="lb-tier">TIER</span><span class="lb-tier-icon"></span>';
     fragment.appendChild(hdrEl);
     entries.slice(0, maxRows).forEach((entry, i) => {
         const rowName = nameField(entry.name);
@@ -2142,6 +2162,11 @@ async function updateLeaderboardUI(externalEntries) {
             if (ppEl) ppEl.textContent = fmtSafe(entry.pp);
             if (prestigeEl) prestigeEl.textContent = fmtSafe(entry.prestige);
             if (tierEl) tierEl.textContent = entry.tier >= 0 ? TIERS[entry.tier].name : '—';
+            const tierIconEl = el.querySelector('.lb-tier-icon');
+            if (tierIconEl) {
+                const iconNum = entry.tier >= 0 ? getTierIconNum(entry.tier) : 0;
+                tierIconEl.innerHTML = iconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${iconNum}.webp" class="lb-tier-img" onerror="this.style.display='none'">` : '';
+            }
         } else {
             // Create new row
             const isYou = entry.name === displayName || entry.name === G.username;
@@ -2150,6 +2175,8 @@ async function updateLeaderboardUI(externalEntries) {
             el.className = `lb-entry ${isYou ? 'you' : ''} ${isDev ? 'dev' : ''}`;
             if (entry.playerId) el.dataset.playerId = entry.playerId;
             if (isDev) {
+                const tierIconNum = entry.tier >= 0 ? getTierIconNum(entry.tier) : 0;
+                const tierHtml = tierIconNum > 0 ? `<span class="lb-tier-icon"><img src="sprites/images/icons/individual/tier_${tierIconNum}.webp" class="lb-tier-img" onerror="this.style.display='none'"></span>` : '<span class="lb-tier-icon"></span>';
                 el.innerHTML = `
                     <span class="lb-rank">#${i + 1}</span>
                     <span class="lb-name dev">◆ ${entry.name} <span class="lb-dev-badge">(DEV)
@@ -2165,8 +2192,11 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-pp">${fmtSafe(entry.pp)}</span>
                     <span class="lb-prestige">${fmtSafe(entry.prestige)}</span>
                     <span class="lb-tier">${entry.tier >= 0 ? TIERS[entry.tier].name : '—'}</span>
+                    ${tierHtml}
                 `;
             } else {
+                const tierIconNum = entry.tier >= 0 ? getTierIconNum(entry.tier) : 0;
+                const tierHtml = tierIconNum > 0 ? `<span class="lb-tier-icon"><img src="sprites/images/icons/individual/tier_${tierIconNum}.webp" class="lb-tier-img" onerror="this.style.display='none'"></span>` : '<span class="lb-tier-icon"></span>';
                 el.innerHTML = `
                     <span class="lb-rank">#${i + 1}</span>
                     <span class="lb-name">${isYou ? `<img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon-sm" alt=""> ` : ''}${entry.name}</span>
@@ -2175,6 +2205,7 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-pp">${fmtSafe(entry.pp)}</span>
                     <span class="lb-prestige">${fmtSafe(entry.prestige)}</span>
                     <span class="lb-tier">${entry.tier >= 0 ? TIERS[entry.tier].name : '—'}</span>
+                    ${tierHtml}
                 `;
             }
         }
@@ -2231,9 +2262,20 @@ function updateLocalLeaderboardEntry() {
         const cur = getCurrentTier(G);
         tierEl.textContent = cur >= 0 ? TIERS[cur].name : '—';
     }
+    const tierIconEl = row.querySelector('.lb-tier-icon');
+    if (tierIconEl) {
+        const cur = getCurrentTier(G);
+        const iconNum = cur >= 0 ? getTierIconNum(cur) : 0;
+        tierIconEl.innerHTML = iconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${iconNum}.webp" class="lb-tier-img" onerror="this.style.display='none'">` : '';
+    }
 }
 
 // ---- TIERS UI ----
+// Map tier index to icon number (1-50, cycles back)
+function getTierIconNum(tierIdx) {
+    if (tierIdx < 0) return 0;
+    return ((tierIdx) % 50) + 1;
+}
 // Direct fallback renderer for leaderboard — bypasses any BN/comparison issues
 function renderLeaderboardFallback(list) {
     if (!list) return;
@@ -2244,8 +2286,12 @@ function renderLeaderboardFallback(list) {
         { name: 'CipherZero', vibes: '136.00T', vps: '42.00T', pp: '611.62k', prestige: 8, tier: 'Silver' },
         { name: 'PixelWarden', vibes: '70.00T', vps: '18.00T', pp: '294.30k', prestige: 5, tier: 'Bronze' },
     ];
-    list.innerHTML = '<div class="lb-entry lb-header"><span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span><span class="lb-tier">TIER</span></div>'
-        + entries.map((e, i) => '<div class="lb-entry"><span class="lb-rank">#' + (i+1) + '</span><span class="lb-name">' + e.name + '</span><span class="lb-vibes">' + e.vibes + '</span><span class="lb-vps">' + e.vps + '</span><span class="lb-pp">' + e.pp + '</span><span class="lb-prestige">' + e.prestige + '</span><span class="lb-tier">' + e.tier + '</span></div>').join('');
+    list.innerHTML = '<div class="lb-entry lb-header"><span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span><span class="lb-tier">TIER</span><span class="lb-tier-icon"></span></div>'
+        + entries.map((e, i) => {
+            const iconNum = e.tierName ? getTierIconNum(e.tierName) : 0;
+            const iconHtml = iconNum > 0 ? `<img src=\"sprites/images/icons/individual/tier_${iconNum}.webp\" class=\"lb-tier-img\" onerror=\"this.style.display='none'\">` : '';
+            return '<div class=\"lb-entry\"><span class=\"lb-rank\">#' + (i+1) + '</span><span class=\"lb-name\">' + e.name + '</span><span class=\"lb-vibes\">' + e.vibes + '</span><span class=\"lb-vps\">' + e.vps + '</span><span class=\"lb-pp\">' + e.pp + '</span><span class=\"lb-prestige\">' + e.prestige + '</span><span class=\"lb-tier\">' + e.tier + '</span><span class=\"lb-tier-icon\">' + iconHtml + '</span></div>';
+        }).join('');
 }
 
 function renderTiers() {
