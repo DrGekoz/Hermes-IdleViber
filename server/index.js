@@ -355,7 +355,8 @@ async function handleAPI(req, res, url) {
             rank: i + 1,
             username: e.username,
             score: e.score,
-            prestige_level: e.prestige_level,
+            prestige_level: e.prestige_level || 0,
+            total_pp: e.total_pp || 0,
             vps: e.vps || 0,
         }));
 

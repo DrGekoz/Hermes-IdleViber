@@ -1207,7 +1207,7 @@ function initGameLoop() {
             }
         } else if (G.auth_token && G.server_online) {
             apiSave(G.auth_token, G).catch(() => {});
-            apiSubmitScore(G.auth_token, bnToNumber(G.lifetime_vibes), G.total_pp_earned, getVPS()).catch(() => {});
+            apiSubmitScore(G.auth_token, bnToNumber(G.lifetime_vibes), G.total_prestiges, bnToNumber(getVPS()), G.total_pp_earned).catch(() => {});
         }
     }, CONFIG.SAVE_INTERVAL);
 
@@ -1315,7 +1315,7 @@ function initGameLoop() {
                 const ppEl = row.querySelector('.lb-pp');
                 const prestigeEl = row.querySelector('.lb-prestige');
                 const tierEl = row.querySelector('.lb-tier');
-                if (vibeEl) vibeEl.textContent = formatNumber(entry.score || [0, 0]);
+                if (vibeEl) vibeEl.textContent = fmtVibes(entry.score);
                 if (vpsEl) vpsEl.textContent = formatNumber(entry.vps || 0);
                 if (ppEl) ppEl.textContent = formatNumber(entry.totalPp || 0);
                 if (prestigeEl) prestigeEl.textContent = formatNumber(entry.prestigeLevel || 0);
@@ -1903,6 +1903,22 @@ function updateGatewayUI() {
     }
 }
 
+// ---- LEADERBOARD RENDERING ----
+
+// Bulletproof number formatter for VIBES column — catches errors so a bad value never
+// breaks the entire row template or leaves a stale number on screen.
+function fmtVibes(v) {
+    try {
+        if (v === undefined || v === null) return '0';
+        if (typeof v === 'number' && !isFinite(v)) return 'InfZ';
+        if (typeof v !== 'number' && !Array.isArray(v)) return String(v);
+        return formatNumber(v);
+    } catch (e) {
+        console.warn('fmtVibes error:', e, v);
+        return String(v);
+    }
+}
+
 // Deduplicate leaderboard entries by playerId (preferred) or name (fallback)
 // When two entries share an identity, keep the one with most progress
 function deduplicateEntries(entries) {
@@ -2000,7 +2016,7 @@ async function updateLeaderboardUI(externalEntries) {
                     playerId: e.id || e.username,
                     name: e.username,
                     vibes: e.score,
-                    pp: e.prestige_level || 0,
+                    pp: e.total_pp || e.prestige_level || 0,
                     prestige: e.prestige_level || 0,
                     vps: e.vps || 0,
                     tier: getTierFromPrestige(e.prestige_level || 0),
@@ -2116,7 +2132,7 @@ async function updateLeaderboardUI(externalEntries) {
             const prestigeEl = el.querySelector('.lb-prestige');
             const tierEl = el.querySelector('.lb-tier');
             if (rankEl) rankEl.textContent = '#' + (i + 1);
-            if (vibeEl) vibeEl.textContent = (typeof entry.vibes === 'number' && !isFinite(entry.vibes)) ? 'InfZ' : formatNumber(entry.vibes);
+            if (vibeEl) vibeEl.textContent = fmtVibes(entry.vibes);
             if (vpsEl) vpsEl.textContent = formatNumber(entry.vps || 0);
             if (ppEl) ppEl.textContent = formatNumber(entry.pp);
             if (prestigeEl) prestigeEl.textContent = formatNumber(entry.prestige);
@@ -2139,7 +2155,7 @@ async function updateLeaderboardUI(externalEntries) {
                             <a href="https://buymeacoffee.com/DrGekoz" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
                         </span>
                     </span></span>
-                    <span class="lb-vibes">${typeof entry.vibes === 'number' && !isFinite(entry.vibes) ? 'InfZ' : formatNumber(entry.vibes)}</span>
+                    <span class="lb-vibes">${fmtVibes(entry.vibes)}</span>
                     <span class="lb-vps">${formatNumber(entry.vps || 0)}</span>
                     <span class="lb-pp">${formatNumber(entry.pp)}</span>
                     <span class="lb-prestige">${formatNumber(entry.prestige)}</span>
@@ -2149,7 +2165,7 @@ async function updateLeaderboardUI(externalEntries) {
                 el.innerHTML = `
                     <span class="lb-rank">#${i + 1}</span>
                     <span class="lb-name">${isYou ? `<img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon-sm" alt=""> ` : ''}${entry.name}</span>
-                    <span class="lb-vibes">${typeof entry.vibes === 'number' && !isFinite(entry.vibes) ? 'InfZ' : formatNumber(entry.vibes)}</span>
+                    <span class="lb-vibes">${fmtVibes(entry.vibes)}</span>
                     <span class="lb-vps">${formatNumber(entry.vps || 0)}</span>
                     <span class="lb-pp">${formatNumber(entry.pp)}</span>
                     <span class="lb-prestige">${formatNumber(entry.prestige)}</span>
@@ -2252,10 +2268,10 @@ function renderTiers() {
         + '<div class="stat-box" style="min-width:100px;"><div class="stat-value" style="font-size:11px;color:var(--accent-cyan);">' + (nextTierIdx >= 0 ? formatNumber(TIERS[nextTierIdx].requires) : 'MAX') + '</div><div class="stat-label">NEXT TIER AT</div></div>'
         // Tier bonus stat boxes (matching prestige stats style)
         + '<div style="display:flex;gap:4px;flex-wrap:wrap;grid-column:1/-1;margin-top:4px;">'
-        + '<div class="prestige-stat-box"><span class="prestige-stat-label">CLICK ×</span><span class="prestige-stat-value" style="color:var(--accent-gold);">' + formatNumber(totalClick) + '</span></div>'
-        + '<div class="prestige-stat-box"><span class="prestige-stat-label">VPS ×</span><span class="prestige-stat-value" style="color:var(--accent-green);">' + formatNumber(totalVps) + '</span></div>'
+        + '<div class="prestige-stat-box"><span class="prestige-stat-label">CLICK ×</span><span class="prestige-stat-value" style="color:var(--accent-gold);">' + formatNumber(1 + totalClick) + '</span></div>'
+        + '<div class="prestige-stat-box"><span class="prestige-stat-label">VPS ×</span><span class="prestige-stat-value" style="color:var(--accent-green);">' + formatNumber(1 + totalVps) + '</span></div>'
         + '<div class="prestige-stat-box"><span class="prestige-stat-label">OFFLINE +%</span><span class="prestige-stat-value" style="color:var(--accent-pink);">' + formatNumber(totalOffline) + '</span></div>'
-        + '<div class="prestige-stat-box"><span class="prestige-stat-label">ALL ×</span><span class="prestige-stat-value" style="color:var(--accent-cyan);">' + formatNumber(totalAll) + '</span></div>'
+        + '<div class="prestige-stat-box"><span class="prestige-stat-label">ALL ×</span><span class="prestige-stat-value" style="color:var(--accent-cyan);">' + formatNumber(1 + totalAll) + '</span></div>'
         + '<div class="prestige-stat-box"><span class="prestige-stat-label">ROOMS</span><span class="prestige-stat-value" style="color:var(--accent-gold);">' + formatNumber(totalRooms) + '</span></div>'
         + '</div>';
     // Tier list
