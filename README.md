@@ -92,7 +92,7 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 - **⚡ Buy All** buttons on upgrades, decor, and prestige tabs (most expensive first)
 - **🖱 Hold-to-spam** rapid-purchase on all shop items (autoclickers + prestige)
 - **🔔 Real-time sidebar tab indicators** — gold dots pulse on tabs with affordable items, green dot when prestige is ready, cyan dot for new achievements
-- **90 decor items** with visual canvas placement — 40% smaller render, single instance per decor, click-and-drag, drag reworked for instant cursor follow (no lerp lag)
+- **90 decor items** with visual canvas placement — single instance per decor, click-and-drag, drag reworked for instant cursor follow (no lerp lag), click-to-front brings any decor above others
 - **Equip/unequip decor** — clicking an active decor removes all instances from canvas; clicking EQUIP restores them at saved positions without entering placement mode
 - **Decor positions survive prestige** — positions saved to localStorage, restored when re-buying via Buy All or single purchase
 - **Buy All places decor at saved positions** — items with previous positions restore automatically, first-time purchases enter placement mode
@@ -199,6 +199,7 @@ node server/index.js
 
 ## ✦ Recent Updates
 
+- **Decor Click-to-Front** — clicking any decor on the canvas brings it to the front by reordering the `placed_decor` object so it renders last (on top of other items).
 - **P2P Retry Hardening** — when broadcast sends 0 peers, now aggressively rescans signaling collection for all online peers (not just when peer list is empty), immediately reconnects failed peers, and queues 1.5s + 2s retry broadcasts to give channels time to establish. Added `forceScan` parameter to `_rescanPeers()` for on-demand full directory scan.
 
 - **Tab & Login Text Standardized** — all sidebar tab text (inactive, hover, active) now uses hardcoded white fill with black stroke instead of room-themed colors. Login page title, subtitle, divider, and messages also use white fill + black stroke for consistency.

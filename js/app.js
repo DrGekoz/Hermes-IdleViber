@@ -776,6 +776,12 @@ function initUIEvents() {
             const snapped = snapToGrid(G.placed_decor[hit.decorKey][hit.index].x,
                                        G.placed_decor[hit.decorKey][hit.index].y);
             startDrag(hit.decorKey, hit.index, mx, my, snapped.x, snapped.y);
+            // Bring clicked decor to front by reordering the placed_decor object
+            if (G.placed_decor[hit.decorKey]) {
+                const val = G.placed_decor[hit.decorKey];
+                delete G.placed_decor[hit.decorKey];
+                G.placed_decor[hit.decorKey] = val;
+            }
         }
     });
 
