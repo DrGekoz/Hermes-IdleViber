@@ -1618,6 +1618,20 @@ function updateSidebarTabIndicators() {
         }
     }
     dom.tabRooms.classList.toggle('has-available', roomsAvailable);
+    // Also update room card affordabilities in real-time so Rooms tab stays live
+    const roomCards = dom.roomList.querySelectorAll('.room-card');
+    if (roomCards.length > 0) {
+        for (const card of roomCards) {
+            const id = card.dataset.roomId;
+            if (!id) continue;
+            const isLocked = card.classList.contains('locked');
+            if (!isLocked) continue;
+            const room = ROOMS[id];
+            if (!room) continue;
+            const canBuy = vibes >= room.cost;
+            card.classList.toggle('affordable', canBuy);
+        }
+    }
 
     // --- Upgrades tab: any autoclicker in current room affordable? ---
     let upgradesAvailable = false;
@@ -1902,6 +1916,7 @@ function updateRoomUI() {
         const canUnlock = bnGe(G.vibes, room.cost) && !unlocked;
         const el = document.createElement('div');
         el.className = `room-card ${active ? 'active' : ''} ${unlocked ? '' : 'locked'} ${canUnlock ? 'affordable' : ''} ${unlocked && !active ? 'purchased' : ''}`;
+        el.dataset.roomId = room.id;
         el.innerHTML = `
             <div class="room-card-bg" style="background-image:url('${room.bgImage || ''}');background-size:cover;background-position:center;"></div>
             <div class="room-card-info">
