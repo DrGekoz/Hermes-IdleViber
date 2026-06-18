@@ -2235,9 +2235,29 @@ function renderTiers() {
     const nextTierIdx = TIERS.findIndex(t => bnGt(t.requires, G.total_prestiges));
     const unlocked = TIERS.filter(t => bnGe(G.total_prestiges, t.requires)).length;
     // Stats bar
+    // Accumulated bonuses from unlocked tiers
+    let totalClick = 0, totalVps = 0, totalOffline = 0, totalAll = 0, totalRooms = 0;
+    for (const tier of TIERS) {
+        if (!bnGe(G.total_prestiges, tier.requires)) break;
+        switch (tier.type) {
+            case 'click': totalClick += tier.value; break;
+            case 'vps': totalVps += tier.value; break;
+            case 'offline': totalOffline += tier.value; break;
+            case 'all': totalAll += tier.value; break;
+            case 'rooms': totalRooms += tier.value; break;
+        }
+    }
     statsEl.innerHTML = '<div class="stat-box prestige-chip-box" style="min-width:100px;"><div class="stat-value chip-value" style="font-size:11px;">' + unlocked + ' / ' + TIERS.length + '</div><div class="stat-label">TIERS UNLOCKED</div></div>'
         + '<div class="stat-box" style="min-width:100px;"><div class="stat-value" style="font-size:11px;color:var(--accent-gold);">' + formatNumber(G.total_prestiges) + '</div><div class="stat-label">TOTAL PRESTIGES</div></div>'
-        + '<div class="stat-box" style="min-width:100px;"><div class="stat-value" style="font-size:11px;color:var(--accent-cyan);">' + (nextTierIdx >= 0 ? formatNumber(TIERS[nextTierIdx].requires) : 'MAX') + '</div><div class="stat-label">NEXT TIER AT</div></div>';
+        + '<div class="stat-box" style="min-width:100px;"><div class="stat-value" style="font-size:11px;color:var(--accent-cyan);">' + (nextTierIdx >= 0 ? formatNumber(TIERS[nextTierIdx].requires) : 'MAX') + '</div><div class="stat-label">NEXT TIER AT</div></div>'
+        // Tier bonus stat boxes (matching prestige stats style)
+        + '<div style="display:flex;gap:4px;flex-wrap:wrap;grid-column:1/-1;margin-top:4px;">'
+        + '<div class="prestige-stat-box"><span class="prestige-stat-label">CLICK ×</span><span class="prestige-stat-value" style="color:var(--accent-gold);">' + formatNumber(totalClick) + '</span></div>'
+        + '<div class="prestige-stat-box"><span class="prestige-stat-label">VPS ×</span><span class="prestige-stat-value" style="color:var(--accent-green);">' + formatNumber(totalVps) + '</span></div>'
+        + '<div class="prestige-stat-box"><span class="prestige-stat-label">OFFLINE +%</span><span class="prestige-stat-value" style="color:var(--accent-pink);">' + formatNumber(totalOffline) + '</span></div>'
+        + '<div class="prestige-stat-box"><span class="prestige-stat-label">ALL ×</span><span class="prestige-stat-value" style="color:var(--accent-cyan);">' + formatNumber(totalAll) + '</span></div>'
+        + '<div class="prestige-stat-box"><span class="prestige-stat-label">ROOMS</span><span class="prestige-stat-value" style="color:var(--accent-gold);">' + formatNumber(totalRooms) + '</span></div>'
+        + '</div>';
     // Tier list
     list.innerHTML = '';
     for (const tier of TIERS) {
