@@ -199,6 +199,8 @@ node server/index.js
 
 ## ✦ Recent Updates
 
+- **All 78 Room Upgrade Icons** — every autoclicker across all 6 rooms (cg_spark → bc_ocean_spirit) now has a custom pixel-art icon generated via Codex CLI, processed with chroma-key transparency at 256×256 lossless WebP
+- **Prestige Upgrade Icons Overhaul** — all 18 prestige and transcend upgrade icons regenerated via Codex CLI with neon/crystal pixel-art styling (gw_boost_1→5, click_1→3, autobuy_1→3, perma_mult, offline_amp, trans_click→trans_master)
 - **!important Fix for Button Text** — all button text now uses `!important` on `color` to correctly override conflicting CSS rules. Previously the `.login-box button` rule with `!important` was winning over the room-themed button block.
 - **Corrupted Cloud Save Guard** — `migrateBN()` now clamps any BN field with exponent at `BN_MAX` level back to `BN_ZERO`, preventing Infinity/NaN from old corrupted saves from displaying as massive InfZ values.
 - **Dead Code Removed** — `setButtonTextContrast()` function removed. Text contrast vars are now set inline.
