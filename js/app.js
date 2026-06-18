@@ -132,6 +132,12 @@ function migrateBN(state) {
     if (typeof state.total_pp_earned === 'number') state.total_pp_earned = bnFromNumber(state.total_pp_earned);
     if (typeof state.total_prestiges === 'number') state.total_prestiges = bnFromNumber(state.total_prestiges);
     if (state.total_prestiges === undefined || state.total_prestiges === null) state.total_prestiges = BN_ZERO;
+    // Guard against corrupted BN_MAX sentinel values (from Infinity/NaN overflow)
+    // A real new player should not have BN_MAX vibes or prestige points
+    if (state.vibes && Array.isArray(state.vibes) && state.vibes[1] >= Number.MAX_SAFE_INTEGER - 1) state.vibes = BN_ZERO;
+    if (state.lifetime_vibes && Array.isArray(state.lifetime_vibes) && state.lifetime_vibes[1] >= Number.MAX_SAFE_INTEGER - 1) state.lifetime_vibes = BN_ZERO;
+    if (state.prestige_points && Array.isArray(state.prestige_points) && state.prestige_points[1] >= Number.MAX_SAFE_INTEGER - 1) state.prestige_points = BN_ZERO;
+    if (state.total_pp_earned && Array.isArray(state.total_pp_earned) && state.total_pp_earned[1] >= Number.MAX_SAFE_INTEGER - 1) state.total_pp_earned = BN_ZERO;
     // Migrate old gateway_upgrades to prestige_upgrades
     if (state.gateway_upgrades) {
         state.prestige_upgrades = state.prestige_upgrades || {};
