@@ -105,9 +105,9 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 ### 🎨 Visual
 - **270+ pixel art icons** — 90 room upgrade icons + 90 decor icons + tier/prestige/P2P icons + PC tiers + synergy icons, all generated via Codex CLI (16-bit retro style) chroma-key processed to 256×256 lossless WebP
 - **24 room-themed pixel art button frames** — 6 materials × 4 sizes (wood grain rivets for Campfire Grove, glowing circuit traces for Cyber Den, mossy cobblestone for Zen Garden, brushed stainless steel for Star Deck, brass+gold engraved for Study Lounge, light wood+seashell for Beach Cove). Applied to all buttons via `background-image: var(--room-btn-img)` with `image-rendering: pixelated` and auto-switching per room
-- **Adaptive text contrast** — all UI text uses white fill with 8-direction black text-shadow outer stroke for readability over any button image. Active sidebar tab inverts to black fill + white stroke. Buttons dim via `filter: brightness(0.85)` on hover instead of solid background overlay (button image stays visible)
-- **Room-colored active tab glow** — selected sidebar tab gets `inset box-shadow` + `box-shadow` + `text-shadow` using the room's accent color
-- Smoother hover/active states — no cyan borders on any buttons, only the button image
+- **Unified white text + black stroke** — all UI text globally uses white fill with 8-direction black `text-shadow` outer stroke. Active sidebar tab inverts to black fill + white stroke. Functional colored text (gold prestige, cyan values) retains its fill color. Buttons dim via `filter: brightness(0.85)` on hover. Login page title, subtitle, divider, and messages also use standard white+black.
+- **No borders on buttons** — all cyan 2px borders removed from pixel buttons, sidebar tabs, login buttons, music controls. The button image is the button. Active tab uses room-colored glow instead of a border.
+- **VIBE button** — uses room-themed XL button image with 3D box-shadow depth, no white border or gradient overlay.
 - 6 unique room backgrounds with atmospheric effects
 - **Login screen video wallpaper** — looping MP4 with seamless 1.5s crossfade (dual canvas/video handoff)
 - **Room backgrounds use dual-video handoff** — instead of native `<video loop>` (which has a built-in seek pause), two non-looping videos crossfade at 1.5s for perfectly seamless looping
@@ -199,6 +199,9 @@ node server/index.js
 
 ## ✦ Recent Updates
 
+- **Tab & Login Text Standardized** — all sidebar tab text (inactive, hover, active) now uses hardcoded white fill with black stroke instead of room-themed colors. Login page title, subtitle, divider, and messages also use white fill + black stroke for consistency.
+- **Vibe Button Cleanup** — removed white 4px border and orange gradient background from the VIBE click button. Button now uses only the room-themed XL button image as its background with the 3D box-shadow depth effect.
+- **Colored Text Preserved** — functional colored text (gold prestige values, cyan stats, green values) keeps its fill color while still getting the black text-shadow outer stroke. Only button text and UI labels get forced white fill.
 - **Room-Themed Button System** — 24 pixel art button frames (6 rooms × 4 sizes) generated via Codex CLI: wood grain with rivets (Campfire Grove), glowing cyan circuit traces (Cyber Den), mossy cobblestone (Zen Garden), brushed stainless steel (Star Deck), brass+gold engraved (Study Lounge), light wood+seashell (Beach Cove). All buttons dynamically swap per room via CSS custom properties with `image-rendering: pixelated` and `background-size: 100% 100%`.
 - **Unified Text Contrast System** — all UI text uses white fill with 8-direction black outer stroke via `text-shadow` for consistent readability over any background. Active sidebar tab inverts to black fill + white stroke. Colored functional text (gold prestige, cyan values) retains its fill color. Buttons dim via `filter: brightness(0.85)` on hover instead of solid background overlay (button image stays visible, text keeps color).
 - **Cyan Borders Removed** — all pixel buttons, sidebar tabs, login buttons, and music controls had their 2px cyan borders removed. The button image IS the button now. Active tab gets a room-colored glow (`box-shadow` + `text-shadow`) instead of a blue border.
