@@ -316,6 +316,7 @@ async function handleAPI(req, res, url) {
         const score = Math.floor(body.score || 0);
         const prestigeLevel = body.prestige_level || 0;
         const vps = body.vps || 0;
+        const totalPp = body.total_pp || 0;
 
         // Upsert leaderboard entry
         const existing = d.leaderboard.findIndex(e => e.username === username);
@@ -323,6 +324,7 @@ async function handleAPI(req, res, url) {
             username,
             score,
             prestige_level: prestigeLevel,
+            total_pp: totalPp,
             vps,
             updated_at: new Date().toISOString(),
         };

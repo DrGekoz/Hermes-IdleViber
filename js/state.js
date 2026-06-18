@@ -954,6 +954,16 @@ function getSynergyBonus(autoclickerId, state = G) {
     return bonus;
 }
 
+// Sum of unlocked tier bonuses for a given type (click, vps, offline, all, rooms)
+function getTierAccumulated(type, state = G) {
+    let total = 0;
+    for (const tier of TIERS) {
+        if (!bnGe(state.total_prestiges, tier.requires)) break;
+        if (tier.type === type) total += tier.value;
+    }
+    return total;
+}
+
 function getVPS(state = G) {
     let vps = 0;
     // Sum autoclickers from ALL unlocked rooms
@@ -1006,13 +1016,18 @@ function getVPS(state = G) {
     }
     const vpsBoost = getVpsBoostMult();
     const wrinkleMult = getEffectiveVpsMultiplier(state);
-    // Combine as BN: vps * gwMult * roomMult * permaMult * vpsBoost * wrinkleMult
+    // Tier bonuses
+    const tierVps = getTierAccumulated('vps', state);
+    const tierAll = getTierAccumulated('all', state);
+    // Combine as BN: vps * gwMult * roomMult * permaMult * vpsBoost * wrinkleMult * tierBonuses
     let result = bnFromNumber(vps);
     result = bnMul(result, bnFromNumber(gwMult));
     result = bnMul(result, bnFromNumber(roomMult));
     result = bnMul(result, permaMult);
     result = bnMul(result, bnFromNumber(vpsBoost));
     result = bnMul(result, bnFromNumber(wrinkleMult));
+    if (tierVps > 0) result = bnMul(result, bnFromNumber(1 + tierVps));
+    if (tierAll > 0) result = bnMul(result, bnFromNumber(1 + tierAll));
     return result;
 }
 
@@ -1037,9 +1052,14 @@ function getClickValue(state = G) {
     }
     // Golden cookie click boost
     const gcBoost = getClickBoostMult();
+    // Tier bonuses
+    const tierClick = getTierAccumulated('click', state);
+    const tierAll = getTierAccumulated('all', state);
     let result = bnMul(bnFromNumber(base), clickMult);
     result = bnMul(result, permaMult);
     result = bnMul(result, bnFromNumber(gcBoost));
+    if (tierClick > 0) result = bnMul(result, bnFromNumber(1 + tierClick));
+    if (tierAll > 0) result = bnMul(result, bnFromNumber(1 + tierAll));
     return result;
 }
 
@@ -1411,12 +1431,13 @@ function calculateOfflineProgress(state = G) {
     
     const elapsedSec = elapsedMs / 1000;
     const vps = getVPS(state);
-    // Offline rate: base 1% + upgrades
+    // Offline rate: base 1% + prestige upgrades + tier bonuses
     let rate = BASE_OFFLINE_RATE;
     if (state.prestige_upgrades) {
         const ampCount = state.prestige_upgrades.offline_amp || 0;
         rate += 0.01 * ampCount;
     }
+    rate += 0.01 * getTierAccumulated('offline', state);
     const earned = vps * elapsedSec * rate;
     return { seconds: elapsedSec, vps, earned: isFinite(earned) ? earned : Number.MAX_VALUE, rate };
 }
