@@ -1819,7 +1819,7 @@ button.secondary:hover {
     background-size: 100% 100% !important;
     background-repeat: no-repeat !important;
     image-rendering: pixelated;
-    color: #ffffff;
+    color: var(--room-btn-text-color, #ffffff);
     text-shadow:
         1px 0 0 #000000,
         -1px 0 0 #000000,
@@ -1834,7 +1834,7 @@ button.secondary:hover {
     background-image: var(--room-btn-img) !important;
     background-size: 100% 100% !important;
     background-repeat: no-repeat !important;
-    color: #000000;
+    color: var(--room-btn-text-color-inv, #000000);
     text-shadow:
         1px 0 0 #ffffff,
         -1px 0 0 #ffffff,
@@ -1852,65 +1852,64 @@ button.secondary:hover {
     background-image: var(--room-btn-sm-img) !important;
     background-size: 100% 100% !important;
     background-repeat: no-repeat !important;
-    color: var(--room-btn-text-color, #4af) !important;
+    color: var(--room-btn-text-color, #ffffff) !important;
     text-shadow:
-        1px 0 0 var(--room-btn-text-stroke, transparent),
-        -1px 0 0 var(--room-btn-text-stroke, transparent),
-        0 1px 0 var(--room-btn-text-stroke, transparent),
-        0 -1px 0 var(--room-btn-text-stroke, transparent),
-        1px 1px 0 var(--room-btn-text-stroke, transparent),
-        -1px -1px 0 var(--room-btn-text-stroke, transparent),
-        1px -1px 0 var(--room-btn-text-stroke, transparent),
-        -1px 1px 0 var(--room-btn-text-stroke, transparent);
+        1px 0 0 #000000,
+        -1px 0 0 #000000,
+        0 1px 0 #000000,
+        0 -1px 0 #000000,
+        1px 1px 0 #000000,
+        -1px -1px 0 #000000,
+        1px -1px 0 #000000,
+        -1px 1px 0 #000000 !important;
 }
 /* Wide buttons */
 .buy-all-btn, .social-btn {
     background-image: var(--room-btn-wide-img) !important;
     background-size: 100% 100% !important;
     background-repeat: no-repeat !important;
-    color: var(--room-btn-text-color, #4af) !important;
+    color: var(--room-btn-text-color, #ffffff) !important;
     text-shadow:
-        1px 0 0 var(--room-btn-text-stroke, transparent),
-        -1px 0 0 var(--room-btn-text-stroke, transparent),
-        0 1px 0 var(--room-btn-text-stroke, transparent),
-        0 -1px 0 var(--room-btn-text-stroke, transparent),
-        1px 1px 0 var(--room-btn-text-stroke, transparent),
-        -1px -1px 0 var(--room-btn-text-stroke, transparent),
-        1px -1px 0 var(--room-btn-text-stroke, transparent),
-        -1px 1px 0 var(--room-btn-text-stroke, transparent);
+        1px 0 0 #000000,
+        -1px 0 0 #000000,
+        0 1px 0 #000000,
+        0 -1px 0 #000000,
+        1px 1px 0 #000000,
+        -1px -1px 0 #000000,
+        1px -1px 0 #000000,
+        -1px 1px 0 #000000 !important;
 }
 /* XL buttons */
 #prestige-btn, #click-btn {
     background-image: var(--room-btn-xl-img) !important;
     background-size: 100% 100% !important;
     background-repeat: no-repeat !important;
-    color: var(--room-btn-text-color, #4af) !important;
+    color: var(--room-btn-text-color, #ffffff) !important;
     text-shadow:
-        1px 0 0 var(--room-btn-text-stroke, transparent),
-        -1px 0 0 var(--room-btn-text-stroke, transparent),
-        0 1px 0 var(--room-btn-text-stroke, transparent),
-        0 -1px 0 var(--room-btn-text-stroke, transparent),
-        1px 1px 0 var(--room-btn-text-stroke, transparent),
-        -1px -1px 0 var(--room-btn-text-stroke, transparent),
-        1px -1px 0 var(--room-btn-text-stroke, transparent),
-        -1px 1px 0 var(--room-btn-text-stroke, transparent);
+        1px 0 0 #000000,
+        -1px 0 0 #000000,
+        0 1px 0 #000000,
+        0 -1px 0 #000000,
+        1px 1px 0 #000000,
+        -1px -1px 0 #000000,
+        1px -1px 0 #000000,
+        -1px 1px 0 #000000 !important;
 }
 
-/* Global adaptive text for all UI content */
+/* Global adaptive text for all UI content - stroke only, color inherits */
 .sidebar, .main-area, .music-panel,
 #leaderboard, .popup-content,
 .gateway-info, .prestige-stats,
 .prestige-reset-box, .shop-tooltip-main,
 .click-float, .room-card,
 #tier-stats, #tier-list {
-    color: var(--room-btn-text-color, inherit);
     text-shadow:
-        1px 0 0 var(--room-btn-text-stroke, transparent),
-        -1px 0 0 var(--room-btn-text-stroke, transparent),
-        0 1px 0 var(--room-btn-text-stroke, transparent),
-        0 -1px 0 var(--room-btn-text-stroke, transparent),
-        1px 1px 0 var(--room-btn-text-stroke, transparent),
-        -1px -1px 0 var(--room-btn-text-stroke, transparent),
-        1px -1px 0 var(--room-btn-text-stroke, transparent),
-        -1px 1px 0 var(--room-btn-text-stroke, transparent);
+        1px 0 0 #000000,
+        -1px 0 0 #000000,
+        0 1px 0 #000000,
+        0 -1px 0 #000000,
+        1px 1px 0 #000000,
+        -1px -1px 0 #000000,
+        1px -1px 0 #000000,
+        -1px 1px 0 #000000;
 }
