@@ -1577,7 +1577,9 @@ function updateShopAffordability() {
         const roomClickers3 = (G.room_autoclickers || {})[curRoomAff] || {};
         const currentRoomCount = roomClickers3[id] || 0;
         const cost = Math.floor(tier.baseCost * Math.pow(1.15, currentRoomCount));
-        el.classList.toggle('locked', vibes < cost);
+        const locked = vibes < cost;
+        el.classList.toggle('locked', locked);
+        el.classList.toggle('affordable', !locked);
     });
     // Prestige upgrades (count-based, chip cost)
     updatePrestigeAffordability();
@@ -1590,6 +1592,7 @@ function updateShopAffordability() {
         const owned = G.owned_decor.includes(id);
         const canBuy = !owned && vibes >= item.cost;
         el.classList.toggle('locked', !owned ? !canBuy : false);
+        el.classList.toggle('affordable', canBuy);
     });
 }
 
@@ -1600,7 +1603,9 @@ function updatePrestigeAffordability() {
         const id = el.dataset.upgId;
         if (!id) return;
         const cost = getPrestigeUpgradeCost(id);
-        el.classList.toggle('locked', bnLt(chips, cost));
+        const locked = bnLt(chips, cost);
+        el.classList.toggle('locked', locked);
+        el.classList.toggle('affordable', !locked);
     });
 }
 
@@ -1685,6 +1690,9 @@ function updateSidebarTabIndicators() {
         }
     }
     dom.tabAchievements.classList.toggle('has-new', newAchievements);
+
+    // Real-time affordability for all purchasable items (upgrades, decor, prestige upgrades)
+    updateShopAffordability();
 }
 
 function renderPrestigeUpgrades() {

@@ -675,8 +675,23 @@ body {
     left: 50%;
     transform: translateX(-50%);
     font-size: 8px;
-    color: var(--accent-cyan);
+    color: var(--room-btn-text-color, var(--accent-cyan));
     white-space: nowrap;
+    text-shadow:
+        1px 0 0 var(--room-btn-text-stroke, transparent),
+        -1px 0 0 var(--room-btn-text-stroke, transparent),
+        0 1px 0 var(--room-btn-text-stroke, transparent),
+        0 -1px 0 var(--room-btn-text-stroke, transparent);
+}
+
+/* Adaptive text for menu section headers and labels */
+.label-adaptive {
+    color: var(--room-btn-text-color) !important;
+    text-shadow:
+        1px 0 0 var(--room-btn-text-stroke, transparent),
+        -1px 0 0 var(--room-btn-text-stroke, transparent),
+        0 1px 0 var(--room-btn-text-stroke, transparent),
+        0 -1px 0 var(--room-btn-text-stroke, transparent) !important;
 }
 
 /* --- CLICK FLOAT TEXT --- */
