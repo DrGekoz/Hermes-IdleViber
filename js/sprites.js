@@ -1675,14 +1675,18 @@ function isPlacing() {
 }
 
 // --- DRAG SYSTEM ---
-function startDrag(decorKey, index, mx, my) {
+function startDrag(decorKey, index, mouseX, mouseY, decorX, decorY) {
     dragState.active = true;
     dragState.decorKey = decorKey;
     dragState.index = index;
-    dragState.mouseX = mx;
-    dragState.mouseY = my;
-    dragState.currentX = mx;
-    dragState.currentY = my;
+    dragState.mouseX = mouseX;
+    dragState.mouseY = mouseY;
+    // Store offset from decor top-left to where the user clicked
+    // so the same relative point on the decor stays under the cursor (center-weighted grab)
+    dragState.localOffsetX = mouseX - decorX;
+    dragState.localOffsetY = mouseY - decorY;
+    dragState.currentX = decorX;
+    dragState.currentY = decorY;
     dragState.velocityX = 0;
     dragState.velocityY = 0;
     dragState.rotation = 0;
@@ -1708,9 +1712,12 @@ function updateDrag(mx, my) {
     // Smoothly lerp current rotation toward target (acceleration/deceleration feel)
     dragState.rotation += (dragState.targetRotation - dragState.rotation) * 0.15;
 
+    // Target decor position: mouse minus the local offset (keeps grab point under cursor)
+    const targetX = mx - dragState.localOffsetX;
+    const targetY = my - dragState.localOffsetY;
     // Apply with lerp for smooth follow (0.5 = snappy but smooth)
-    dragState.currentX += (mx - dragState.currentX) * 0.5;
-    dragState.currentY += (my - dragState.currentY) * 0.5;
+    dragState.currentX += (targetX - dragState.currentX) * 0.5;
+    dragState.currentY += (targetY - dragState.currentY) * 0.5;
 }
 
 function endDrag(state, finalX, finalY) {
@@ -1736,6 +1743,9 @@ function endDrag(state, finalX, finalY) {
     if (state.placed_decor && state.placed_decor[decorKey] && state.placed_decor[decorKey][index]) {
         state.placed_decor[decorKey][index].x = Math.round(dragState.currentX);
         state.placed_decor[decorKey][index].y = Math.round(dragState.currentY);
+        // Sync to saved placements
+        if (!state.saved_decor_placements) state.saved_decor_placements = {};
+        state.saved_decor_placements[decorKey] = JSON.parse(JSON.stringify(state.placed_decor[decorKey]));
     }
 
     dragState.active = false;

@@ -25,6 +25,26 @@ html, body { width: 100%; height: 100%; overflow: hidden; }
     --accent-orange: #ff6b35;
     --accent-pink: #ff0066;
     --pixel-border: 3px;
+    
+    /* Room theme variables (set dynamically by JS) */
+    --room-sidebar: #1a0e0a;
+    --room-panel: #120a08;
+    --room-tab-active: #2b1a10;
+    --room-tab-inactive: #0f0806;
+    --room-tab-text-active: #ffdd88;
+    --room-tab-text-inactive: #886644;
+    --room-btn-bg: #2b1a10;
+    --room-btn-text: #ffaa44;
+    --room-btn-border: #ff6b35;
+    --room-title-color: #ffdd88;
+    --room-accent: #ff6b35;
+    --room-secondary: #ffaa44;
+    --room-text-primary: #f0d0b0;
+    --room-text-secondary: #887060;
+    --room-border: #3a2a1a;
+    --room-highlight: #ffdd88;
+    --room-vibe-color: #ff6b35;
+    --room-resource-bg: #1a0e0a;
 }
 
 body {
@@ -173,8 +193,8 @@ body {
     width: 300px;
     min-width: 300px;
     height: 100vh;
-    background: rgba(10, 10, 15, 0.95);
-    border-right: 2px solid #222;
+    background: var(--room-sidebar, rgba(10, 10, 15, 0.95));
+    border-right: 2px solid var(--room-border, #222);
     display: flex;
     flex-direction: column;
     z-index: 100;
@@ -187,14 +207,14 @@ body {
 
 .sidebar-header {
     padding: 12px 15px;
-    border-bottom: 2px solid #222;
+    border-bottom: 2px solid var(--room-border, #222);
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 .sidebar-header h2 {
     font-size: 11px;
-    color: var(--accent-gold);
+    color: var(--room-accent, var(--accent-gold));
 }
 .vibe-icon { width: 16px; height: 16px; vertical-align: middle; image-rendering: pixelated; }
 .vibe-icon-sm { width: 12px; height: 12px; vertical-align: middle; image-rendering: pixelated; margin: 0 1px; }
@@ -216,9 +236,9 @@ body {
     cursor: default;
 }
 .sidebar-header .user-info button {
-    background: #222;
-    border: 1px solid #444;
-    color: #aaa;
+    background: var(--room-btn-bg, #222);
+    border: 1px solid var(--room-btn-border, #444);
+    color: var(--room-btn-text, #aaa);
     font-family: var(--pixel-font);
     font-size: 7px;
     padding: 4px 8px;
@@ -243,8 +263,8 @@ body {
 /* --- RESOURCE BAR --- */
 .resource-bar {
     padding: 10px 15px;
-    background: rgba(0,0,0,0.4);
-    border-bottom: 1px solid #1a1a1a;
+    background: var(--room-resource-bg, rgba(0,0,0,0.4));
+    border-bottom: 1px solid var(--room-border, #1a1a1a);
     display: flex;
     flex-wrap: wrap;
     gap: 6px 16px;
@@ -256,37 +276,39 @@ body {
     gap: 6px;
     white-space: nowrap;
 }
-.resource-item .label { color: var(--text-secondary); }
-.resource-item .value { color: var(--accent-gold); font-weight: bold; }
-.resource-item .value.cyan { color: var(--accent-cyan); }
+.resource-item .label { color: var(--room-text-secondary, var(--text-secondary)); }
+.resource-item .value { color: var(--room-highlight, var(--accent-gold)); font-weight: bold; }
+.resource-item .value.cyan { color: var(--room-secondary, var(--accent-cyan)); }
 .resource-item .value.green { color: var(--accent-green); }
 .resource-item .value.purple { color: #aa66ff; }
+.resource-item .value.gold { color: var(--room-highlight, var(--accent-gold)); }
+#vibe-display { color: var(--room-vibe-color, var(--accent-gold)); }
 
 /* --- SIDEBAR TABS --- */
 .sidebar-tabs {
     display: flex;
-    border-bottom: 2px solid #1a1a1a;
+    border-bottom: 2px solid var(--room-border, #1a1a1a);
     flex-wrap: wrap;
 }
 .sidebar-tabs button {
     flex: 1 1 45%;
     min-width: 0;
     padding: 8px 4px;
-    background: transparent;
+    background: var(--room-tab-inactive, transparent);
     border: none;
     border-bottom: 2px solid transparent;
-    color: var(--text-secondary);
+    color: var(--room-tab-text-inactive, var(--text-secondary));
     font-family: var(--pixel-font);
     font-size: 7px;
     cursor: pointer;
     transition: all 0.15s;
     white-space: nowrap;
 }
-.sidebar-tabs button:hover { color: var(--text-primary); background: rgba(255,255,255,0.03); }
+.sidebar-tabs button:hover { color: var(--room-tab-text-active); background: rgba(255,255,255,0.03); }
 .sidebar-tabs button.active {
-    color: var(--accent-gold);
-    border-bottom-color: var(--accent-gold);
-    background: rgba(255,215,0,0.05);
+    color: var(--room-tab-text-active, var(--accent-gold));
+    border-bottom-color: var(--room-accent, var(--accent-gold));
+    background: var(--room-tab-active, rgba(255,215,0,0.05));
 }
 
 /* --- TAB PANELS --- */
@@ -307,8 +329,8 @@ body {
     background: #0f0f12;
     border: 1px solid #555;
     padding: 10px 12px;
-    min-width: 200px;
-    max-width: 240px;
+    min-width: 220px;
+    max-width: 280px;
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -321,8 +343,8 @@ body {
     display: none;
 }
 .shop-tooltip-main .tt-icon-img {
-    width: 96px;
-    height: 96px;
+    width: 128px;
+    height: 128px;
     image-rendering: pixelated;
     object-fit: contain;
     flex-shrink: 0;
@@ -340,13 +362,6 @@ body {
     align-items: center;
     gap: 8px;
     margin-bottom: 4px;
-}
-.shop-tooltip-main .tt-icon-img {
-    width: 84px;
-    height: 84px;
-    image-rendering: pixelated;
-    object-fit: contain;
-    flex-shrink: 0;
 }
 .shop-tooltip-main .tt-icon-name {
     flex: 1;
@@ -418,6 +433,16 @@ body {
 
 .shop-item-icon { font-size: 14px; width: 32px; min-width: 32px; text-align: center; display: flex; align-items: center; justify-content: center; }
 .shop-icon-img { width: 28px; height: 28px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0; }
+
+/* Ensure ALL game sprites render crisp when downscaled */
+.shop-item img,
+.prestige-upgrade-item img,
+.gw-upgrade-item img,
+.decor-item img,
+.tt-icon-img,
+.shop-icon-img {
+    image-rendering: pixelated;
+}
 .shop-icon-fallback { font-size: 14px; }
 .shop-item-info { flex: 1; min-width: 0; overflow: hidden; }
 .shop-item-name { font-size: 8px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
@@ -651,7 +676,7 @@ body {
     text-align: center;
     pointer-events: none;
 }
-.room-overlay .room-name { font-size: 9px; color: var(--text-primary); }
+.room-overlay .room-name { font-size: 9px; color: var(--room-title-color, var(--text-primary)); }
 .room-overlay .room-genre { font-size: 6px; color: var(--accent-cyan); margin-top: 3px; }
 
 /* --- LEADERBOARD (bottom left, clickable fullscreen) --- */

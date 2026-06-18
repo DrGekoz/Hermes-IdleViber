@@ -182,6 +182,26 @@ const ROOMS = {
         bg: ['#1a0e0a', '#2b1a10', '#0f0806'],
         fg: ['#ff6b35', '#ffaa44', '#ffdd88'],
         sprites: ['campfire', 'trees', 'stars', 'smoke'],
+        theme: {
+            sidebar: '#1a0e0a',
+            panel: '#120a08',
+            tab_active: '#2b1a10',
+            tab_inactive: '#0f0806',
+            tab_text_active: '#ffdd88',
+            tab_text_inactive: '#886644',
+            btn_bg: '#2b1a10',
+            btn_text: '#ffaa44',
+            btn_border: '#ff6b35',
+            title_color: '#ffdd88',
+            accent: '#ff6b35',
+            secondary: '#ffaa44',
+            text_primary: '#f0d0b0',
+            text_secondary: '#887060',
+            border: '#3a2a1a',
+            highlight: '#ffdd88',
+            vibe_color: '#ff6b35',
+            resource_bg: '#1a0e0a',
+        },
     },
     cyber_den: {
         id: 'cyber_den',
@@ -193,6 +213,26 @@ const ROOMS = {
         bg: ['#0a001a', '#1a0033', '#000011'],
         fg: ['#ff00ff', '#00ffff', '#ff0066'],
         sprites: ['server_rack', 'neon_sign', 'matrix_rain', 'hologram'],
+        theme: {
+            sidebar: '#0a001a',
+            panel: '#060011',
+            tab_active: '#1a0033',
+            tab_inactive: '#000011',
+            tab_text_active: '#00ffff',
+            tab_text_inactive: '#662288',
+            btn_bg: '#1a0033',
+            btn_text: '#ff00ff',
+            btn_border: '#00ffff',
+            title_color: '#00ffff',
+            accent: '#ff00ff',
+            secondary: '#00ffff',
+            text_primary: '#d0b0ff',
+            text_secondary: '#664488',
+            border: '#330055',
+            highlight: '#ff00ff',
+            vibe_color: '#ff0066',
+            resource_bg: '#0a001a',
+        },
     },
     zen_garden: {
         id: 'zen_garden',
@@ -204,6 +244,26 @@ const ROOMS = {
         bg: ['#0a1a0a', '#1a2a1a', '#050f05'],
         fg: ['#66bb6a', '#a5d6a7', '#4db6ac'],
         sprites: ['bamboo', 'water_rock', 'cherry_blossom', 'lantern'],
+        theme: {
+            sidebar: '#0a1a0a',
+            panel: '#061206',
+            tab_active: '#1a2a1a',
+            tab_inactive: '#050f05',
+            tab_text_active: '#a5d6a7',
+            tab_text_inactive: '#335533',
+            btn_bg: '#1a2a1a',
+            btn_text: '#a5d6a7',
+            btn_border: '#66bb6a',
+            title_color: '#a5d6a7',
+            accent: '#66bb6a',
+            secondary: '#4db6ac',
+            text_primary: '#b0d0b0',
+            text_secondary: '#446644',
+            border: '#2a4a2a',
+            highlight: '#a5d6a7',
+            vibe_color: '#4db6ac',
+            resource_bg: '#0a1a0a',
+        },
     },
     star_deck: {
         id: 'star_deck',
@@ -215,6 +275,26 @@ const ROOMS = {
         bg: ['#000022', '#000044', '#001122'],
         fg: ['#ffffff', '#8888ff', '#ff88ff'],
         sprites: ['telescope', 'aurora', 'planets', 'constellations'],
+        theme: {
+            sidebar: '#000022',
+            panel: '#000018',
+            tab_active: '#000044',
+            tab_inactive: '#001122',
+            tab_text_active: '#ffffff',
+            tab_text_inactive: '#444488',
+            btn_bg: '#000044',
+            btn_text: '#8888ff',
+            btn_border: '#ffffff',
+            title_color: '#ffffff',
+            accent: '#8888ff',
+            secondary: '#ff88ff',
+            text_primary: '#c0c0e0',
+            text_secondary: '#444466',
+            border: '#222255',
+            highlight: '#ffffff',
+            vibe_color: '#ff88ff',
+            resource_bg: '#000022',
+        },
     },
     study_lounge: {
         id: 'study_lounge',
@@ -226,6 +306,26 @@ const ROOMS = {
         bg: ['#1a1410', '#2a2018', '#0f0a08'],
         fg: ['#d4a574', '#c4956a', '#e8c8a8'],
         sprites: ['bookshelf', 'desk', 'lamp', 'armchair'],
+        theme: {
+            sidebar: '#1a1410',
+            panel: '#120e0a',
+            tab_active: '#2a2018',
+            tab_inactive: '#0f0a08',
+            tab_text_active: '#e8c8a8',
+            tab_text_inactive: '#665544',
+            btn_bg: '#2a2018',
+            btn_text: '#d4a574',
+            btn_border: '#c4956a',
+            title_color: '#e8c8a8',
+            accent: '#d4a574',
+            secondary: '#c4956a',
+            text_primary: '#d0c0a8',
+            text_secondary: '#665544',
+            border: '#3a2a1a',
+            highlight: '#e8c8a8',
+            vibe_color: '#d4a574',
+            resource_bg: '#1a1410',
+        },
     },
     beach_cove: {
         id: 'beach_cove',
@@ -237,6 +337,26 @@ const ROOMS = {
         bg: ['#1a2233', '#2a3344', '#0a1520'],
         fg: ['#ffaa44', '#ff8833', '#66ccff'],
         sprites: ['palm_tree', 'waves', 'seashell', 'sunset'],
+        theme: {
+            sidebar: '#1a2233',
+            panel: '#121a28',
+            tab_active: '#2a3344',
+            tab_inactive: '#0a1520',
+            tab_text_active: '#ffdd88',
+            tab_text_inactive: '#445566',
+            btn_bg: '#2a3344',
+            btn_text: '#ffaa44',
+            btn_border: '#66ccff',
+            title_color: '#ffdd88',
+            accent: '#ffaa44',
+            secondary: '#66ccff',
+            text_primary: '#c0d0e0',
+            text_secondary: '#556677',
+            border: '#335577',
+            highlight: '#ffdd88',
+            vibe_color: '#ff8833',
+            resource_bg: '#1a2233',
+        },
     },
 };
 
@@ -709,6 +829,7 @@ function getDefaultState() {
         active_decor: {}, // flat: { decorId: true } — all equipped items, no type limit
         gateway_history: [],
         placed_decor: {}, // { decorId: [{ x: gridPos, y: gridPos }, ...] }
+        saved_decor_placements: {}, // persists across prestige: { decorId: [{ x: gridPos, y: gridPos }, ...] }
         gateway_bonus_active: false,
         _gwMult: 1.0,
         _gwLabel: 'Disconnected',
@@ -1290,6 +1411,10 @@ function buyDecor(id) {
         G.vibes = bnSub(G.vibes, bnFromNumber(item.cost));
         G.owned_decor.push(id);
         G.active_decor[id] = true; // Auto-activate on purchase
+        // Restore saved placement positions from previous runs
+        if (G.saved_decor_placements && G.saved_decor_placements[id]) {
+            G.placed_decor[id] = JSON.parse(JSON.stringify(G.saved_decor_placements[id]));
+        }
         notifyStateChange('decor');
         return true;
     }
@@ -1314,6 +1439,10 @@ function activateDecor(id) {
         }
     } else {
         G.active_decor[id] = true;
+        // Restore saved placement positions when re-activating after prestige
+        if (G.saved_decor_placements && G.saved_decor_placements[id]) {
+            G.placed_decor[id] = JSON.parse(JSON.stringify(G.saved_decor_placements[id]));
+        }
     }
     notifyStateChange('decor_active');
     return true;
@@ -1350,6 +1479,10 @@ function doPrestige() {
     G.prestige_unlocked = false; // Must re-unlock prestige next run
     G.autoclickers = {};
     G.room_autoclickers = {};
+    // Save decor placements before wiping so they can be restored on next run
+    if (Object.keys(G.placed_decor || {}).length > 0) {
+        G.saved_decor_placements = JSON.parse(JSON.stringify(G.placed_decor));
+    }
     G.owned_decor = [];
     G.active_decor = {};
     G.placed_decor = {};

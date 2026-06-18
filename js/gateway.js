@@ -166,7 +166,7 @@ async function scanBatch(ports) {
 // --- MAIN DISCOVERY (locked, with cached port shortcut) ---
 async function discoverGateway() {
     if (activeScanPromise) {
-        console.log('🔌 Scan already in progress, waiting...');
+        // console.log('🔌 Scan already in progress, waiting...');
         return await activeScanPromise;
     }
 
@@ -183,12 +183,12 @@ async function discoverGateway() {
         // --- Phase 0: Check cached port (INSTANT if previously connected) ---
         const cachedPort = getCachedPort();
         if (cachedPort && cachedPort !== selfPort) {
-            console.log(`🔌 Checking cached port: ${cachedPort}`);
+            // console.log(`🔌 Checking cached port: ${cachedPort}`);
             const check = await portIsAlive(cachedPort, 300);
             if (check.alive) {
                 const id = await identifyPort(cachedPort);
                 if (id.alive) {
-                    console.log(`🔌 Reconnected via cache: localhost:${cachedPort}`);
+                    // console.log(`🔌 Reconnected via cache: localhost:${cachedPort}`);
                     gatewayStatus.scanning = false;
                     activeScanPromise = null;
                     await connectToGateway(cachedPort, id.latency, id.label);
@@ -198,11 +198,11 @@ async function discoverGateway() {
         }
 
         // --- Phase 1: Hot ports (50 ports, ~1-2 seconds) ---
-        console.log('🔌 Scanning hot ports...');
+        // console.log('🔌 Scanning hot ports...');
         const hotTargets = [...new Set(HOT_PORTS.filter(p => p !== selfPort))];
         const hotResult = await scanBatch(hotTargets);
         if (hotResult && hotResult.port && !scanCancelled) {
-            console.log(`🔌 Found: localhost:${hotResult.port} (${hotResult.label})`);
+            // console.log(`🔌 Found: localhost:${hotResult.port} (${hotResult.label})`);
             gatewayStatus.scanning = false;
             activeScanPromise = null;
             setCachedPort(hotResult.port);
@@ -211,7 +211,7 @@ async function discoverGateway() {
         }
 
         // --- Phase 2: Web server range 1024-5000 (common dev range, faster) ---
-        console.log('🔌 Scanning web server range 1024-5000...');
+        // console.log('🔌 Scanning web server range 1024-5000...');
         const rangePorts = [];
         for (let p = 1024; p <= 5000; p++) {
             if (p !== selfPort && !HOT_PORTS.includes(p)) rangePorts.push(p);
@@ -235,14 +235,14 @@ async function discoverGateway() {
         activeScanPromise = null;
 
         if (found && found.port && !scanCancelled) {
-            console.log(`🔌 Found: localhost:${found.port} (${found.label})`);
+            // console.log(`🔌 Found: localhost:${found.port} (${found.label})`);
             setCachedPort(found.port);
             await connectToGateway(found.port, found.latency, found.label);
             return { success: true, port: found.port, latency: found.latency, label: found.label };
         }
 
         // Not found
-        console.log('🔌 No gateway found on scanned ports (hot + 1024-5000)');
+        // console.log('🔌 No gateway found on scanned ports (hot + 1024-5000)');
         gatewayStatus.connected = false;
         gatewayStatus.lastError = 'No gateway found on scanned ports';
         G.gateway_bonus_active = false;

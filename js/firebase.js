@@ -215,18 +215,20 @@ async function getLeaderboard(limitCount = 50) {
             limit(limitCount)
         );
         const snap = await getDocs(q);
-        return snap.docs.map((d, i) => ({
+        return snap.docs.map((d, i) => {
+            const data = d.data();
+            return {
             uid: d.id,
             rank: i + 1,
-            username: d.data().display_name || d.data().username || 'Unknown',
-            score: d.data().score || 0,
-            prestige_level: d.data().prestige_level || 0,
-            total_pp: d.data().total_pp || 0,
-            vps: d.data().vps || 0,
-            score_full: d.data().score_full || null,
-            pp_full: d.data().pp_full || null,
-            vps_full: d.data().vps_full || null,
-        }));
+            username: data.display_name || data.username || 'Unknown',
+            score: data.score ?? 0,
+            prestige_level: data.prestige_level ?? 0,
+            total_pp: data.total_pp ?? 0,
+            vps: data.vps ?? 0,
+            score_full: data.score_full ?? null,
+            pp_full: data.pp_full ?? null,
+            vps_full: data.vps_full ?? null,
+        }});
     } catch (e) {
         console.warn('Leaderboard fetch error:', e.message);
         return [];
@@ -284,7 +286,7 @@ async function savePlayerData(gameState) {
             'total_prestiges', 'autoclickers', 'gateway_upgrades', 'decor',
             'current_room', 'unlocked_rooms', 'owned_decor', 'active_decor',
 
-            'gateway_history', 'placed_decor', 'gateway_bonus_active',
+            'gateway_history', 'placed_decor', 'saved_decor_placements', 'gateway_bonus_active',
             'total_clicks', 'total_gateway_pings', 'achievements', 'settings',
             'displayName', 'display_name_last_changed',
             'last_save', 'prestige_upgrades',
@@ -402,6 +404,16 @@ function p2pBNToNumber(bn) {
     return m * Math.pow(10, e);
 }
 
+// ---- ANONYMOUS AUTH (for P2P without email/github login) ----
+async function signInAnonymously() {
+    if (!auth) return { error: 'Firebase not initialized' };
+    try {
+        const { signInAnonymously: fbAnon } = await import(`${FB_BASE}firebase-auth.js`);
+        const r = await fbAnon(auth);
+        return { success: true, user: r.user };
+    } catch (e) { return { error: e.message }; }
+}
+
 // ---- EXPORTS ----
 export {
     initFirebase,
@@ -423,4 +435,5 @@ export {
     syncLeaderboardToFirestore,
     getFirestoreApi,
     getDb,
+    signInAnonymously as fbSignInAnon,
 };

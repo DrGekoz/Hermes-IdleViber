@@ -45,10 +45,12 @@ import { initFirebase, onAuthChanged, getCurrentUser, isConfigured,
          subscribeLeaderboard as fbSubscribeLeaderboard,
          savePlayerData as fbSave, loadPlayerData as fbLoad,
          syncLeaderboardToFirestore as fbSyncLeaderboard,
-         getFirestoreApi, getDb } from './firebase.js';
+         getFirestoreApi, getDb, fbSignInAnon } from './firebase.js';
 
 // ---- P2P Leaderboard (WebRTC mesh via Firestore signaling) ----
 import { p2pInit, p2pStart, p2pCleanup, p2pBroadcastScore, p2pSubscribe, p2pGetLocalPlayerId } from './p2p.js';
+import { P2PLeaderboardManager } from './p2p-crypto.js?v=61';
+let p2pCrypto = null;
 
 // ---- DOM REFS ----
 const $ = (id) => document.getElementById(id);
@@ -63,6 +65,7 @@ let lbUpdater = null;
 let lbUnsub = null;
 let lbP2PUnsub = null;     // P2P leaderboard subscription
 let p2pInitialized = false; // P2P mesh initialized
+let p2pStarting = false;    // Guard against concurrent tryInitP2P calls
 let fbSyncTimer = null;     // Hourly Firestore sync timer
 let lbFastTimer = null;     // 50ms leaderboard fast render
 let lastP2PEntries = null;  // Cached P2P entries for fast render
@@ -742,6 +745,9 @@ function initUIEvents() {
         // Add placement
         if (!G.placed_decor[decorId]) G.placed_decor[decorId] = [];
         G.placed_decor[decorId].push({ x: snapped.x, y: snapped.y });
+        // Sync to saved placements so they survive prestige
+        if (!G.saved_decor_placements) G.saved_decor_placements = {};
+        G.saved_decor_placements[decorId] = JSON.parse(JSON.stringify(G.placed_decor[decorId]));
 
         playPlace();
         cancelDecorPlacement();
@@ -758,7 +764,7 @@ function initUIEvents() {
         if (hit) {
             const snapped = snapToGrid(G.placed_decor[hit.decorKey][hit.index].x,
                                        G.placed_decor[hit.decorKey][hit.index].y);
-            startDrag(hit.decorKey, hit.index, snapped.x, snapped.y);
+            startDrag(hit.decorKey, hit.index, mx, my, snapped.x, snapped.y);
         }
     });
 
@@ -1165,6 +1171,40 @@ function cancelDecorPlacement() {
 }
 
 // ---- GAME LOOP ----
+// ---- GAME LOOP ----
+let p2pInitDone = false;
+async function tryInitP2P() {
+    if (p2pInitDone || p2pStarting) return;
+    p2pStarting = true;
+    const db = getDb(); const fbApi = getFirestoreApi();
+    if (!db || !fbApi) { console.log('🌀 P2P waiting for DB/Firestore...'); p2pStarting = false; setTimeout(tryInitP2P, 500); return; }
+    console.log('🌀 P2P initializing crypto mesh...');
+    const mgr = new P2PLeaderboardManager(
+        { db, doc:fbApi.doc, setDoc:fbApi.setDoc, collection:fbApi.collection, onSnapshot:fbApi.onSnapshot, deleteDoc:fbApi.deleteDoc, Timestamp:fbApi.Timestamp },
+        G.displayName || G.username || 'Player',
+        (sorted) => {
+            const l = dom.leaderboardList; if (!l) return;
+            for (const e of sorted) {
+                const rows = l.querySelectorAll('.lb-entry');
+                for (const r of rows) {
+                    const n = r.querySelector('.lb-name'); if (!n) continue;
+                    if (n.textContent.replace('◆ ','').replace('⭐ ','').trim() !== e.username) continue;
+                    const v=r.querySelector('.lb-vibes'), s=r.querySelector('.lb-vps'), pp=r.querySelector('.lb-pp'), pr=r.querySelector('.lb-prestige'), t=r.querySelector('.lb-tier');
+                    if (v) v.textContent = fmtSafe(e.score);
+                    if (s) s.textContent = fmtSafe(e.vps);
+                    if (pp) pp.textContent = fmtSafe(e.pp);
+                    if (pr) pr.textContent = fmtSafe(e.prestige);
+                    if (t) { const ti = getTierFromPrestige(e.prestige ?? 0); t.textContent = ti >= 0 ? TIERS[ti].name : '—'; }
+                    break;
+                }
+            }
+        },
+        fbSyncLeaderboard
+    );
+    await mgr.init(); mgr.join(); p2pCrypto = mgr; p2pInitDone = true; p2pStarting = false;
+    console.log('🌀 P2P mesh ready —', mgr.kid);
+}
+
 function initGameLoop() {
     let prestigeCheckCounter = 0;
     // Game logic: VPS generation at 100ms (10 ticks/sec)
@@ -1183,13 +1223,9 @@ function initGameLoop() {
             }
             processAchievements(); // Periodic achievement check (catches VPS milestones)
         }
-        // P2P broadcast every 10 ticks (~1s) for realtime score sharing
-        p2pBroadcastTick++;
-        if (p2pBroadcastTick >= 10) {
-            p2pBroadcastTick = 0;
-            if (G.auth_mode === 'firebase' && fbUser && p2pInitialized) {
-                p2pBroadcastScore(G.lifetime_vibes, G.total_prestiges, getVPS(), G.total_pp_earned);
-            }
+        // Crypto P2P broadcast every tick (~100ms, 10x/sec)
+        if (p2pCrypto) {
+            p2pCrypto.broadcast(bnToNumber(G.lifetime_vibes), bnToNumber(G.total_prestiges), bnToNumber(getVPS()), bnToNumber(G.total_pp_earned));
         }
         // Update sidebar tab indicators every tick (lightweight)
         updateSidebarTabIndicators();
@@ -1212,82 +1248,7 @@ function initGameLoop() {
     }, CONFIG.SAVE_INTERVAL);
 
     // Leaderboard — P2P mesh with Firestore backup
-    if (fbReady && fbUser && !p2pInitialized) {
-        // Initialize P2P leaderboard with Firestore signaling
-        p2pInitialized = true;
-
-        // Initialize P2P module
-        const db = getDb();
-        const fbApi = getFirestoreApi();
-        p2pInit(db, G.displayName || G.username || 'Player', fbGetLeaderboard, fbApi);
-
-        // Subscribe to P2P leaderboard updates
-        if (lbP2PUnsub) lbP2PUnsub();
-        if (lbUnsub) { lbUnsub(); lbUnsub = null; }
-        if (lbUpdater) { clearInterval(lbUpdater); lbUpdater = null; }
-
-        // One-time fetch from Firestore to seed the leaderboard with historical data
-        fbGetLeaderboard(50).then((fbEntries) => {
-            if (fbEntries && fbEntries.length > 0) {
-                const seeded = fbEntries.map(e => ({
-                    playerId: e.uid,
-                    name: e.username,
-                    vibes: e.score_full || e.score,
-                    pp: e.pp_full || (e.total_pp || e.prestige_level || 0),
-                    prestige: e.prestige_level || 0,
-                    vps: e.vps_full || (e.vps || 0),
-                    tier: getTierFromPrestige(e.prestige_level || 0),
-                }));
-                updateLeaderboardUI(seeded);
-            }
-        }).catch(() => {});
-
-        // Then subscribe to P2P for real-time updates (replaces seeded data)
-
-        lbP2PUnsub = p2pSubscribe((entries) => {
-            try {
-                // Transform P2P entries to match what updateLeaderboardUI expects
-                // Map playerId through so updateLeaderboardUI can do identity-based dedup
-                const mapped = entries.map(e => ({
-                    playerId: e.playerId,
-                    name: e.username,
-                    vibes: e.score,
-                    pp: e.totalPp || e.prestigeLevel || 0,
-                    prestige: e.prestigeLevel || 0,
-                    vps: e.vps || 0,
-                    tier: getTierFromPrestige(e.prestigeLevel || 0),
-                }));
-                // Cache raw entries for fast 50ms render
-                lastP2PEntries = entries;
-                updateLeaderboardUI(mapped);
-            } catch (e) { console.warn('P2P callback err:', e); }
-        });
-
-        // Start P2P mesh (connect to peers, or fall back to Firestore)
-        p2pStart();
-
-        // Hourly Firestore sync (backup persistence)
-        if (fbSyncTimer) clearInterval(fbSyncTimer);
-        fbSyncTimer = setInterval(() => {
-            if (G.auth_mode === 'firebase' && fbUser) {
-                fbSyncLeaderboard(
-                    G.username || 'Player',
-                    G.lifetime_vibes,
-                    G.total_prestiges,
-                    G.total_pp_earned,
-                    G.displayName,
-                    getVPS()
-                ).catch(() => {});
-            }
-        }, 3600000); // 1 hour
-
-        // Also sync on prestige (immediate)
-        // We hook this via a state change observer below
-
-    } else if (fbReady && fbUser && p2pInitialized) {
-        // Already initialized — just sync score via P2P
-        p2pBroadcastScore(G.lifetime_vibes, G.total_prestiges, getVPS(), G.total_pp_earned);
-    }
+    tryInitP2P();
 
     // Fallback: poll local API (no Firebase auth, or no user)
     if (!lbUpdater && !lbP2PUnsub && !(fbReady && fbUser)) {
@@ -1316,11 +1277,11 @@ function initGameLoop() {
                 const prestigeEl = row.querySelector('.lb-prestige');
                 const tierEl = row.querySelector('.lb-tier');
                 if (vibeEl) vibeEl.textContent = fmtVibes(entry.score);
-                if (vpsEl) vpsEl.textContent = formatNumber(entry.vps || 0);
-                if (ppEl) ppEl.textContent = formatNumber(entry.totalPp || 0);
-                if (prestigeEl) prestigeEl.textContent = formatNumber(entry.prestigeLevel || 0);
+                if (vpsEl) vpsEl.textContent = fmtSafe(entry.vps);
+                if (ppEl) ppEl.textContent = fmtSafe(entry.totalPp);
+                if (prestigeEl) prestigeEl.textContent = fmtSafe(entry.prestigeLevel);
                 if (tierEl) {
-                    const tierVal = getTierFromPrestige(entry.prestigeLevel || 0);
+                    const tierVal = getTierFromPrestige(entry.prestigeLevel ?? 0);
                     tierEl.textContent = tierVal >= 0 ? TIERS[tierVal].name : '—';
                 }
             }
@@ -1482,24 +1443,17 @@ function updatePrestigeUI() {
     const gain = getPrestigeGain();
     const threshold = getPrestigeThreshold();
     const ppFormatted = formatNumber(G.prestige_points);
-    if (ppFormatted.includes('InfZ')) {
-        const parts = ppFormatted.split(' ');
-        if (parts.length >= 2) {
-            dom.ppDisplay.innerHTML = parts[0] + '<br>×<br>' + parts.slice(2).join(' ');
-        } else {
-            dom.ppDisplay.textContent = ppFormatted;
-        }
+    const ppParts = ppFormatted.split(' ');
+    if (ppParts.length >= 2) {
+        // InfZ format: "InfZ⁵ (2.50)" — show as 3 lines
+        dom.ppDisplay.innerHTML = ppParts[0] + '<br>×<br>' + (ppParts.length >= 3 ? ppParts.slice(2).join(' ') : ppParts[1]);
     } else {
         dom.ppDisplay.textContent = ppFormatted;
     }
     const lifeFormatted = formatNumber(G.lifetime_vibes);
-    if (lifeFormatted.includes('InfZ')) {
-        const parts = lifeFormatted.split(' ');
-        if (parts.length >= 2) {
-            dom.lifetimeDisplay.innerHTML = parts[0] + '<br>×<br>' + parts.slice(2).join(' ');
-        } else {
-            dom.lifetimeDisplay.textContent = lifeFormatted;
-        }
+    const lifeParts = lifeFormatted.split(' ');
+    if (lifeParts.length >= 2) {
+        dom.lifetimeDisplay.innerHTML = lifeParts[0] + '<br>×<br>' + (lifeParts.length >= 3 ? lifeParts.slice(2).join(' ') : lifeParts[1]);
     } else {
         dom.lifetimeDisplay.textContent = lifeFormatted;
     }
@@ -1828,8 +1782,41 @@ function updateDecorUI() {
     });
 }
 
+function applyRoomTheme(roomId) {
+    const room = ROOMS[roomId];
+    if (!room || !room.theme) return;
+    const t = room.theme;
+    const root = document.documentElement;
+    root.style.setProperty('--room-sidebar', t.sidebar);
+    root.style.setProperty('--room-panel', t.panel);
+    root.style.setProperty('--room-tab-active', t.tab_active);
+    root.style.setProperty('--room-tab-inactive', t.tab_inactive);
+    root.style.setProperty('--room-tab-text-active', t.tab_text_active);
+    root.style.setProperty('--room-tab-text-inactive', t.tab_text_inactive);
+    root.style.setProperty('--room-btn-bg', t.btn_bg);
+    root.style.setProperty('--room-btn-text', t.btn_text);
+    root.style.setProperty('--room-btn-border', t.btn_border);
+    root.style.setProperty('--room-title-color', t.title_color);
+    root.style.setProperty('--room-accent', t.accent);
+    root.style.setProperty('--room-secondary', t.secondary);
+    root.style.setProperty('--room-text-primary', t.text_primary);
+    root.style.setProperty('--room-text-secondary', t.text_secondary);
+    root.style.setProperty('--room-border', t.border);
+    root.style.setProperty('--room-highlight', t.highlight);
+    root.style.setProperty('--room-vibe-color', t.vibe_color);
+    root.style.setProperty('--room-resource-bg', t.resource_bg);
+    // Swap room-themed UI divider
+    const divider = document.getElementById('room-theme-divider');
+    if (divider) {
+        const prefix = roomId.substring(0, 2);
+        divider.src = `sprites/images/ui/${prefix}_ui_divider.webp`;
+    }
+}
+
 function updateRoomUI() {
     dom.roomDisplay.textContent = ROOMS[G.current_room]?.name || 'Unknown';
+    dom.roomDisplay.style.color = 'var(--room-title-color)';
+    applyRoomTheme(G.current_room);
     if (dom.currentRoomUpgradeLabel) {
         dom.currentRoomUpgradeLabel.textContent = ROOMS[G.current_room]?.name || 'Campfire Grove';
     }
@@ -1905,19 +1892,21 @@ function updateGatewayUI() {
 
 // ---- LEADERBOARD RENDERING ----
 
-// Bulletproof number formatter for VIBES column — catches errors so a bad value never
-// breaks the entire row template or leaves a stale number on screen.
-function fmtVibes(v) {
+// Universal number formatter for ALL leaderboard cells. Never throws, always returns a safe string.
+function fmtAll(v, fallback = '0') {
     try {
-        if (v === undefined || v === null) return '0';
-        if (typeof v === 'number' && !isFinite(v)) return 'InfZ';
-        if (typeof v !== 'number' && !Array.isArray(v)) return String(v);
+        if (v === undefined || v === null) return fallback;
+        if (typeof v === 'string') { const n = parseFloat(v); return isNaN(n) ? (console.warn('fmtAll: unparseable string',v),v) : formatNumber(n); }
         return formatNumber(v);
     } catch (e) {
-        console.warn('fmtVibes error:', e, v);
-        return String(v);
+        console.warn('fmtAll error:', e, v);
+        return fallback;
     }
 }
+// Legacy alias for VIBES column (same safe logic)
+function fmtVibes(v) { return fmtAll(v); }
+
+function fmtSafe(v, fallback = '0') { return fmtAll(v, fallback); }
 
 // Deduplicate leaderboard entries by playerId (preferred) or name (fallback)
 // When two entries share an identity, keep the one with most progress
@@ -1973,11 +1962,16 @@ function deduplicateEntries(entries) {
 
 // Compare two entries and return the one with higher progress
 function pickBetterEntry(a, b) {
+    if (a.tier > b.tier) return a;
+    if (a.tier < b.tier) return b;
     if (a.prestige > b.prestige) return a;
     if (a.prestige < b.prestige) return b;
     const ppCmp = bnCompare(a.pp, b.pp);
     if (ppCmp > 0) return a;
     if (ppCmp < 0) return b;
+    const vpsCmp = bnCompare(a.vps, b.vps);
+    if (vpsCmp > 0) return a;
+    if (vpsCmp < 0) return b;
     const vibeCmp = bnCompare(a.vibes, b.vibes);
     return vibeCmp >= 0 ? a : b;
 }
@@ -1999,11 +1993,11 @@ async function updateLeaderboardUI(externalEntries) {
                 entries = fbEntries.map(e => ({
                     playerId: e.uid,
                     name: e.username,
-                    vibes: e.score_full || e.score,
-                    pp: e.pp_full || (e.total_pp || e.prestige_level || 0),
-                    prestige: e.prestige_level || 0,
-                    vps: e.vps_full || (e.vps || 0),
-                    tier: getTierFromPrestige(e.prestige_level || 0),
+                    vibes: e.score_full ?? e.score ?? 0,
+                    pp: e.pp_full ?? e.total_pp ?? 0,
+                    prestige: e.prestige_level ?? 0,
+                    vps: e.vps_full ?? e.vps ?? 0,
+                    tier: getTierFromPrestige(e.prestige_level ?? 0),
                 }));
             }
         }
@@ -2059,14 +2053,25 @@ async function updateLeaderboardUI(externalEntries) {
     }
 
     entries.sort((a, b) => {
+        if (b.tier !== a.tier) return b.tier - a.tier;
         if (b.prestige !== a.prestige) return b.prestige - a.prestige;
         const ppCmp = bnCompare(b.pp, a.pp);
         if (ppCmp !== 0) return ppCmp;
+        const vpsCmp = bnCompare(b.vps, a.vps);
+        if (vpsCmp !== 0) return vpsCmp;
         return bnCompare(b.vibes, a.vibes);
     });
 
     // Deduplicate: keep only the best entry per playerId (or name as fallback)
     entries = deduplicateEntries(entries);
+
+    // Normalize all entry values so every cell is safely formattable
+    for (const e of entries) {
+        e.vibes = e.vibes ?? 0;
+        e.pp = e.pp ?? 0;
+        e.vps = e.vps ?? 0;
+        e.prestige = e.prestige ?? 0;
+    }
 
     // DOM diffing: update in-place without flicker
     const maxRows = 50;
@@ -2133,9 +2138,9 @@ async function updateLeaderboardUI(externalEntries) {
             const tierEl = el.querySelector('.lb-tier');
             if (rankEl) rankEl.textContent = '#' + (i + 1);
             if (vibeEl) vibeEl.textContent = fmtVibes(entry.vibes);
-            if (vpsEl) vpsEl.textContent = formatNumber(entry.vps || 0);
-            if (ppEl) ppEl.textContent = formatNumber(entry.pp);
-            if (prestigeEl) prestigeEl.textContent = formatNumber(entry.prestige);
+            if (vpsEl) vpsEl.textContent = fmtSafe(entry.vps);
+            if (ppEl) ppEl.textContent = fmtSafe(entry.pp);
+            if (prestigeEl) prestigeEl.textContent = fmtSafe(entry.prestige);
             if (tierEl) tierEl.textContent = entry.tier >= 0 ? TIERS[entry.tier].name : '—';
         } else {
             // Create new row
@@ -2156,9 +2161,9 @@ async function updateLeaderboardUI(externalEntries) {
                         </span>
                     </span></span>
                     <span class="lb-vibes">${fmtVibes(entry.vibes)}</span>
-                    <span class="lb-vps">${formatNumber(entry.vps || 0)}</span>
-                    <span class="lb-pp">${formatNumber(entry.pp)}</span>
-                    <span class="lb-prestige">${formatNumber(entry.prestige)}</span>
+                    <span class="lb-vps">${fmtSafe(entry.vps)}</span>
+                    <span class="lb-pp">${fmtSafe(entry.pp)}</span>
+                    <span class="lb-prestige">${fmtSafe(entry.prestige)}</span>
                     <span class="lb-tier">${entry.tier >= 0 ? TIERS[entry.tier].name : '—'}</span>
                 `;
             } else {
@@ -2166,9 +2171,9 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-rank">#${i + 1}</span>
                     <span class="lb-name">${isYou ? `<img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon-sm" alt=""> ` : ''}${entry.name}</span>
                     <span class="lb-vibes">${fmtVibes(entry.vibes)}</span>
-                    <span class="lb-vps">${formatNumber(entry.vps || 0)}</span>
-                    <span class="lb-pp">${formatNumber(entry.pp)}</span>
-                    <span class="lb-prestige">${formatNumber(entry.prestige)}</span>
+                    <span class="lb-vps">${fmtSafe(entry.vps)}</span>
+                    <span class="lb-pp">${fmtSafe(entry.pp)}</span>
+                    <span class="lb-prestige">${fmtSafe(entry.prestige)}</span>
                     <span class="lb-tier">${entry.tier >= 0 ? TIERS[entry.tier].name : '—'}</span>
                 `;
             }
@@ -2218,10 +2223,10 @@ function updateLocalLeaderboardEntry() {
     const vpsEl = row.querySelector('.lb-vps');
     const prestigeEl = row.querySelector('.lb-prestige');
     const tierEl = row.querySelector('.lb-tier');
-    if (vibeEl) vibeEl.textContent = formatNumber(G.lifetime_vibes);
-    if (ppEl) ppEl.textContent = formatNumber(G.total_pp_earned);
-    if (vpsEl) vpsEl.textContent = formatNumber(getVPS());
-    if (prestigeEl) prestigeEl.textContent = formatNumber(G.total_prestiges);
+    if (vibeEl) vibeEl.textContent = fmtSafe(G.lifetime_vibes);
+    if (ppEl) ppEl.textContent = fmtSafe(G.total_pp_earned);
+    if (vpsEl) vpsEl.textContent = fmtSafe(getVPS());
+    if (prestigeEl) prestigeEl.textContent = fmtSafe(G.total_prestiges);
     if (tierEl) {
         const cur = getCurrentTier(G);
         tierEl.textContent = cur >= 0 ? TIERS[cur].name : '—';
@@ -2523,7 +2528,13 @@ function closeSettings() {
 }
 
 // ---- SHOP TOOLTIP ---- 
+let _tooltipHideTimer = null;
+
 function showShopTooltip(data, event) {
+    if (_tooltipHideTimer) {
+        clearTimeout(_tooltipHideTimer);
+        _tooltipHideTimer = null;
+    }
     const tt = document.getElementById('shop-tooltip-main');
     if (!tt) return;
     
@@ -2543,8 +2554,15 @@ function showShopTooltip(data, event) {
 }
 
 function hideShopTooltip() {
-    const tt = document.getElementById('shop-tooltip-main');
-    if (tt) tt.classList.add('hidden');
+    if (_tooltipHideTimer) {
+        clearTimeout(_tooltipHideTimer);
+        _tooltipHideTimer = null;
+    }
+    _tooltipHideTimer = setTimeout(() => {
+        const tt = document.getElementById('shop-tooltip-main');
+        if (tt) tt.classList.add('hidden');
+        _tooltipHideTimer = null;
+    }, 100); // 0.1s delay to prevent flickering when moving mouse across items
 }
 
 function initTooltipDelegation() {
