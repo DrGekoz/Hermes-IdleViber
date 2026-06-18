@@ -2,7 +2,7 @@
 
 <p align="center">
   <i>~ The Ambient Gateway Idle Game ~</i><br>
-  <b>Your Hermes gateway doesn't boost your progression — it IS your progression.</b>
+  <b>Your Hermes gateway boosts your progression as an upgradeable multiplier.</b>
 </p>
 
 ---
@@ -11,7 +11,7 @@
 
 Hermes IdleViber is an **ambient idle/incremental game** that lives in your browser — a cozy pixel-art universe where you click, earn, upgrade, and unlock themed rooms while chiptune music plays and particle effects drift across the screen.
 
-**The twist?** The game is hard-locked to your local Hermes Agent gateway. No gateway running? You generate at a crawl. Low latency? You're farming at full power. The faster your gateway responds, the faster you progress. It turns your dev tools into a game mechanic.
+**The twist?** The game pings your local Hermes Agent gateway and turns its latency into a VPS multiplier. The faster your gateway responds, the bigger the bonus. It turns your dev tools into a game mechanic — an upgradeable boost you can invest prestige chips into.
 
 ---
 
@@ -19,13 +19,13 @@ Hermes IdleViber is an **ambient idle/incremental game** that lives in your brow
 
 | | |
 |---|---|
-| **Genre** | Ambient idle / incremental ("cozy incremental") |
-| **Platform** | Browser (Chrome, Firefox, Edge) |
-| **Art** | 16-bit pixel art — 92 custom upgrade icons + procedural room rendering |
-| **Music** | 8-bit chiptune via Web Audio API — 12 tracks across 4 genres |
-| **Progression** | Exponential cost scaling + prestige layer + per-room upgrades + transcend layer |
-| **Number System** | k → Z → **InfinityZ ×N** → InfinityZ × InfinityZ (N) — never caps |
-| **Lock** | 🔒 Hermes gateway-dependent — the core mechanic, not a bonus |
+|| **Genre** | Ambient idle / incremental ("cozy incremental") |
+|| **Platform** | Browser (Chrome, Firefox, Edge) |
+|| **Art** | 16-bit pixel art — 92 custom upgrade icons + procedural room rendering |
+|| **Music** | 8-bit chiptune via Web Audio API — 12 tracks across 4 genres |
+|| **Progression** | Exponential cost scaling + prestige layer + per-room upgrades + 250 tiers |
+|| **Number System** | k → Z → **InfinityZ ×N** → InfinityZ × InfinityZ (N) — never caps |
+|| **Lock** | 🔒 Hermes gateway bonus — upgradeable multiplier boost |
 
 ---
 
@@ -58,7 +58,7 @@ Each room's autoclickers track their own purchase count — buying cheap upgrade
 ### 4. Decor Every Room
 15 decor items per room (90 total across all rooms). Each adds a permanent VPS multiplier to that room. Decor items are placed visually on the canvas — drag, drop, rearrange. **Buy All** is also available on the decor tab.
 
-### 5. Prestige & Transcend
+### 5. Prestige & Tiers
 Reset your run for **Prestige Chips (PP)** — permanent currency that buys escalating upgrades:
 - Gateway buffs (+× to gateway multiplier)
 - Click multipliers (×2 → ×4 → ×10)
@@ -68,10 +68,10 @@ Reset your run for **Prestige Chips (PP)** — permanent currency that buys esca
 
 All prestige upgrades are **re-buyable** with progressive cost scaling. Use the **Buy All** button or hold-to-spam to burn through chips fast.
 
-After 3+ prestiges, unlock the **Transcend** layer for even deeper scaling.
+Every prestige grants a **Tier** (Bronze I → Silver I → ... up to Ten Quad 10Q), unlocking a corresponding achievement. 250 tiers total, with tiers scaling in cost via a dynamic prestige threshold that adapts to your VPS.
 
-### 6. The Gateway Lock
-The game pings your Hermes gateway every 5 seconds. Your latency determines your generation rate — lower latency = higher multiplier. If the gateway is down, you're stuck at 10% output (or higher if you've bought offline upgrades).
+### 6. Gateway Bonus
+The game pings your Hermes gateway every 5 seconds. Your latency determines your VPS multiplier — lower latency = higher bonus. No gateway running? You still earn at base rates. Gateway buffs can also be upgraded with prestige chips for an even bigger boost.
 
 ### 7. InfinityZ Number System
 When your vibes exceed Z (the 47th suffix tier), the number system cycles through infinite layers:
@@ -155,7 +155,7 @@ node server/index.js
 # https://hermes-idleviber.netlify.app
 ```
 
-**Requirement:** Hermes Agent running locally (or the game works at reduced rates).
+**Bonus:** Hermes Agent running locally gives you a latency-based VPS multiplier. No gateway? The game still works fine at base rates.
 
 ---
 
@@ -200,10 +200,10 @@ Hermes-IdleViber/
 ## ✦ Design Principles
 
 - **Ambient First** — The primary experience is hanging out in a beautiful pixel space, not optimizing spreadsheets
-- **Gateway as Mechanic** — The gateway isn't a bonus, it's the core loop. Your dev environment drives your game
+- **Gateway as Bonus** — Your Hermes gateway isn't the core loop, it's a tasty VPS multiplier on top. Play without it just fine, but if you've got a snappy gateway you'll climb faster. Prestige chips let you crank that multiplier even higher.
 - **Per-Room Identity** — Every room is a distinct gameplay silo with its own progression, music, and art
 - **Zero External Assets** — Every sprite, every sound, every particle is generated at runtime
-- **Progressive Complexity** — Easy to start (click the button), deep to master (prestige × transcend × 6 rooms × 90 decor × InfinityZ numbers)
+- **Progressive Complexity** — Easy to start (click the button), deep to master (prestige × tiers × 6 rooms × 90 decor × InfinityZ numbers)
 
 ---
 
