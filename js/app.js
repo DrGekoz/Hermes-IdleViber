@@ -1020,6 +1020,22 @@ function getGuestNum() {
     return n;
 }
 
+// Return to login from guest mode — merges progress on next login
+function goToLogin() {
+    // Save guest state to a temporary key so it survives the login flow
+    if (G.auth_mode === 'local') {
+        try {
+            localStorage.setItem('hermes_idleviber_guest_save', JSON.stringify(G));
+        } catch (_) {}
+    }
+    saveGame();
+    clearGameLoop();
+    dom.loginScreen.classList.remove('hidden');
+    dom.gameScreen.classList.add('hidden');
+    dom.loginMsg.textContent = '⚠️ Guest progress saved — log in to keep it!';
+    document.getElementById('guest-warning')?.classList.add('hidden');
+}
+
 async function doGuestLogin() {
     const guestNum = getGuestNum();
     const guestName = 'Guest_' + String(guestNum).padStart(2, '0');
@@ -1076,7 +1092,33 @@ async function doLogin() {
 
             // Load cloud save from Firestore
             const cloudState = await fbLoad();
-            if (cloudState) {
+            let mergedGuest = false;
+            // Check for guest save to merge
+            const guestRaw = localStorage.getItem('hermes_idleviber_guest_save');
+            if (guestRaw) {
+                try {
+                    const guestState = JSON.parse(guestRaw);
+                    if (guestState && guestState.auth_mode === 'local') {
+                        const mergeFields = ['vibes', 'lifetime_vibes', 'total_prestiges', 'total_pp_earned', 'prestige_points', 'total_clicks', 'prestige_upgrades', 'room_autoclickers', 'owned_decor', 'active_decor', 'placed_decor', 'saved_decor_placements', 'unlocked_rooms', 'settings'];
+                        for (const key of mergeFields) {
+                            if (guestState[key] !== undefined) {
+                                if (key === 'vibes' || key === 'lifetime_vibes' || key === 'total_prestiges' || key === 'total_pp_earned') {
+                                    // Keep whichever is higher
+                                    if (cloudState ? bnCompare(guestState[key], cloudState[key]) > 0 : true) {
+                                        G[key] = guestState[key];
+                                    }
+                                } else {
+                                    G[key] = guestState[key];
+                                }
+                            }
+                        }
+                        mergedGuest = true;
+                        localStorage.removeItem('hermes_idleviber_guest_save');
+                        showToast('✅ Guest progress merged into your account!');
+                    }
+                } catch (_) {}
+            }
+            if (cloudState && !mergedGuest) {
                     Object.assign(G, cloudState);
                     G.auth_mode = 'firebase';
                     G.userId = result.uid;
@@ -1259,6 +1301,11 @@ function enterGame() {
     applySidebarPosition();
     initGameLoop();
     initGateway();
+    // Show guest save warning if playing as guest
+    const gw = document.getElementById('guest-warning');
+    if (gw) {
+        gw.classList.toggle('hidden', G.auth_mode !== 'local');
+    }
     // Show offline earnings toast
     if (offline && offline.earned > 0) {
         setTimeout(() => showToast(`⏰ Welcome back! +${formatNumber(Math.floor(offline.earned))} ✦ while away`), 500);

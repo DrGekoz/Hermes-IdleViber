@@ -889,6 +889,25 @@ body {
 .leaderboard-float.collapsed #leaderboard-list .lb-header { display: none; }
 .leaderboard-float.collapsed { max-height: 60px; overflow: hidden; }
 .leaderboard-minimize { font-size: 8px; padding: 2px 6px; min-width: 0; line-height: 1; }
+/* Guest save warning banner */
+.guest-warning {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    background: rgba(255,215,0,0.12);
+    border: 1px solid rgba(255,215,0,0.3);
+    padding: 6px 16px;
+    font-size: 8px;
+    color: #ffd700;
+    cursor: pointer;
+    text-shadow: 1px 1px 0 #000;
+    text-align: center;
+    white-space: nowrap;
+    transition: background 0.15s;
+}
+.guest-warning:hover { background: rgba(255,215,0,0.2); }
 .leaderboard-float.fullscreen .lb-dev-badge { font-size: 8px; }
 .leaderboard-float.fullscreen .dev-tooltip { font-size: 10px; }
 .leaderboard-float.fullscreen .dev-tooltip strong { font-size: 10px; }
