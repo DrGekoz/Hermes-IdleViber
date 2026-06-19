@@ -820,13 +820,7 @@ function initUIEvents() {
         }
     });
 
-    // Leaderboard fullscreen toggle
-    dom.leaderboardPanel.addEventListener('dblclick', (e) => {
-        if (e.target.closest('.leaderboard-minimize')) return;
-        dom.leaderboardPanel.classList.toggle('fullscreen');
-        dom.leaderboardPanel.classList.remove('collapsed');
-        updateLeaderboardUI();
-    });
+    // Leaderboard: minimize button toggles collapse, double-click toggles fullscreen
     dom.leaderboardMinimize.addEventListener('click', (e) => {
         e.stopPropagation();
         if (dom.leaderboardPanel.classList.contains('collapsed')) {
@@ -836,6 +830,13 @@ function initUIEvents() {
             dom.leaderboardPanel.classList.add('collapsed');
             dom.leaderboardMinimize.textContent = '▼';
         }
+    });
+    dom.leaderboardPanel.addEventListener('dblclick', (e) => {
+        if (e.target.closest('.leaderboard-minimize')) return;
+        dom.leaderboardPanel.classList.toggle('fullscreen');
+        dom.leaderboardPanel.classList.remove('collapsed');
+        dom.leaderboardMinimize.textContent = '▲';
+        updateLeaderboardUI();
     });
 
     // Tabs
@@ -2975,7 +2976,11 @@ function initChatSystem() {
     const soundSettings = document.getElementById('chat-sound-settings');
     const musicPlayer = document.getElementById('music-player');
     const musicPanel = document.getElementById('music-panel');
+    const chatPlayer = document.getElementById('chat-player');
     if (!toggleBtn || !chatPanel) return;
+
+    // Make chat toggle button visible (remove hidden from container, panel stays hidden)
+    if (chatPlayer) chatPlayer.classList.remove('hidden');
 
     // Toggle chat (mutually exclusive with music)
     toggleBtn.addEventListener('click', () => {
