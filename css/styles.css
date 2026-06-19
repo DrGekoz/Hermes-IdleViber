@@ -832,6 +832,11 @@ body {
 .leaderboard-float.fullscreen .lb-prestige { font-size: 10px; }
 .leaderboard-float.fullscreen .lb-tier { font-size: 10px; }
 .leaderboard-float.fullscreen .lb-tier-img { width: 36px; height: 36px; }
+.leaderboard-float .lb-self-row { border-left: 2px solid var(--accent-gold); background: rgba(255,215,0,0.04); }
+.leaderboard-float.collapsed #leaderboard-list .lb-entry:not(.lb-self-row):not(.lb-header) { display: none; }
+.leaderboard-float.collapsed #leaderboard-list .lb-header { display: none; }
+.leaderboard-float.collapsed { max-height: 60px; overflow: hidden; }
+.leaderboard-minimize { font-size: 8px; padding: 2px 6px; min-width: 0; line-height: 1; }
 .leaderboard-float.fullscreen .lb-dev-badge { font-size: 8px; }
 .leaderboard-float.fullscreen .dev-tooltip { font-size: 10px; }
 .leaderboard-float.fullscreen .dev-tooltip strong { font-size: 10px; }

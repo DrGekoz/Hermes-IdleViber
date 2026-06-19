@@ -31,7 +31,8 @@ import { generateSprite, renderRoom, ParticleSystem, PAL,
          snapToGrid, getDecorSpriteId } from './sprites.js';
 import { setVolume as setSfxVolume, playClick, playVibe,
          playPrestige as playSfxPrestige, playError, playUnlock,
-         playTabSwitch, playPurchase, playNotification, playPlace } from './sfx.js';
+         playTabSwitch, playPurchase, playNotification, playPlace,
+         playChatTyping, playChatSend, playChatReceive } from './sfx.js';
 import { initMusicPlayer, setMusicVolume } from './music.js';
 
 import { apiHealth, apiRegister, apiLogin, apiSave, apiLoad,
@@ -820,14 +821,21 @@ function initUIEvents() {
     });
 
     // Leaderboard fullscreen toggle
-    dom.leaderboardPanel.addEventListener('click', (e) => {
-        if (e.target === dom.leaderboardMinimize) return;
-        dom.leaderboardPanel.classList.add('fullscreen');
+    dom.leaderboardPanel.addEventListener('dblclick', (e) => {
+        if (e.target.closest('.leaderboard-minimize')) return;
+        dom.leaderboardPanel.classList.toggle('fullscreen');
+        dom.leaderboardPanel.classList.remove('collapsed');
         updateLeaderboardUI();
     });
     dom.leaderboardMinimize.addEventListener('click', (e) => {
         e.stopPropagation();
-        dom.leaderboardPanel.classList.remove('fullscreen');
+        if (dom.leaderboardPanel.classList.contains('collapsed')) {
+            dom.leaderboardPanel.classList.remove('collapsed');
+            dom.leaderboardMinimize.textContent = '▲';
+        } else {
+            dom.leaderboardPanel.classList.add('collapsed');
+            dom.leaderboardMinimize.textContent = '▼';
+        }
     });
 
     // Tabs
@@ -846,6 +854,9 @@ function initUIEvents() {
 
     // Music player
     initMusicPlayer();
+
+    // Chat system
+    initChatSystem();
 
     // State changes
     onStateChange((type) => {
@@ -2266,7 +2277,7 @@ async function updateLeaderboardUI(externalEntries) {
             const isYou = entry.name === displayName || entry.name === G.username;
             const isDev = /^drgekoz$/i.test(entry.name);
             el = document.createElement('div');
-            el.className = `lb-entry ${isYou ? 'you' : ''} ${isDev ? 'dev' : ''}`;
+            el.className = `lb-entry ${isYou ? 'you lb-self-row' : ''} ${isDev ? 'dev' : ''}`;
             if (entry.playerId) el.dataset.playerId = entry.playerId;
             if (isDev) {
                 el.innerHTML = `
@@ -2865,7 +2876,14 @@ function buyAllUpgrades() {
 
     for (const tier of sorted) {
         const count = roomClickers[tier.id] || 0;
-        const maxQty = getMaxBuyable(tier.baseCost, count, bnToNumber(G.vibes));
+        const vibesNum = bnToNumber(G.vibes);
+        let maxQty = 0;
+        if (isFinite(vibesNum) && vibesNum > 0) {
+            maxQty = getMaxBuyable(tier.baseCost, count, vibesNum);
+        } else if (bnGt(G.vibes, BN_ZERO)) {
+            // Very large BN — buy 1 at a time (safe path)
+            maxQty = 1;
+        }
         if (maxQty > 0) {
             const result = buyAutoclicker(tier.id, maxQty);
             if (result) bought += result;
@@ -2944,3 +2962,106 @@ function applySidebarPosition() {
 
 // ---- BOOT ----
 document.addEventListener('DOMContentLoaded', init);
+
+// ---- CHAT SYSTEM ----
+let _chatTypingTimer = null;
+function initChatSystem() {
+    const toggleBtn = document.getElementById('chat-toggle-btn');
+    const chatPanel = document.getElementById('chat-panel');
+    const closeBtn = document.getElementById('chat-close-btn');
+    const sendBtn = document.getElementById('chat-send-btn');
+    const chatInput = document.getElementById('chat-input');
+    const settingsBtn = document.getElementById('chat-settings-btn');
+    const soundSettings = document.getElementById('chat-sound-settings');
+    const musicPlayer = document.getElementById('music-player');
+    const musicPanel = document.getElementById('music-panel');
+    if (!toggleBtn || !chatPanel) return;
+
+    // Toggle chat (mutually exclusive with music)
+    toggleBtn.addEventListener('click', () => {
+        if (!chatPanel.classList.contains('hidden')) {
+            chatPanel.classList.add('hidden');
+            return;
+        }
+        // Close music if open
+        if (musicPanel && !musicPanel.classList.contains('hidden')) {
+            musicPanel.classList.add('hidden');
+        }
+        chatPanel.classList.remove('hidden');
+        chatInput.focus();
+    });
+    if (closeBtn) closeBtn.addEventListener('click', () => chatPanel.classList.add('hidden'));
+
+    // Chat sound settings toggle
+    if (settingsBtn && soundSettings) {
+        settingsBtn.addEventListener('click', () => soundSettings.classList.toggle('hidden'));
+    }
+
+    // Send message on button click or Enter
+    const sendMsg = () => {
+        const text = chatInput.value.trim();
+        if (!text) return;
+        // Play send sound
+        playChatSend();
+        // Add own message to chat
+        addChatMessage(G.username || 'Player', text, true);
+        // Broadcast via P2P crypto
+        if (p2pCrypto) {
+            p2pCrypto.broadcastChat(text);
+        }
+        chatInput.value = '';
+        chatInput.focus();
+    };
+    if (sendBtn) sendBtn.addEventListener('click', sendMsg);
+    if (chatInput) {
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); sendMsg(); }
+        });
+        chatInput.addEventListener('input', () => {
+            if (_chatTypingTimer) { clearTimeout(_chatTypingTimer); _chatTypingTimer = null; }
+            _chatTypingTimer = setTimeout(() => playChatTyping(), 150);
+        });
+    }
+
+    // Init chat sound volume sliders
+    ['typing', 'send', 'recv'].forEach(id => {
+        const slider = document.getElementById('chat-vol-' + id);
+        const label = document.getElementById('chat-vol-' + id + '-label');
+        if (slider && label) {
+            slider.addEventListener('input', () => {
+                label.textContent = Math.round(slider.value * 100) + '%';
+            });
+        }
+    });
+
+    // Listen for incoming chat messages from P2P crypto
+    // P2P crypto already has this.peers and broadcasts with signature
+    // We'll hook into the existing P2P system
+    console.log('💬 Chat system ready');
+}
+
+function addChatMessage(username, text, isOwn) {
+    const msgs = document.getElementById('chat-messages');
+    if (!msgs) return;
+    const el = document.createElement('div');
+    el.style.cssText = 'display:flex;gap:4px;align-items:flex-start;padding:2px 0;' + (isOwn ? '' : '');
+    const tier = getCurrentTier(G);
+    const iconNum = tier >= 0 ? getTierIconNum(tier) : 0;
+    const iconHtml = iconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${iconNum}.webp" style="width:14px;height:14px;image-rendering:pixelated;vertical-align:middle;flex-shrink:0;">` : '';
+    el.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:1px;max-width:100%;${isOwn ? 'align-items:flex-end;margin-left:auto;' : ''}">
+            <div style="font-size:5px;color:${isOwn ? 'var(--accent-gold)' : 'var(--accent-cyan)'};display:flex;align-items:center;gap:2px;">${iconHtml}${username}</div>
+            <div style="background:${isOwn ? 'rgba(255,215,0,0.15)' : 'rgba(0,255,255,0.1)'};border:1px solid ${isOwn ? 'rgba(255,215,0,0.3)' : 'rgba(0,255,255,0.2)'};border-radius:4px;padding:3px 6px;font-size:7px;word-break:break-word;max-width:180px;">${escapeHtml(text)}</div>
+        </div>
+    `;
+    msgs.appendChild(el);
+    msgs.scrollTop = msgs.scrollHeight;
+    // Keep max ~50 messages
+    while (msgs.children.length > 50) msgs.removeChild(msgs.firstChild);
+}
+
+function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
