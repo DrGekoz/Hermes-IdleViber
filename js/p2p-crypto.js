@@ -93,6 +93,12 @@ class P2PLeaderboardManager {
                 const k = ch.doc.id; if (k === this.username) return;
                 if (ch.type === 'removed') { this._onPeerGone(k); return; }
                 const d = ch.doc.data(); if (!d?.k) return;
+                const existing = this.peers.get(k);
+                // If peer changed keys (page refresh), remove old entry so fresh key is used
+                if (existing && (d.kid || k) !== (existing.keyId || k)) {
+                    console.log('🔄 P2P peer key changed for', k, '— reconnecting');
+                    this._onPeerGone(k);
+                }
                 if (!this.peers.has(k)) {
                     const pub = await crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']);
                     this.peers.set(k, { pc:null, ch:null, pub, name: d.u||'?', seq:0, keyId: d.kid||k, nonce: d.nonce||0 });
