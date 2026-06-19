@@ -822,7 +822,7 @@ function initUIEvents() {
         }
     });
 
-    // Leaderboard: minimize button toggles collapse, double-click toggles fullscreen
+    // Leaderboard: minimize button toggles collapse, click toggles fullscreen
     dom.leaderboardMinimize.addEventListener('click', (e) => {
         e.stopPropagation();
         if (dom.leaderboardPanel.classList.contains('collapsed')) {
@@ -833,8 +833,8 @@ function initUIEvents() {
             dom.leaderboardMinimize.textContent = '▼';
         }
     });
-    dom.leaderboardPanel.addEventListener('dblclick', (e) => {
-        if (e.target.closest('.leaderboard-minimize')) return;
+    dom.leaderboardPanel.addEventListener('click', (e) => {
+        if (e.target.closest('.leaderboard-minimize') || e.target.closest('.lb-name')) return;
         dom.leaderboardPanel.classList.toggle('fullscreen');
         dom.leaderboardPanel.classList.remove('collapsed');
         dom.leaderboardMinimize.textContent = '▲';
