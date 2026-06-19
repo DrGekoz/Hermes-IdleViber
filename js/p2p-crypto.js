@@ -232,6 +232,11 @@ class P2PLeaderboardManager {
         const p = this.peers.get(pk); if (!p) { console.warn('📩 _onMsg unknown:', pk); return; }
         const payload = await verifyMsg(data, p.pub);
         if (!payload) { console.warn('❌ _onMsg verify fail', pk, 'data:', data); return; }
+        // Chat message
+        if (payload.type === 'chat') {
+            if (window._onChatMessage) window._onChatMessage(payload.user || pk, payload.text || '');
+            return;
+        }
         if (payload.seq <= p.seq) return;
         if (p.seq === 0) console.log('📩 P2P first msg from', pk, 'score:', payload.s, 'vps:', payload.v, 'pp:', payload.p);
         p.seq = payload.seq;
@@ -285,6 +290,15 @@ class P2PLeaderboardManager {
                     }
                 }, 1500);
             }
+        }
+    }
+
+    // Broadcast a chat message to all connected peers
+    async broadcastChat(text) {
+        const payload = { type: 'chat', text, user: this.username, ts: Math.floor(Date.now()/1000) };
+        const msg = await signPayload(payload, this.kp.privateKey);
+        for (const [, peer] of this.peers) {
+            if (peer.ch?.readyState === 'open') try { peer.ch.send(msg); } catch (_) {}
         }
     }
 

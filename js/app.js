@@ -3043,6 +3043,12 @@ function initChatSystem() {
     // P2P crypto already has this.peers and broadcasts with signature
     // We'll hook into the existing P2P system
     console.log('💬 Chat system ready');
+
+    // Register global chat message handler from P2P
+    window._onChatMessage = (username, text) => {
+        addChatMessage(username, text, false);
+        playChatReceive();
+    };
 }
 
 function addChatMessage(username, text, isOwn) {

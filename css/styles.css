@@ -1659,6 +1659,9 @@ input[type="range"]::-webkit-slider-thumb {
     flex-direction: column;
     gap: 4px;
 }
+#chat-player { left: 52px; }
+#chat-panel { min-width: 260px; min-height: 280px; }
+#chat-messages { min-height: 200px; max-height: 300px; }
 .music-player.hidden { display: none; }
 .music-toggle {
     width: 36px;
