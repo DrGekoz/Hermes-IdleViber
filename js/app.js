@@ -2185,7 +2185,7 @@ async function updateLeaderboardUI(externalEntries) {
     // Generate header row (inside list so columns align with entries)
     const hdrEl = document.createElement('div');
     hdrEl.className = 'lb-entry lb-header';
-    hdrEl.innerHTML = '<span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span><span class="lb-tier">TIER</span><span class="lb-tier-icon"></span>';
+    hdrEl.innerHTML = '<span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span><span class="lb-tier">TIER</span>';
     fragment.appendChild(hdrEl);
     entries.slice(0, maxRows).forEach((entry, i) => {
         const rowName = nameField(entry.name);
@@ -2216,11 +2216,10 @@ async function updateLeaderboardUI(externalEntries) {
             if (vpsEl) vpsEl.textContent = fmtSafe(entry.vps);
             if (ppEl) ppEl.textContent = fmtSafe(entry.pp);
             if (prestigeEl) prestigeEl.textContent = fmtSafe(entry.prestige);
-            if (tierEl) tierEl.textContent = entry.tier >= 0 ? TIERS[entry.tier].name : '—';
-            const tierIconEl = el.querySelector('.lb-tier-icon');
-            if (tierIconEl) {
+            if (tierEl) {
+                const name = entry.tier >= 0 ? TIERS[entry.tier].name : '—';
                 const iconNum = entry.tier >= 0 ? getTierIconNum(entry.tier) : 0;
-                tierIconEl.innerHTML = iconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${iconNum}.webp" class="lb-tier-img" onerror="this.style.display='none'">` : '';
+                tierEl.innerHTML = name + (iconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${iconNum}.webp" class="lb-tier-img" style="width:12px;height:12px;vertical-align:middle;margin-left:3px;image-rendering:pixelated;" onerror="this.style.display='none'">` : '');
             }
         } else {
             // Create new row
@@ -2230,8 +2229,6 @@ async function updateLeaderboardUI(externalEntries) {
             el.className = `lb-entry ${isYou ? 'you' : ''} ${isDev ? 'dev' : ''}`;
             if (entry.playerId) el.dataset.playerId = entry.playerId;
             if (isDev) {
-                const tierIconNum = entry.tier >= 0 ? getTierIconNum(entry.tier) : 0;
-                const tierHtml = tierIconNum > 0 ? `<span class="lb-tier-icon"><img src="sprites/images/icons/individual/tier_${tierIconNum}.webp" class="lb-tier-img" onerror="this.style.display='none'"></span>` : '<span class="lb-tier-icon"></span>';
                 el.innerHTML = `
                     <span class="lb-rank">#${i + 1}</span>
                     <span class="lb-name dev">◆ ${entry.name} <span class="lb-dev-badge">(DEV)
@@ -2246,12 +2243,9 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-vps">${fmtSafe(entry.vps)}</span>
                     <span class="lb-pp">${fmtSafe(entry.pp)}</span>
                     <span class="lb-prestige">${fmtSafe(entry.prestige)}</span>
-                    <span class="lb-tier">${entry.tier >= 0 ? TIERS[entry.tier].name : '—'}</span>
-                    ${tierHtml}
+                    <span class="lb-tier">${(() => { const n = (entry.tier >= 0 ? TIERS[entry.tier].name : '—'); const ni = (entry.tier >= 0 ? getTierIconNum(entry.tier) : 0); return n + (ni > 0 ? `<img src="sprites/images/icons/individual/tier_${ni}.webp" class="lb-tier-img" style="width:12px;height:12px;vertical-align:middle;margin-left:3px;image-rendering:pixelated;" onerror="this.style.display='none'">` : ''); })()}</span>
                 `;
             } else {
-                const tierIconNum = entry.tier >= 0 ? getTierIconNum(entry.tier) : 0;
-                const tierHtml = tierIconNum > 0 ? `<span class="lb-tier-icon"><img src="sprites/images/icons/individual/tier_${tierIconNum}.webp" class="lb-tier-img" onerror="this.style.display='none'"></span>` : '<span class="lb-tier-icon"></span>';
                 el.innerHTML = `
                     <span class="lb-rank">#${i + 1}</span>
                     <span class="lb-name">${isYou ? `<img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon-sm" alt=""> ` : ''}${entry.name}</span>
@@ -2259,8 +2253,7 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-vps">${fmtSafe(entry.vps)}</span>
                     <span class="lb-pp">${fmtSafe(entry.pp)}</span>
                     <span class="lb-prestige">${fmtSafe(entry.prestige)}</span>
-                    <span class="lb-tier">${entry.tier >= 0 ? TIERS[entry.tier].name : '—'}</span>
-                    ${tierHtml}
+                    <span class="lb-tier">${(() => { const n = (entry.tier >= 0 ? TIERS[entry.tier].name : '—'); const ni = (entry.tier >= 0 ? getTierIconNum(entry.tier) : 0); return n + (ni > 0 ? `<img src="sprites/images/icons/individual/tier_${ni}.webp" class="lb-tier-img" style="width:12px;height:12px;vertical-align:middle;margin-left:3px;image-rendering:pixelated;" onerror="this.style.display='none'">` : ''); })()}</span>
                 `;
             }
         }
@@ -2341,7 +2334,7 @@ function renderLeaderboardFallback(list) {
         { name: 'CipherZero', vibes: '136.00T', vps: '42.00T', pp: '611.62k', prestige: 8, tier: 'Silver' },
         { name: 'PixelWarden', vibes: '70.00T', vps: '18.00T', pp: '294.30k', prestige: 5, tier: 'Bronze' },
     ];
-    list.innerHTML = '<div class="lb-entry lb-header"><span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span><span class="lb-tier">TIER</span><span class="lb-tier-icon"></span></div>'
+    list.innerHTML = '<div class="lb-entry lb-header"><span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span><span class="lb-tier">TIER</span></div>'
         + entries.map((e, i) => {
             const iconNum = e.tierName ? getTierIconNum(e.tierName) : 0;
             const iconHtml = iconNum > 0 ? `<img src=\"sprites/images/icons/individual/tier_${iconNum}.webp\" class=\"lb-tier-img\" onerror=\"this.style.display='none'\">` : '';
@@ -2382,7 +2375,7 @@ function renderTiers() {
         + '</div>';
     // Tier list
     list.innerHTML = '';
-    for (const tier of TIERS) {
+    TIERS.forEach((tier, idx) => {
         const unlocked = bnGe(G.total_prestiges, tier.requires);
         const el = document.createElement('div');
         el.className = `shop-item ${unlocked ? 'affordable' : 'locked'}`;
@@ -2390,12 +2383,12 @@ function renderTiers() {
         el.innerHTML = `
             <span style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-secondary)'};font-size:8px;">${unlocked ? '✅' : '🔒'}</span>
             <div>
-                <div style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-primary)'}"><strong>${tier.name}</strong> — ${formatNumber(tier.requires)} prestiges</div>
+                <div style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-primary)'}"><strong>${tier.name}</strong> <img src="sprites/images/icons/individual/tier_${getTierIconNum(idx)}.webp" class="lb-tier-img" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" onerror="this.style.display='none'"> — ${formatNumber(tier.requires)} prestiges</div>
                 <div style="color:${unlocked ? 'var(--accent-green)' : 'var(--text-secondary)'}">${tier.bonus}</div>
             </div>
         `;
         list.appendChild(el);
-    }
+    });
 }
 
 // ---- HELPER FUNCTIONS ----
