@@ -30,31 +30,31 @@
 
     <!-- Login method buttons with flyout sidebars -->
     <div class="login-methods">
-        <div class="login-method">
+        <div class="login-method" onmouseenter="openFlyout(this)" onmouseleave="scheduleCloseFlyout(this)">
             <button id="login-btn" class="login-method-btn">LOGIN / REGISTER</button>
-            <div class="login-flyout">
-                <input type="text" id="username" placeholder="USERNAME" autocomplete="off">
-                <input type="password" id="password" placeholder="PASSWORD">
+            <div class="login-flyout" onmouseenter="openFlyout(this.parentElement)" onmouseleave="scheduleCloseFlyout(this.parentElement)">
+                <input type="text" id="username" placeholder="USERNAME" autocomplete="off" onfocus="openFlyout(this.closest('.login-method'))" onblur="scheduleCloseFlyout(this.closest('.login-method'))">
+                <input type="password" id="password" placeholder="PASSWORD" onfocus="openFlyout(this.closest('.login-method'))" onblur="scheduleCloseFlyout(this.closest('.login-method'))">
                 <button class="login-flyout-submit" onclick="document.getElementById('login-btn').click()">▶ ENTER</button>
             </div>
         </div>
-        <div class="login-method">
+        <div class="login-method" onmouseenter="openFlyout(this)" onmouseleave="scheduleCloseFlyout(this)">
             <button id="google-btn" class="login-method-btn">CONTINUE WITH GOOGLE</button>
-            <div class="login-flyout">
+            <div class="login-flyout" onmouseenter="openFlyout(this.parentElement)" onmouseleave="scheduleCloseFlyout(this.parentElement)">
                 <div class="login-flyout-text">Sign in with your Google account to sync progress across devices.</div>
                 <button class="login-flyout-submit" onclick="document.getElementById('google-btn').click()">▶ SIGN IN</button>
             </div>
         </div>
-        <div class="login-method">
+        <div class="login-method" onmouseenter="openFlyout(this)" onmouseleave="scheduleCloseFlyout(this)">
             <button id="github-btn" class="login-method-btn">CONTINUE WITH GITHUB</button>
-            <div class="login-flyout">
+            <div class="login-flyout" onmouseenter="openFlyout(this.parentElement)" onmouseleave="scheduleCloseFlyout(this.parentElement)">
                 <div class="login-flyout-text">Sign in with your GitHub account to sync progress across devices.</div>
                 <button class="login-flyout-submit" onclick="document.getElementById('github-btn').click()">▶ SIGN IN</button>
             </div>
         </div>
-        <div class="login-method">
+        <div class="login-method" onmouseenter="openFlyout(this)" onmouseleave="scheduleCloseFlyout(this)">
             <button id="guest-btn" class="login-method-btn">CONTINUE AS GUEST</button>
-            <div class="login-flyout">
+            <div class="login-flyout" onmouseenter="openFlyout(this.parentElement)" onmouseleave="scheduleCloseFlyout(this.parentElement)">
                 <div class="login-flyout-text">Play without an account. Progress is saved locally.</div>
                 <button class="login-flyout-submit" onclick="document.getElementById('guest-btn').click()">▶ START</button>
             </div>
@@ -562,6 +562,20 @@
 <!-- Login video background crossfade (single-video + first-frame canvas) -->
 <script>
 (function(){'use strict';var ls=document.getElementById('login-screen');if(!ls)return;var v=document.getElementById('login-video-a'),c=document.getElementById('login-bg-canvas'),CF=1.5,bc=null,cap=0;if(!v||!c)return;var cx=c.getContext('2d');v.addEventListener('loadeddata',function(){if(cap)return;cap=1;c.width=v.videoWidth||640;c.height=v.videoHeight||360;cx.imageSmoothingEnabled=false;cx.drawImage(v,0,0,c.width,c.height);bc=document.createElement('canvas');bc.width=c.width;bc.height=c.height;bc.getContext('2d').drawImage(v,0,0)});v.play().catch(function(){});setInterval(function(){if(!cap||!bc)return;var t=v.currentTime,d=v.duration;if(!d||d===Infinity)return;var fs=d-CF;if(t>=fs){var a=Math.min(1,(t-fs)/CF);c.style.opacity=a;cx.clearRect(0,0,c.width,c.height);cx.drawImage(bc,0,0)}else if(t<CF){var a=Math.max(0,1-t/CF);c.style.opacity=a;cx.clearRect(0,0,c.width,c.height);cx.drawImage(bc,0,0)}else{c.style.opacity=0}})()})();
+// Flyout helpers
+var _flyoutTimers = {};
+function openFlyout(el) {
+    var fly = el && el.querySelector('.login-flyout');
+    if (!fly) return;
+    if (_flyoutTimers[fly.id || 'f']) { clearTimeout(_flyoutTimers[fly.id || 'f']); _flyoutTimers[fly.id || 'f'] = null; }
+    fly.classList.add('open');
+}
+function scheduleCloseFlyout(el) {
+    var fly = el && el.querySelector('.login-flyout');
+    if (!fly) return;
+    if (_flyoutTimers[fly.id || 'f']) { clearTimeout(_flyoutTimers[fly.id || 'f']); }
+    _flyoutTimers[fly.id || 'f'] = setTimeout(function(){ fly.classList.remove('open'); }, 1000);
+}
 </script>
 </body>
 </html>
