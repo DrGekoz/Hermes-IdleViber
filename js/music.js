@@ -146,6 +146,11 @@ function initMusicPlayer() {
     // Toggle panel
     toggleBtn.addEventListener('click', () => {
         panel.classList.toggle('hidden');
+        // Close chat if opening music
+        const chatPanel = document.getElementById('chat-panel');
+        if (!panel.classList.contains('hidden') && chatPanel && !chatPanel.classList.contains('hidden')) {
+            chatPanel.classList.add('hidden');
+        }
     });
 
     // ---- Track loading ----
