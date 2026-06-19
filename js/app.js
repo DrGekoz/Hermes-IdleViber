@@ -445,10 +445,10 @@ async function initAPI() {
 // ---- UI EVENTS ----
 function initUIEvents() {
     // Auth
-    dom.loginBtn.addEventListener('click', () => { playClick(); doLogin(); });
-    dom.logoutBtn.addEventListener('click', () => { playClick(); doLogout(); });
+    dom.loginBtn.addEventListener('click', () => { try { playClick(); } catch(_) {} doLogin(); });
+    dom.logoutBtn.addEventListener('click', () => { try { playClick(); } catch(_) {} doLogout(); });
     const guestBtn = document.getElementById('guest-btn');
-    if (guestBtn) guestBtn.addEventListener('click', () => { playClick(); doGuestLogin(); });
+    if (guestBtn) guestBtn.addEventListener('click', () => { try { playClick(); } catch(_) {} doGuestLogin(); });
     if (dom.settingsBtn) dom.settingsBtn.addEventListener('click', () => { playClick(); openSettings('name'); });
     if (dom.settingsClose) dom.settingsClose.addEventListener('click', () => { playClick(); closeSettings(); });
     if (dom.settingsBackdrop) dom.settingsBackdrop.addEventListener('click', closeSettings);
@@ -3245,7 +3245,6 @@ function showPlayerProfile(username) {
         closeBtn.onclick = () => popup.classList.add('hidden');
         popup.addEventListener('click', (e) => { if (e.target === popup) popup.classList.add('hidden'); });
     }
-}
 }
 
 function escapeHtml(str) {
