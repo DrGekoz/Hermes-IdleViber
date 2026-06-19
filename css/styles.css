@@ -1884,6 +1884,10 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 /* Secondary/danger buttons get a more subtle style */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
 .login-box button.secondary,
 button.secondary {
     border-top-color: #555 !important;
