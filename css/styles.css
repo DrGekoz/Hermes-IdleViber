@@ -936,7 +936,8 @@ body {
 .lb-pp { color: var(--accent-cyan); text-align: right; white-space: nowrap; }
 .lb-prestige { color: var(--accent-pink); text-align: right; white-space: nowrap; }
 .lb-tier { color: var(--accent-gold); text-align: right; white-space: nowrap; }
-.lb-tier-img { width: 14px; height: 14px; image-rendering: pixelated; object-fit: contain; display: inline-block; vertical-align: middle; }
+.lb-tier-img { width: 24px; height: 24px; image-rendering: pixelated; object-fit: contain; display: inline-block; vertical-align: middle; }
+.lb-entry { display: flex; align-items: center; gap: 4px; padding: 3px 6px; font-size: 7px; }
 
 /* Leaderboard header row — generated inside leaderboard-list so columns align */
 .lb-header {

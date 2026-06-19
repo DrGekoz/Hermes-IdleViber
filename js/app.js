@@ -2219,7 +2219,7 @@ async function updateLeaderboardUI(externalEntries) {
             if (tierEl) {
                 const name = entry.tier >= 0 ? TIERS[entry.tier].name : '—';
                 const iconNum = entry.tier >= 0 ? getTierIconNum(entry.tier) : 0;
-                tierEl.innerHTML = name + (iconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${iconNum}.webp" class="lb-tier-img" style="width:12px;height:12px;vertical-align:middle;margin-left:3px;image-rendering:pixelated;" onerror="this.style.display='none'">` : '');
+                tierEl.innerHTML = name + (iconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${iconNum}.webp" class="lb-tier-img" style="width:24px;height:24px;vertical-align:middle;margin-left:3px;image-rendering:pixelated;" onerror="this.style.display='none'">` : '');
             }
         } else {
             // Create new row
@@ -2243,7 +2243,7 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-vps">${fmtSafe(entry.vps)}</span>
                     <span class="lb-pp">${fmtSafe(entry.pp)}</span>
                     <span class="lb-prestige">${fmtSafe(entry.prestige)}</span>
-                    <span class="lb-tier">${(() => { const n = (entry.tier >= 0 ? TIERS[entry.tier].name : '—'); const ni = (entry.tier >= 0 ? getTierIconNum(entry.tier) : 0); return n + (ni > 0 ? `<img src="sprites/images/icons/individual/tier_${ni}.webp" class="lb-tier-img" style="width:12px;height:12px;vertical-align:middle;margin-left:3px;image-rendering:pixelated;" onerror="this.style.display='none'">` : ''); })()}</span>
+                    <span class="lb-tier">${(() => { const n = (entry.tier >= 0 ? TIERS[entry.tier].name : '—'); const ni = (entry.tier >= 0 ? getTierIconNum(entry.tier) : 0); return n + (ni > 0 ? `<img src="sprites/images/icons/individual/tier_${ni}.webp" class="lb-tier-img" style="width:24px;height:24px;vertical-align:middle;margin-left:3px;image-rendering:pixelated;" onerror="this.style.display='none'">` : ''); })()}</span>
                 `;
             } else {
                 el.innerHTML = `
@@ -2253,7 +2253,7 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-vps">${fmtSafe(entry.vps)}</span>
                     <span class="lb-pp">${fmtSafe(entry.pp)}</span>
                     <span class="lb-prestige">${fmtSafe(entry.prestige)}</span>
-                    <span class="lb-tier">${(() => { const n = (entry.tier >= 0 ? TIERS[entry.tier].name : '—'); const ni = (entry.tier >= 0 ? getTierIconNum(entry.tier) : 0); return n + (ni > 0 ? `<img src="sprites/images/icons/individual/tier_${ni}.webp" class="lb-tier-img" style="width:12px;height:12px;vertical-align:middle;margin-left:3px;image-rendering:pixelated;" onerror="this.style.display='none'">` : ''); })()}</span>
+                    <span class="lb-tier">${(() => { const n = (entry.tier >= 0 ? TIERS[entry.tier].name : '—'); const ni = (entry.tier >= 0 ? getTierIconNum(entry.tier) : 0); return n + (ni > 0 ? `<img src="sprites/images/icons/individual/tier_${ni}.webp" class="lb-tier-img" style="width:24px;height:24px;vertical-align:middle;margin-left:3px;image-rendering:pixelated;" onerror="this.style.display='none'">` : ''); })()}</span>
                 `;
             }
         }
@@ -2381,9 +2381,9 @@ function renderTiers() {
         el.className = `shop-item ${unlocked ? 'affordable' : 'locked'}`;
         el.style.cssText = 'display:grid;grid-template-columns:auto 1fr;gap:4px;padding:4px 6px;font-size:6px;';
         el.innerHTML = `
-            <span style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-secondary)'};font-size:8px;">${unlocked ? '✅' : '🔒'}</span>
+            <span style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-secondary)'};font-size:8px;"><img src="sprites/images/icons/individual/tier_${getTierIconNum(idx)}.webp" style="width:28px;height:28px;image-rendering:pixelated;object-fit:contain;vertical-align:middle;display:inline-block;" onerror="this.style.display='none'"></span>
             <div>
-                <div style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-primary)'}"><strong>${tier.name}</strong> <img src="sprites/images/icons/individual/tier_${getTierIconNum(idx)}.webp" class="lb-tier-img" style="width:14px;height:14px;vertical-align:middle;image-rendering:pixelated;" onerror="this.style.display='none'"> — ${formatNumber(tier.requires)} prestiges</div>
+                <div style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-primary)'}"><strong>${tier.name}</strong> — ${formatNumber(tier.requires)} prestiges</div>
                 <div style="color:${unlocked ? 'var(--accent-green)' : 'var(--text-secondary)'}">${tier.bonus}</div>
             </div>
         `;
