@@ -19,7 +19,7 @@
     <!-- Login video wallpaper (full-screen looping, crossfade at loop seam) -->
     <div id="login-bg" class="login-bg">
         <canvas id="login-bg-canvas"></canvas>
-        <video id="login-video-a" class="login-video" muted playsinline loop preload="auto" src="sprites/images/bg/login_screen.mp4"></video>
+        <video id="login-video-a" class="login-video" muted playsinline preload="auto" src="sprites/images/bg/login_screen.mp4"></video>
     </div>
 
     <!-- Title -->
@@ -568,32 +568,37 @@
 <script>
 (function(){
 'use strict';
-var ls=document.getElementById('login-screen');
-if(!ls)return;
-var v=document.getElementById('login-video-a'),c=document.getElementById('login-bg-canvas'),CF=2.5,bc=null,cap=0;
+var v=document.getElementById('login-video-a'),c=document.getElementById('login-bg-canvas');
 if(!v||!c)return;
-var cx=c.getContext('2d');
+var cx=c.getContext('2d'),frames=[],cap=false,FPS=24,FRAME_MS=1000/FPS,dir=1,idx=0,last=0;
+v.muted=true;v.playsInline=true;v.preload='auto';
 v.addEventListener('loadeddata',function(){
-  if(cap)return;cap=1;
-  c.width=v.videoWidth||640;c.height=v.videoHeight||360;
-  cx.imageSmoothingEnabled=false;cx.drawImage(v,0,0,c.width,c.height);
-  bc=document.createElement('canvas');bc.width=c.width;bc.height=c.height;
-  bc.getContext('2d').drawImage(v,0,0)
+  var cw=Math.min(v.videoWidth||640,640),ch=Math.min(v.videoHeight||360,360);
+  c.width=cw;c.height=ch;
+  function onFrame(){
+    if(cap)return;
+    var can=document.createElement('canvas');can.width=cw;can.height=ch;
+    can.getContext('2d').drawImage(v,0,0,cw,ch);frames.push(can);
+    if(v.currentTime>=v.duration-0.05||frames.length>Math.ceil(v.duration*FPS)+5){
+      cap=true;v.pause();v.style.display='none';
+      (function tick(){
+        var now=performance.now();
+        if(now-last>=FRAME_MS){last=now;idx+=dir;
+          if(idx>=frames.length){idx=Math.max(0,frames.length-2);dir=-1;}
+          else if(idx<0){idx=Math.min(1,frames.length-1);dir=1;}
+          if(frames[idx]){cx.clearRect(0,0,cw,ch);cx.drawImage(frames[idx],0,0);}
+        }
+        requestAnimationFrame(tick);
+      })();
+      return;
+    }
+    v.requestVideoFrameCallback(onFrame);
+  }
+  v.play().then(function(){v.requestVideoFrameCallback(onFrame);}).catch(function(){});
 });
-v.play().catch(function(){});
-setInterval(function(){
-  if(!cap||!bc)return;
-  var t=v.currentTime,d=v.duration;
-  if(!d||d===Infinity)return;
-  var fs=d-CF;
-  if(t>=fs){
-    var a=Math.min(1,(t-fs)/CF);
-    c.style.opacity=a;cx.clearRect(0,0,c.width,c.height);cx.drawImage(bc,0,0)
-  }else if(t<CF){
-    var a=Math.max(0,1-t/CF);
-    c.style.opacity=a;cx.clearRect(0,0,c.width,c.height);cx.drawImage(bc,0,0)
-  }else{c.style.opacity=0}
-},30)})();
+v.load();
+})();
+</script>
 // Flyout helpers
 var _flyoutSeq = 0, _flyoutTimers = {};
 function openFlyout(el) {
