@@ -827,6 +827,7 @@ body {
 .leaderboard-float.fullscreen .lb-pp { min-width: 60px; font-size: 11px; }
 .leaderboard-float.fullscreen .lb-prestige { min-width: 40px; font-size: 10px; }
 .leaderboard-float.fullscreen .lb-tier { min-width: 40px; font-size: 10px; }
+.leaderboard-float.fullscreen .lb-tier-img { width: 36px; height: 36px; }
 .leaderboard-float.fullscreen .lb-dev-badge { font-size: 8px; }
 .leaderboard-float.fullscreen .dev-tooltip { font-size: 10px; }
 .leaderboard-float.fullscreen .dev-tooltip strong { font-size: 10px; }
