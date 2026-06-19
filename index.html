@@ -19,25 +19,55 @@
     <!-- Login video wallpaper (full-screen looping, crossfade at loop seam) -->
     <div id="login-bg" class="login-bg">
         <canvas id="login-bg-canvas"></canvas>
-        <video id="login-video-a" class="login-video" muted playsinline preload="auto" src="sprites/images/bg/login_screen.mp4"></video>
+        <video id="login-video-a" class="login-video" muted playsinline loop preload="auto" src="sprites/images/bg/login_screen.mp4"></video>
     </div>
-    <div class="login-box">
+
+    <!-- Title -->
+    <div class="login-title">
         <h1><img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon" alt=""> HERMES <img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon" alt=""><br>IDLEVIBER</h1>
-        <div class="login-subtitle">~ THE AMBIENT GATEWAY ~</div>
-        <input type="text" id="username" placeholder="USERNAME" autocomplete="off">
-        <input type="password" id="password" placeholder="PASSWORD">
-        <button id="login-btn">▶ LOGIN / REGISTER</button>
-        <div class="pixel-divider">— O R —</div>
-        <div class="social-login">
-            <button id="google-btn" class="social-btn google">▶ CONTINUE WITH GOOGLE</button>
-            <button id="github-btn" class="social-btn github">▶ CONTINUE WITH GITHUB</button>
+        <div class="login-title-sub">~ THE AMBIENT GATEWAY ~</div>
+    </div>
+
+    <!-- Login method buttons with flyout sidebars -->
+    <div class="login-methods">
+        <div class="login-method">
+            <button id="login-btn" class="login-method-btn">LOGIN / REGISTER</button>
+            <div class="login-flyout">
+                <input type="text" id="username" placeholder="USERNAME" autocomplete="off">
+                <input type="password" id="password" placeholder="PASSWORD">
+                <button class="login-flyout-submit" onclick="document.getElementById('login-btn').click()">▶ ENTER</button>
+            </div>
         </div>
-        <div id="login-message"></div>
-        <button id="guest-btn" class="secondary" style="margin-top:8px;">▶ CONTINUE AS GUEST</button>
-        <div style="margin-top:15px;font-size:6px;color:#444;">
-            ⚡ Hermes Gateway recommended for extra buff multipliers<br>
-            Detects on: localhost:8000 • 8080 • 3000 • 7777
+        <div class="login-method">
+            <button id="google-btn" class="login-method-btn">CONTINUE WITH GOOGLE</button>
+            <div class="login-flyout">
+                <div class="login-flyout-text">Sign in with your Google account to sync progress across devices.</div>
+                <button class="login-flyout-submit" onclick="document.getElementById('google-btn').click()">▶ SIGN IN</button>
+            </div>
         </div>
+        <div class="login-method">
+            <button id="github-btn" class="login-method-btn">CONTINUE WITH GITHUB</button>
+            <div class="login-flyout">
+                <div class="login-flyout-text">Sign in with your GitHub account to sync progress across devices.</div>
+                <button class="login-flyout-submit" onclick="document.getElementById('github-btn').click()">▶ SIGN IN</button>
+            </div>
+        </div>
+        <div class="login-method">
+            <button id="guest-btn" class="login-method-btn">CONTINUE AS GUEST</button>
+            <div class="login-flyout">
+                <div class="login-flyout-text">Play without an account. Progress is saved locally.</div>
+                <button class="login-flyout-submit" onclick="document.getElementById('guest-btn').click()">▶ START</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message -->
+    <div id="login-message" class="login-msg"></div>
+
+    <!-- Disclaimer -->
+    <div class="login-footer">
+        <div class="login-disclaimer">⚡ Hermes Gateway recommended for extra buff multipliers — Detects on: localhost:8000 • 8080 • 3000 • 7777</div>
+        <div class="login-copyright">Copyright © 2026 — <a href="https://github.com/DrGekoz" target="_blank" rel="noopener">DrGekoz</a></div>
     </div>
 </div>
 

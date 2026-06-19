@@ -2421,7 +2421,8 @@ function updateLocalLeaderboardEntry() {
 // Map tier index to icon number (1-50, cycles back)
 function getTierIconNum(tierIdx) {
     if (tierIdx < 0) return 0;
-    return ((tierIdx) % 50) + 1;
+    // Direct 1:1 mapping to individual tier_N.webp files
+    return tierIdx + 1;
 }
 // Direct fallback renderer for leaderboard — bypasses any BN/comparison issues
 function renderLeaderboardFallback(list) {
