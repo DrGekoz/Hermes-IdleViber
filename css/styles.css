@@ -93,6 +93,7 @@ body {
     width: auto; height: auto;
     transform: translate(-50%, -50%);
     object-fit: cover;
+    opacity: 1;
 }
 #login-bg-canvas {
     position: absolute;
