@@ -181,8 +181,11 @@ body {
 }
 .login-flyout.open {
     opacity: 1;
-    pointer-events: auto;
+    pointer-events: none;
     transform: translateY(-50%) translateX(0);
+}
+.login-flyout.open > * {
+    pointer-events: auto;
 }
 .login-flyout input {
     display: block;
