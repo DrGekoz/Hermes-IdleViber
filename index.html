@@ -563,7 +563,7 @@
     <script type="module" src="js/music.js?v=75"></script>
 <script type="module" src="js/app.js?v=75"></script>
 
-<!-- Login video background crossfade (single-video + first-frame canvas) -->
+<!-- Login video ping-pong -->
 <script>
 (function(){
 'use strict';
@@ -571,14 +571,18 @@ var v=document.getElementById('login-video-a');
 if(!v)return;
 v.muted=true;v.playsInline=true;v.preload='auto';v.loop=false;
 v.playbackRate=1;
-v.addEventListener('timeupdate',function(){
-  if(v.playbackRate>0&&v.currentTime>=v.duration-0.1){
+function checkDirection(){
+  if(v.playbackRate>0&&v.currentTime>=v.duration-0.15){
     v.playbackRate=-1;
-  }else if(v.playbackRate<0&&v.currentTime<=0.1){
+  }else if(v.playbackRate<0&&v.currentTime<=0.15){
     v.playbackRate=1;
   }
-});
-v.play().catch(function(){});
+}
+v.addEventListener('loadeddata',function(){v.play().catch(function(){});});
+v.addEventListener('canplay',function(){v.play().catch(function(){});});
+v.addEventListener('timeupdate',checkDirection);
+// Also poll frequently to catch boundary
+setInterval(checkDirection,50);
 v.load();
 })();
 </script>
