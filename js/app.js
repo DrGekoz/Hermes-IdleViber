@@ -3057,20 +3057,103 @@ function addChatMessage(username, text, isOwn) {
     const msgs = document.getElementById('chat-messages');
     if (!msgs) return;
     const el = document.createElement('div');
-    el.style.cssText = 'display:flex;gap:4px;align-items:flex-start;padding:2px 0;' + (isOwn ? '' : '');
+    el.style.cssText = 'display:flex;gap:4px;align-items:flex-start;padding:2px 0;';
     const tier = getCurrentTier(G);
     const iconNum = tier >= 0 ? getTierIconNum(tier) : 0;
     const iconHtml = iconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${iconNum}.webp" style="width:14px;height:14px;image-rendering:pixelated;vertical-align:middle;flex-shrink:0;">` : '';
     el.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:1px;max-width:100%;${isOwn ? 'align-items:flex-end;margin-left:auto;' : ''}">
-            <div style="font-size:5px;color:${isOwn ? 'var(--accent-gold)' : 'var(--accent-cyan)'};display:flex;align-items:center;gap:2px;">${iconHtml}${username}</div>
+            <div style="font-size:5px;color:${isOwn ? 'var(--accent-gold)' : 'var(--accent-cyan)'};display:flex;align-items:center;gap:2px;cursor:pointer;" class="chat-username" data-username="${escapeHtml(username)}">${iconHtml}${escapeHtml(username)}</div>
             <div style="background:${isOwn ? 'rgba(255,215,0,0.15)' : 'rgba(0,255,255,0.1)'};border:1px solid ${isOwn ? 'rgba(255,215,0,0.3)' : 'rgba(0,255,255,0.2)'};border-radius:4px;padding:3px 6px;font-size:7px;word-break:break-word;max-width:180px;">${escapeHtml(text)}</div>
         </div>
     `;
+    // Click username → show profile
+    const nameEl = el.querySelector('.chat-username');
+    if (nameEl) {
+        nameEl.addEventListener('click', () => showPlayerProfile(username));
+        nameEl.addEventListener('mouseenter', () => {
+            // Simple tooltip on hover
+            const tip = document.createElement('div');
+            tip.className = 'chat-name-tooltip';
+            tip.style.cssText = 'position:fixed;background:#111;border:1px solid #555;padding:4px 8px;font-size:6px;color:#aaa;pointer-events:none;z-index:30000;white-space:nowrap;';
+            tip.textContent = 'Click to view ' + username + "'s profile";
+            document.body.appendChild(tip);
+            nameEl._tooltip = tip;
+        });
+        nameEl.addEventListener('mousemove', (e) => {
+            if (nameEl._tooltip) {
+                nameEl._tooltip.style.left = (e.clientX + 10) + 'px';
+                nameEl._tooltip.style.top = (e.clientY + 10) + 'px';
+            }
+        });
+        nameEl.addEventListener('mouseleave', () => {
+            if (nameEl._tooltip) { nameEl._tooltip.remove(); nameEl._tooltip = null; }
+        });
+    }
     msgs.appendChild(el);
     msgs.scrollTop = msgs.scrollHeight;
-    // Keep max ~50 messages
     while (msgs.children.length > 50) msgs.removeChild(msgs.firstChild);
+}
+
+function showPlayerProfile(username) {
+    const popup = document.getElementById('profile-popup');
+    const content = document.getElementById('profile-content');
+    const closeBtn = document.getElementById('profile-close');
+    if (!popup || !content) return;
+
+    // Gather stats from game state
+    const tierIdx = getCurrentTier(G);
+    const tierName = tierIdx >= 0 ? TIERS[tierIdx].name : '—';
+    const tierIconNum = tierIdx >= 0 ? getTierIconNum(tierIdx) : 0;
+    const tierIconHtml = tierIconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${tierIconNum}.webp" style="width:28px;height:28px;image-rendering:pixelated;vertical-align:middle;">` : '';
+    const clickMult = 1; // simplified
+    const vpsMult = 1;
+    const prestigeCount = G.total_prestiges || BN_ZERO;
+    const totalPp = G.total_pp_earned || BN_ZERO;
+    const achievementsUnlocked = (G.achievements || []).length;
+    const achievementsTotal = ACHIEVEMENTS ? ACHIEVEMENTS.length : 0;
+    const roomsUnlocked = (G.unlocked_rooms || []).length;
+    const roomsTotal = ROOMS ? Object.keys(ROOMS).length : 0;
+    const totalDecor = (G.owned_decor || []).length;
+
+    // Count total autoclickers
+    let totalClickers = 0;
+    if (G.room_autoclickers) {
+        for (const roomId of Object.keys(G.room_autoclickers)) {
+            for (const count of Object.values(G.room_autoclickers[roomId])) {
+                totalClickers += count || 0;
+            }
+        }
+    }
+
+    content.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;border-bottom:1px solid #333;padding-bottom:12px;">
+            ${tierIconHtml}
+            <div>
+                <div style="font-size:11px;color:var(--accent-gold);font-weight:bold;">${escapeHtml(username)}</div>
+                <div style="font-size:7px;color:var(--text-secondary);">${tierName}</div>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div class="prestige-stat-box"><span class="prestige-stat-label">VIBES</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${formatNumber(G.vibes)}</span></div>
+            <div class="prestige-stat-box"><span class="prestige-stat-label">VPS</span><span class="prestige-stat-value" style="color:var(--accent-green);">${formatNumber(getVPS())}</span></div>
+            <div class="prestige-stat-box"><span class="prestige-stat-label">CLICK</span><span class="prestige-stat-value" style="color:var(--accent-cyan);">${formatNumber(getClickValue())}</span></div>
+            <div class="prestige-stat-box"><span class="prestige-stat-label">PRESTIGES</span><span class="prestige-stat-value" style="color:var(--accent-pink);">${formatNumber(prestigeCount)}</span></div>
+            <div class="prestige-stat-box"><span class="prestige-stat-label">PP EARNED</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${formatNumber(totalPp)}</span></div>
+            <div class="prestige-stat-box"><span class="prestige-stat-label">TIER</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${tierName}</span></div>
+            <div class="prestige-stat-box"><span class="prestige-stat-label">ACHIEVEMENTS</span><span class="prestige-stat-value" style="color:var(--accent-cyan);">${achievementsUnlocked}/${achievementsTotal}</span></div>
+            <div class="prestige-stat-box"><span class="prestige-stat-label">ROOMS</span><span class="prestige-stat-value" style="color:var(--accent-green);">${roomsUnlocked}/${roomsTotal}</span></div>
+            <div class="prestige-stat-box"><span class="prestige-stat-label">UPGRADES</span><span class="prestige-stat-value" style="color:var(--accent-cyan);">${totalClickers}</span></div>
+            <div class="prestige-stat-box"><span class="prestige-stat-label">DECOR</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${totalDecor}</span></div>
+        </div>
+    `;
+
+    popup.classList.remove('hidden');
+    if (closeBtn) {
+        closeBtn.onclick = () => popup.classList.add('hidden');
+        popup.addEventListener('click', (e) => { if (e.target === popup) popup.classList.add('hidden'); });
+    }
+}
 }
 
 function escapeHtml(str) {
