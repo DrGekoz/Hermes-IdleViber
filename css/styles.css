@@ -94,6 +94,7 @@ body {
     transform: translate(-50%, -50%);
     object-fit: cover;
     opacity: 1;
+    pointer-events: none;
 }
  
 /* --- LOGIN SCREEN - New Design --- */
@@ -161,7 +162,7 @@ body {
     position: relative;
     z-index: 3;
 }
-.login-method-btn:hover { background: linear-gradient(135deg, #ffe44d, #ffc800); transform: scale(1.02); }
+.login-method-btn:hover { background: linear-gradient(135deg, #ffe44d, #ffc800); transform: scale(1.02); cursor: pointer; }
 .login-method-btn:active { transform: translate(2px, 2px); }
 .login-flyout {
     position: absolute;
