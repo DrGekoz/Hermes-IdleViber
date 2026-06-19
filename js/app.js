@@ -446,6 +446,8 @@ function initUIEvents() {
     // Auth
     dom.loginBtn.addEventListener('click', () => { playClick(); doLogin(); });
     dom.logoutBtn.addEventListener('click', () => { playClick(); doLogout(); });
+    const guestBtn = document.getElementById('guest-btn');
+    if (guestBtn) guestBtn.addEventListener('click', () => { playClick(); doGuestLogin(); });
     if (dom.settingsBtn) dom.settingsBtn.addEventListener('click', () => { playClick(); openSettings('name'); });
     if (dom.settingsClose) dom.settingsClose.addEventListener('click', () => { playClick(); closeSettings(); });
     if (dom.settingsBackdrop) dom.settingsBackdrop.addEventListener('click', closeSettings);
@@ -951,6 +953,44 @@ function setupTabs() {
 }
 
 // ---- AUTH ----
+// Guest counter in localStorage for unique names
+function getGuestNum() {
+    let n = parseInt(localStorage.getItem('hermes_idleviber_guest_num') || '0', 10);
+    n++;
+    localStorage.setItem('hermes_idleviber_guest_num', String(n));
+    return n;
+}
+
+async function doGuestLogin() {
+    const guestNum = getGuestNum();
+    const guestName = 'Guest_' + String(guestNum).padStart(2, '0');
+    dom.loginMsg.textContent = '⏳ Entering as ' + guestName + '...';
+
+    // Try Firebase anonymous sign-in so guest appears on leaderboard
+    if (fbReady && fbSignInAnon) {
+        try {
+            const result = await fbSignInAnon();
+            if (result && result.success) {
+                G.userId = result.uid;
+                G.username = guestName;
+                G.auth_mode = 'firebase';
+                dom.userDisplay.textContent = guestName; dom.userDisplay.title = guestName;
+                // Submit to leaderboard immediately
+                fbSubmitScore(guestName, bnToNumber(G.lifetime_vibes), Math.min(bnToNumber(G.total_prestiges || BN_ZERO), 1e9), G.total_pp_earned, null, getVPS()).catch(() => {});
+                enterGame();
+                return;
+            }
+        } catch (_) {}
+    }
+
+    // Fallback: local mode
+    G.userId = 'guest_' + guestNum;
+    G.username = guestName;
+    G.auth_mode = 'local';
+    dom.userDisplay.textContent = guestName; dom.userDisplay.title = guestName;
+    enterGame();
+}
+
 async function doLogin() {
     const username = dom.username.value.trim();
     const password = dom.password.value.trim();
