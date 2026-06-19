@@ -578,7 +578,7 @@ v.parentElement.appendChild(sp);
 var c=document.createElement('canvas');
 c.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;pointer-events:none;z-index:1;';
 v.parentElement.appendChild(c);
-var cx=c.getContext('2d'),frames=[],cap=false,dir=1,idx=0,cw=0,ch=0;
+var cx=c.getContext('2d'),frames=[],cap=false,dir=1,idx=0,cw=0,ch=0,lastFrame=0;
 
 v.muted=true;v.playsInline=true;v.preload='auto';v.loop=false;
 
@@ -595,17 +595,21 @@ v.addEventListener('loadeddata',function(){
     can.width=cw;can.height=ch;
     can.getContext('2d').drawImage(v,0,0,cw,ch);
     frames.push(can);
-    if(v.ended){
+    if(v.currentTime>=v.duration-0.1||v.ended){
       cap=true;v.style.display='none';
       if(sp)sp.style.display='none';
-      // Ping-pong at precise 24fps via setInterval
-      setInterval(function(){
-        idx+=dir;
-        if(idx>=frames.length-1){dir=-1;idx=Math.max(0,frames.length-2);}
-        else if(idx<=0){dir=1;idx=Math.min(1,frames.length-1);}
-        cx.clearRect(0,0,cw,ch);
-        cx.drawImage(frames[idx],0,0);
-      },1000/24);
+      // Ping-pong at 24fps via rAF with time accumulation
+      lastFrame=performance.now();
+      (function tick(now){
+        if(now-lastFrame>=1000/24){
+          lastFrame=now;idx+=dir;
+          if(idx>=frames.length-1){dir=-1;idx=Math.max(0,frames.length-2);}
+          else if(idx<=0){dir=1;idx=Math.min(1,frames.length-1);}
+          cx.clearRect(0,0,cw,ch);
+          cx.drawImage(frames[idx],0,0);
+        }
+        requestAnimationFrame(tick);
+      })();
       return;
     }
     requestAnimationFrame(capture);
