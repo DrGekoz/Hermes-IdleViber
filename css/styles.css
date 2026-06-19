@@ -1898,7 +1898,7 @@ button.secondary:hover {
 #prestige-btn, #prestige-max-btn,
 #click-btn, #gw-connect-btn,
 .buy-all-btn, .social-btn,
-#login-btn, #settings-btn,
+#settings-btn,
 .settings-tab,
 .prestige-instant-toggle {
     background-image: var(--room-btn-img) !important;
