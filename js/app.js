@@ -841,6 +841,51 @@ function initUIEvents() {
         updateLeaderboardUI();
     });
 
+    // Leaderboard username tooltip + profile (delegated)
+    const lbList = dom.leaderboardList;
+    if (lbList) {
+        // Hover tooltip
+        lbList.addEventListener('mouseover', (e) => {
+            const nameEl = e.target.closest('.lb-name');
+            if (!nameEl) return;
+            const entry = nameEl.closest('.lb-entry');
+            if (!entry || entry.classList.contains('lb-header')) return;
+            const username = nameEl.textContent.replace(/◆\s*/g, '').replace(/\(DEV\).*/s, '').trim();
+            if (!username) return;
+            if (!lbList._tip) {
+                const tip = document.createElement('div');
+                tip.style.cssText = 'position:fixed;background:#111;border:1px solid #555;padding:4px 8px;font-size:6px;color:#aaa;pointer-events:none;z-index:30000;white-space:nowrap;';
+                tip.textContent = 'Click to view profile';
+                document.body.appendChild(tip);
+                lbList._tip = tip;
+            }
+            lbList._tipUsername = username;
+            lbList._tip.style.display = 'block';
+        });
+        lbList.addEventListener('mousemove', (e) => {
+            const nameEl = e.target.closest('.lb-name');
+            if (!nameEl || !lbList._tip) return;
+            lbList._tip.style.left = (e.clientX + 12) + 'px';
+            lbList._tip.style.top = (e.clientY + 12) + 'px';
+        });
+        lbList.addEventListener('mouseout', (e) => {
+            const nameEl = e.target.closest('.lb-name');
+            if (!nameEl && lbList._tip) lbList._tip.style.display = 'none';
+        });
+        // Click → profile
+        lbList.addEventListener('click', (e) => {
+            const nameEl = e.target.closest('.lb-name');
+            if (!nameEl) return;
+            const entry = nameEl.closest('.lb-entry');
+            if (!entry || entry.classList.contains('lb-header')) return;
+            let username = nameEl.textContent.replace(/◆\s*/g, '').replace(/\(DEV\).*/s, '').trim();
+            // Skip vibe icon if present
+            const vibeImg = nameEl.querySelector('img');
+            if (vibeImg) username = nameEl.childNodes[1]?.textContent?.trim() || username;
+            if (username) showPlayerProfile(username);
+        });
+    }
+    
     // Tabs
     setupTabs();
 

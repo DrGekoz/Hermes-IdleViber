@@ -938,7 +938,7 @@ body {
 }
 .dev-tooltip a:hover { text-decoration: underline; color: #0df; }
 .lb-rank { color: var(--text-secondary); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lb-name { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-name { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .lb-vibes { color: var(--accent-gold); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lb-vps { color: var(--accent-green); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lb-pp { color: var(--accent-cyan); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
