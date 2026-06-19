@@ -799,6 +799,7 @@ function initUIEvents() {
             if (endDrag(G)) {
                 playPlace();
                 notifyStateChange('decor_active');
+                saveGame();
             }
         }
     });
@@ -807,6 +808,7 @@ function initUIEvents() {
         if (isDragging()) {
             if (endDrag(G)) {
                 notifyStateChange('decor_active');
+                saveGame();
             }
         }
     });
@@ -815,7 +817,7 @@ function initUIEvents() {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && (isPlacing() || isDragging())) {
             cancelDecorPlacement();
-            if (isDragging()) endDrag(G);
+            if (isDragging()) { endDrag(G); saveGame(); }
             notifyStateChange('decor_active');
         }
     });
