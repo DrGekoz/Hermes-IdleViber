@@ -1659,8 +1659,11 @@ input[type="range"]::-webkit-slider-thumb {
     gap: 4px;
 }
 #chat-player { left: 52px; z-index: 1001; }
-#chat-panel { min-width: 260px; min-height: 280px; }
-#chat-messages { min-height: 200px; max-height: 300px; }
+#chat-panel { min-width: 520px; min-height: 300px; }
+#chat-messages { min-height: 220px; max-height: 350px; }
+#chat-messages .chat-username { font-size: 7px !important; }
+#chat-messages .chat-bubble { font-size: 9px !important; }
+#chat-messages .chat-tier-icon { width: 20px; height: 20px; }
 .music-player.hidden { display: none; }
 .music-toggle {
     width: 36px;

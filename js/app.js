@@ -3105,11 +3105,10 @@ function addChatMessage(username, text, isOwn) {
     el.style.cssText = 'display:flex;gap:4px;align-items:flex-start;padding:2px 0;';
     const tier = getCurrentTier(G);
     const iconNum = tier >= 0 ? getTierIconNum(tier) : 0;
-    const iconHtml = iconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${iconNum}.webp" style="width:14px;height:14px;image-rendering:pixelated;vertical-align:middle;flex-shrink:0;">` : '';
     el.innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:1px;max-width:100%;${isOwn ? 'align-items:flex-end;margin-left:auto;' : ''}">
-            <div style="font-size:5px;color:${isOwn ? 'var(--accent-gold)' : 'var(--accent-cyan)'};display:flex;align-items:center;gap:2px;cursor:pointer;" class="chat-username" data-username="${escapeHtml(username)}">${iconHtml}${escapeHtml(username)}</div>
-            <div style="background:${isOwn ? 'rgba(255,215,0,0.15)' : 'rgba(0,255,255,0.1)'};border:1px solid ${isOwn ? 'rgba(255,215,0,0.3)' : 'rgba(0,255,255,0.2)'};border-radius:4px;padding:3px 6px;font-size:7px;word-break:break-word;max-width:180px;">${escapeHtml(text)}</div>
+        <div style="display:flex;flex-direction:column;gap:2px;max-width:100%;${isOwn ? 'align-items:flex-end;margin-left:auto;' : ''}">
+            <div class="chat-username" style="font-size:5px;color:${isOwn ? 'var(--accent-gold)' : 'var(--accent-cyan)'};display:flex;align-items:center;gap:3px;cursor:pointer;" data-username="${escapeHtml(username)}"><img src="sprites/images/icons/individual/tier_${iconNum}.webp" class="chat-tier-icon" style="width:14px;height:14px;image-rendering:pixelated;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none'">${escapeHtml(username)}</div>
+            <div class="chat-bubble" style="background:${isOwn ? 'rgba(255,215,0,0.15)' : 'rgba(0,255,255,0.1)'};border:1px solid ${isOwn ? 'rgba(255,215,0,0.3)' : 'rgba(0,255,255,0.2)'};border-radius:4px;padding:5px 8px;font-size:7px;word-break:break-word;max-width:280px;">${escapeHtml(text)}</div>
         </div>
     `;
     // Click username → show profile
