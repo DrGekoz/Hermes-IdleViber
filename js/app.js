@@ -2427,6 +2427,17 @@ function renderTiers() {
                 <div style="color:${unlocked ? 'var(--accent-green)' : 'var(--text-secondary)'}">${tier.bonus}</div>
             </div>
         `;
+        el._tooltipData = {
+            name: tier.name,
+            desc: (unlocked ? '✅ Unlocked' : '🔒 Locked') + ' — ' + formatNumber(tier.requires) + ' prestiges required',
+            icon: `sprites/images/icons/individual/tier_${getTierIconNum(idx)}.webp`,
+            stats: [
+                { label: 'Bonus', value: tier.bonus, cls: 'green' },
+                { label: 'Requires', value: formatNumber(tier.requires) + ' prestiges', cls: 'gold' },
+                { label: 'Status', value: unlocked ? 'UNLOCKED' : 'LOCKED', cls: unlocked ? 'green' : '' }
+            ],
+            owned: unlocked
+        };
         list.appendChild(el);
     });
 }
@@ -2700,7 +2711,7 @@ function hideShopTooltip() {
 }
 
 function initTooltipDelegation() {
-    const panels = ['upgrade-list', 'prestige-upgrade-list', 'decor-list', 'gw-upgrade-list'];
+    const panels = ['upgrade-list', 'prestige-upgrade-list', 'decor-list', 'gw-upgrade-list', 'tier-list'];
     panels.forEach(panelId => {
         const panel = document.getElementById(panelId);
         if (!panel) return;
