@@ -570,7 +570,7 @@
 'use strict';
 var ls=document.getElementById('login-screen');
 if(!ls)return;
-var v=document.getElementById('login-video-a'),c=document.getElementById('login-bg-canvas'),CF=2.0,bc=null,cap=0;
+var v=document.getElementById('login-video-a'),c=document.getElementById('login-bg-canvas'),CF=2.5,bc=null,cap=0;
 if(!v||!c)return;
 var cx=c.getContext('2d');
 v.addEventListener('loadeddata',function(){
@@ -581,20 +581,6 @@ v.addEventListener('loadeddata',function(){
   bc.getContext('2d').drawImage(v,0,0)
 });
 v.play().catch(function(){});
-v.addEventListener('timeupdate',function(){
-  if(!cap||!bc)return;
-  var t=v.currentTime,d=v.duration;
-  if(!d||d===Infinity)return;
-  var fs=d-CF;
-  if(t>=fs){
-    var a=Math.min(1,(t-fs)/CF);
-    c.style.opacity=a;cx.clearRect(0,0,c.width,c.height);cx.drawImage(bc,0,0)
-  }else if(t<CF){
-    var a=Math.max(0,1-t/CF);
-    c.style.opacity=a;cx.clearRect(0,0,c.width,c.height);cx.drawImage(bc,0,0)
-  }else{c.style.opacity=0}
-});
-// Also poll to catch Chrome's discontinuous currentTime jumps
 setInterval(function(){
   if(!cap||!bc)return;
   var t=v.currentTime,d=v.duration;
@@ -607,10 +593,13 @@ setInterval(function(){
     var a=Math.max(0,1-t/CF);
     c.style.opacity=a;cx.clearRect(0,0,c.width,c.height);cx.drawImage(bc,0,0)
   }else{c.style.opacity=0}
-},50)})();
+},30)})();
 // Flyout helpers
 var _flyoutSeq = 0, _flyoutTimers = {};
 function openFlyout(el) {
+    // Close all other flyouts first
+    var all = document.querySelectorAll('.login-flyout.open');
+    for (var i = 0; i < all.length; i++) { all[i].classList.remove('open'); }
     var fly = el && el.querySelector('.login-flyout');
     if (!fly) return;
     var key = fly.id || 'fly' + (fly._seq || (fly._seq = ++_flyoutSeq));
