@@ -170,6 +170,35 @@ function playPlace() {
     playNote(600, 0.05, 'triangle', 0.08);
 }
 
+// ---- SFX: Chat Typing (soft click) ----
+function playChatTyping() {
+    playNote(400, 0.03, 'sine', 0.04);
+}
+
+// ---- SFX: Chat Sent (pop) ----
+function playChatSend() {
+    playNote(880, 0.06, 'sine', 0.12);
+    setTimeout(() => playNote(1100, 0.04, 'sine', 0.08), 50);
+}
+
+// ---- SFX: Chat Received (gentle chime) ----
+function playChatReceive() {
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    [660, 880].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const env = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t + i * 0.06);
+        env.gain.setValueAtTime(0.08 * _volume, t + i * 0.06);
+        env.gain.exponentialRampToValueAtTime(0.001, t + i * 0.06 + 0.08);
+        osc.connect(env);
+        env.connect(ctx.destination);
+        osc.start(t + i * 0.06);
+        osc.stop(t + i * 0.06 + 0.1);
+    });
+}
+
 export {
     setVolume, getVolume,
     playClick,
@@ -181,4 +210,7 @@ export {
     playPurchase,
     playNotification,
     playPlace,
+    playChatTyping,
+    playChatSend,
+    playChatReceive,
 };
