@@ -1246,7 +1246,7 @@ function _bgInit() {
         const v2 = document.createElement('video');
         v2.muted = true; v2.playsInline = true; v2.preload = 'auto';
         v2.loop = false;
-        v2.src = `sprites/images/bg/${n}.mp4`;
+        v2.src = `sprites/images/bg/${n}.mp4?v=2`;
         v2.style.cssText = v.style.cssText;
         document.body.appendChild(v2);
         BG_V._v2[n] = v2;
