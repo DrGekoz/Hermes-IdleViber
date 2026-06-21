@@ -1350,14 +1350,26 @@ async function doLogin() {
         }
         // If login failed because account doesn't exist, try registering
         if (!result || !result.success) {
+            // First check if the display name is already taken
+            let nameTaken = false;
+            try {
+                const nameCheck = await fbCheckName(username);
+                nameTaken = !nameCheck.available;
+            } catch (_) {}
+            if (nameTaken) {
+                dom.loginMsg.textContent = '⛔ Display name "' + username + '" is already taken';
+                return;
+            }
             dom.loginMsg.textContent = '⏳ Creating account...';
             const regResult = await registerWithEmail(username, password);
             if (regResult && regResult.success) {
                 G.userId = regResult.uid;
-                G.username = username; // displayName is set by registerWithEmail
+                G.username = username;
                 G.displayName = username;
                 G.auth_mode = 'firebase';
                 dom.userDisplay.textContent = username; dom.userDisplay.title = username;
+                // Claim the display name
+                try { await fbClaimName(username, ''); } catch (_) {}
                 fbSave(G).catch(() => {});
                 fbSubmitScore(G.username, bnToNumber(G.lifetime_vibes), Math.min(bnToNumber(G.total_prestiges || BN_ZERO), 1e9), G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
                 enterGame();
