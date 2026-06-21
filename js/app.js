@@ -51,7 +51,7 @@ import { initFirebase, onAuthChanged, getCurrentUser, isConfigured,
 
 // ---- P2P Leaderboard (WebRTC mesh via Firestore signaling) ----
 import { p2pInit, p2pStart, p2pCleanup, p2pBroadcastScore, p2pSubscribe, p2pGetLocalPlayerId } from './p2p.js';
-import { P2PLeaderboardManager } from './p2p-crypto.js?v=61';
+import { P2PLeaderboardManager } from './p2p-crypto.js';
 let p2pCrypto = null;
 
 // Room ID → file prefix mapping (roomId.substring(0,2) doesn't match actual file names)
@@ -2309,13 +2309,13 @@ function updateRoomUI() {
     });
 }
 
-function updateGatewayUI() {
+async function updateGatewayUI() {
     const gw = getGatewayStatus();
     const quality = getConnectionQuality();
     if (dom.gatewayStatus) dom.gatewayStatus.textContent = `${quality.icon} ${quality.label}`;
     if (dom.gatewayStatus) dom.gatewayStatus.style.color = quality.color;
     if (dom.gatewayLatency) dom.gatewayLatency.textContent = gw.connected ? `${gw.latency.toFixed(0)}ms` : '---';
-    const taskBusy = checkGatewayBusy();
+    const taskBusy = await checkGatewayBusy();
     const baseMult = getLatencyMultiplier();
     const latMult = taskBusy ? baseMult * 1.5 : baseMult;
     if (dom.gatewayMult) dom.gatewayMult.textContent = gw.connected ? `${latMult.toFixed(1)}x` : '0x';

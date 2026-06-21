@@ -414,13 +414,11 @@ async function checkGatewayBusy() {
         const start = performance.now();
         const res = await fetch(`${gatewayStatus.url}/api/status`, {
             method: 'GET',
-            mode: 'no-cors',
             cache: 'no-cache',
             signal: AbortSignal.timeout(1500),
         });
         const latency = performance.now() - start;
-        // With no-cors, res.ok is false for opaque responses — treat non-error as alive
-        if (res.type !== 'opaque' && res.ok) {
+        if (res.ok) {
             try {
                 const data = await res.json();
                 // Hermes gateway reports active sessions, task count, etc.
