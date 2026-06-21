@@ -33,13 +33,15 @@ const sig = await crypto.subtle.sign({ name:'ECDSA', hash:'SHA-256' }, priv, new
 return JSON.stringify({ d: payload, s: _arrBufToB64(sig) });
 }
 async function verifyMsg(jsonStr, pub) {
-let msg;
-try { msg = JSON.parse(jsonStr); } catch (_) { return null; }
-if (!msg || !msg.d || !msg.s) return null;
-const sig = _b64ToArrBuf(msg.s);
-const payloadStr = JSON.stringify(msg.d);
-const ok = await crypto.subtle.verify({ name:'ECDSA', hash:'SHA-256' }, pub, sig, new TextEncoder().encode(payloadStr));
-return ok ? msg.d : null;
+    let msg;
+    try { msg = JSON.parse(jsonStr); } catch (_) { return null; }
+    if (!msg || !msg.d || !msg.s) return null;
+    const sig = _b64ToArrBuf(msg.s);
+    const payloadStr = JSON.stringify(msg.d);
+    try {
+        const ok = await crypto.subtle.verify({ name:'ECDSA', hash:'SHA-256' }, pub, sig, new TextEncoder().encode(payloadStr));
+        return ok ? msg.d : null;
+    } catch (_) { return null; }
 }
 
 // ---- In-memory sorted ledger ----
@@ -140,10 +142,12 @@ if (this._connecting.has(k)) return;
 const host = this._computeHost(newOnline);
 const shouldConnect = this._isHost || (host === k);
 if (!shouldConnect) return; // skip — not host, not connecting to
-this._connecting.add(k);
-const pub = await crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']);
-this.peers.set(k, { pc:null, ch:null, pub, name: d.u||'?', seq:0, keyId: d.kid||k, nonce: d.nonce||0 });
-this._connect(k, d.kid, d.nonce||0);
+                    this._connecting.add(k);
+                    try {
+                        const pub = await crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']);
+                        this.peers.set(k, { pc:null, ch:null, pub, name: d.u||'?', seq:0, keyId: d.kid||k, nonce: d.nonce||0 });
+                        this._connect(k, d.kid, d.nonce||0);
+                    } catch(e) { this._connecting.delete(k); console.warn('P2P key import failed for', k); }
 }
 });
 });
@@ -541,7 +545,7 @@ this._initPeer(k, d);
         crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']).then(pub => {
             this.peers.set(k, { pc:null, ch:null, pub, name: d.u||'?', seq:0, keyId: d.kid||k, nonce: d.nonce||0, tierIcon: d.ti||0 });
             this._connect(k, d.kid, d.nonce||0);
-        }).catch(() => {});
+        }).catch(() => { this._connecting.delete(k); });
     }
 
     async _rescanPeers(forceScan) {
