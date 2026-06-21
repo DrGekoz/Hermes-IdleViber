@@ -47,7 +47,9 @@ import { initFirebase, onAuthChanged, getCurrentUser, isConfigured,
          subscribeLeaderboard as fbSubscribeLeaderboard,
          savePlayerData as fbSave, loadPlayerData as fbLoad,
          syncLeaderboardToFirestore as fbSyncLeaderboard,
-         getFirestoreApi, getDb, fbSignInAnon } from './firebase.js';
+         getFirestoreApi, getDb, fbSignInAnon,
+         checkDisplayNameAvailable as fbCheckName,
+         claimDisplayName as fbClaimName } from './firebase.js';
 
 // ---- P2P Leaderboard (WebRTC mesh via Firestore signaling) ----
 import { p2pInit, p2pStart, p2pCleanup, p2pBroadcastScore, p2pSubscribe, p2pGetLocalPlayerId } from './p2p.js';
@@ -3023,12 +3025,23 @@ async function saveDisplayName() {
         dom.settingsSaveBtn.disabled = true;
         try {
             let taken = false;
+            // Check Firebase display_names collection
             if (G.auth_mode === 'firebase' && typeof fbCheckName === 'function') {
-                taken = await fbCheckName(name);
+                const result = await fbCheckName(name);
+                taken = !result.available;
             } else if (G.auth_token && G.server_online) {
                 const lb = await apiGetLeaderboard();
                 if (lb && lb.entries) {
                     taken = lb.entries.some(e => e.name.toLowerCase() === name.toLowerCase());
+                }
+            }
+            // Also check P2P ledger for connected players with this name
+            if (!taken && p2pCrypto && p2pCrypto.ledger) {
+                for (const [, entry] of p2pCrypto.ledger.m) {
+                    if (entry && entry.username && entry.username.toLowerCase() === name.toLowerCase() && entry.username !== G.displayName) {
+                        taken = true;
+                        break;
+                    }
                 }
             }
             if (taken) {
@@ -3058,6 +3071,8 @@ async function saveDisplayName() {
             );
             await updateProfile(fbUser, { displayName: name });
         } catch (_) {}
+        // Claim the name in display_names collection
+        try { await fbClaimName(name, G.displayName); } catch (_) {}
         // Upload local save to Firebase
         try {
             await fbSave(G);
