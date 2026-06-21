@@ -87,15 +87,15 @@ console.log('🔑 P2P keyId:', this.kid, 'nonce:', this._nonce, '(fresh)');
 // ---- Host detection ----
     _computeHost(onlineSet) {
         if (!onlineSet) return null;
-        const devLower = DEV_HOST.toLowerCase();
-        // Check peer IDs (UUIDs) and display names for DEV_HOST match
+        const devLower = DEV_HOST.toLowerCase().replace(/[^a-z0-9]/g, '');
+        // Check peer IDs (UUIDs) and display names for exact DEV_HOST match
         for (const id of onlineSet) {
-            if (id.toLowerCase().replace(/[^a-z0-9]/g, '').includes(devLower.replace(/[^a-z0-9]/g, ''))) return id;
+            if (id.toLowerCase().replace(/[^a-z0-9]/g, '') === devLower) return id;
             const dn = this._onlineNames[id];
-            if (dn && dn.toLowerCase().replace(/[^a-z0-9]/g, '').includes(devLower.replace(/[^a-z0-9]/g, ''))) return id;
+            if (dn && dn.toLowerCase().replace(/[^a-z0-9]/g, '') === devLower) return id;
         }
-        // Check self
-        if (this.username.toLowerCase().replace(/[^a-z0-9]/g, '').includes(devLower.replace(/[^a-z0-9]/g, ''))) {
+        // Check self — exact match only, so "DrGekoz_02" doesn't accidentally become host
+        if (this.username.toLowerCase().replace(/[^a-z0-9]/g, '') === devLower) {
             // Return self peerId as the host
             for (const id of onlineSet) if (id === this.peerId) return id;
             return this.peerId;
@@ -121,7 +121,7 @@ window.addEventListener('beforeunload', () => { deleteDoc(myRef).catch(() => {})
 const peersRef = collection(db, 'sig');
 this._unsubPeers = onSnapshot(peersRef, snap => {
 const newOnline = new Set();
-snap.docs.forEach(s => { const id = s.id; if (id === this.peerId) return; newOnline.add(id); this._onlineNames[id] = s.data().u || id; });
+snap.docs.forEach(s => { const id = s.id; if (id === this.peerId) return; const sd = s.data(); if (!sd?.on) return; newOnline.add(id); this._onlineNames[id] = sd.u || id; });
 // Detect peers that went offline
 for (const k of this._onlineUsernames) {
 if (!newOnline.has(k)) this._onPeerGone(k);
@@ -143,7 +143,7 @@ this._disconnectAll();
             snap.docChanges().forEach(async ch => {
                 const k = ch.doc.id; if (k === this.peerId) return;
 if (ch.type === 'removed') { /* handled above */ return; }
-const d = ch.doc.data(); if (!d?.k) return;
+const d = ch.doc.data(); if (!d?.k || !d?.on) return;
 const existing = this.peers.get(k);
 if (existing && (d.kid || k) !== (existing.keyId || k)) {
 console.log('🔄 P2P peer key changed for', k, '— reconnecting');
