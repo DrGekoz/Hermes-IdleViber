@@ -3747,14 +3747,27 @@ async function showPlayerProfile(username) {
     const closeBtn = document.getElementById('profile-close');
     if (!popup || !content) return;
 
-    // Try to find player data from leaderboard entries (P2P / server)
+    // Try to find player data — P2P entries first (real-time), then DOM, then Firestore fallback
     let playerData = null;
     const nameField = (n) => n.replace('◆ ', '').replace('⭐ ', '').trim();
-    if (lastP2PEntries) {
-        playerData = lastP2PEntries.find(e => nameField(e.name || '') === username || e.playerId === username);
+    // P2P: lookup by username from the live ledger (has score, prestige, vps, pp, tierIcon)
+    if (lastP2PEntries && lastP2PEntries.length > 0) {
+        const match = lastP2PEntries.find(e => e.username === username || e.id === username);
+        if (match) {
+            const tier = getTierFromPrestige(match.prestige ?? 0);
+            playerData = {
+                vibes: match.score,
+                vps: match.vps,
+                pp: match.pp,
+                prestige: match.prestige,
+                tier,
+                tierName: tier >= 0 ? TIERS[tier].name : '—',
+                tierIcon: match.tierIcon,
+            };
+        }
     }
+    // DOM lookup: read from rendered leaderboard rows
     if (!playerData) {
-        // Check the rendered leaderboard DOM for the entry
         const list = document.getElementById('leaderboard-list');
         if (list) {
             const rows = list.querySelectorAll('.lb-entry:not(.lb-header)');
@@ -3780,7 +3793,7 @@ async function showPlayerProfile(username) {
             }
         }
     }
-    // Fallback: query Firestore leaderboard directly
+    // Firestore fallback: query leaderboard directly (covers offline P2P peers)
     if (!playerData && fbReady && typeof fbGetLeaderboard === 'function') {
         try {
             const fbEntries = await fbGetLeaderboard(100);
