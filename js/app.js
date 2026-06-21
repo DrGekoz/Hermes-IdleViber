@@ -1862,6 +1862,9 @@ function processAchievements() {
 
 function updateResourceUI() {
     dom.vibeDisplay.textContent = formatNumber(G.vibes);
+    // Update big vibe display above the divider
+    const bigVibe = document.getElementById('big-vibe-display');
+    if (bigVibe) bigVibe.textContent = formatNumber(G.vibes);
     dom.vpsDisplay.textContent = formatNumber(getVPS());
     dom.clickValueDisplay.textContent = formatNumber(getClickValue());
     if (dom.clickValueOverlay) dom.clickValueOverlay.textContent = formatNumber(getClickValue());
