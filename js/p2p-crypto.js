@@ -302,7 +302,13 @@ setTimeout(check, 10000);
 
 async _onOffer(pk, sdp) {
 const p = this.peers.get(pk);
-if (!p) { setTimeout(() => this._onOffer(pk, sdp), 500); return; } // wait for peer entry to be created
+if (!p) {
+    if (!this._offerRetries) this._offerRetries = {};
+    if (!this._offerRetries[pk]) this._offerRetries[pk] = 0;
+    if (++this._offerRetries[pk] > 30) { delete this._offerRetries[pk]; return; }
+    setTimeout(() => this._onOffer(pk, sdp), 500); return; // wait for peer entry to be created
+}
+delete (this._offerRetries || {})[pk];
 if (!p.pc) {
 setTimeout(() => this._onOffer(pk, sdp), 200); return;
 }
@@ -327,8 +333,11 @@ console.log('📤 P2P answer sent to', pk);
         if (!p) { this._cleanSigDoc(pk).catch(()=>{}); return; }
         if (!p.pc || p.pc.signalingState !== 'have-local-offer') {
             if (p.pc && (p.pc.connectionState === 'connected' || p.pc.connectionState === 'connecting' || p.pc.connectionState === 'closed')) return;
+            if (!p._answerRetries) p._answerRetries = 0;
+            if (++p._answerRetries > 75) { console.warn('⏱ _onAnswer timeout for', pk); return; } // ~15s max retry
             setTimeout(() => this._onAnswer(pk, sdp), 200); return;
         }
+        p._answerRetries = 0;
 console.log('📩 P2P answer from', pk);
 try {
 await p.pc.setRemoteDescription(new RTCSessionDescription(sdp));
@@ -431,6 +440,7 @@ console.log('🔌 P2P peer left:', pk);
 try { p.ch?.close(); } catch (_) {} try { p.pc?.close(); } catch (_) {}
 }
 this.peers.delete(pk); this.ledger.del(pk); this._connecting.delete(pk);
+delete (this._offerRetries || {})[pk];
 // If host, remove from ledger and rebroadcast
 if (this._amHost()) {
 this.onUpdate(this.ledger.sorted());
