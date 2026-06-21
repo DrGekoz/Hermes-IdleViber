@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen&family=Pixelify+Sans&family=VT323&family=DotGothic16&family=Micro+5&family=Tiny5&family=Rubik+Pixel&family=Monoton&family=Major+Mono+Display&family=Space+Mono&family=Share+Tech+Mono&family=Fragment+Mono&family=IBM+Plex+Mono&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
+    <script src="js/tier_icon_files.js"></script>
+    <script src="js/tier_names.js"></script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>">
 </head>
 <body>
@@ -131,7 +133,7 @@
             <div style="font-size:7px;color:var(--text-secondary);margin-bottom:8px;" class="label-adaptive">
                 ▼ AUTOCLICKERS — passive VPS generators<br>
                 <span style="font-size:6px;color:var(--accent-gold);">🖱️ Click &amp; Hold to Spam Buy</span>
-                <button id="buy-all-upgrades-btn" class="buy-all-btn" style="float:right;" title="Buys upgrades by highest VPS per cost first, repeats until funds exhausted">⚡ Buy All</button>
+                <button id="buy-all-upgrades-btn" class="buy-all-btn" title="Buys upgrades by highest VPS per cost first, repeats until funds exhausted">⚡ Buy All</button>
             </div>
             <div id="upgrade-list"></div>
         </div>
@@ -148,7 +150,7 @@
         <div class="tab-panel" id="panel-decor">
             <div style="font-size:7px;color:var(--text-secondary);margin-bottom:8px;" class="label-adaptive">
                 ▼ COSMETICS & ROOM DECORATION
-                <button id="buy-all-decor-btn" class="buy-all-btn" style="float:right;" title="Buys decor by highest VPS multiplier per cost first, repeats until funds exhausted">⚡ Buy All</button>
+                <button id="buy-all-decor-btn" class="buy-all-btn" title="Buys decor by highest VPS multiplier per cost first, repeats until funds exhausted">⚡ Buy All</button>
             </div>
             <div id="decor-list"></div>
         </div>
@@ -233,7 +235,7 @@
                 </div>
                 <div style="font-size:7px;color:var(--text-secondary);margin-bottom:8px;margin-top:12px;" class="label-adaptive">
                     ▼ PRESTIGE SHOP — permanent upgrades (spend chips)
-                    <button id="buy-all-prestige-btn" class="buy-all-btn" style="float:right;" title="Buys prestige upgrades by highest value per cost first, repeats until PP exhausted">⚡ Buy All</button>
+                    <button id="buy-all-prestige-btn" class="buy-all-btn" title="Buys prestige upgrades by highest value per cost first, repeats until PP exhausted">⚡ Buy All</button>
                 </div>
                 <div id="prestige-upgrade-list"></div>
             </div>
@@ -270,17 +272,17 @@
     <div id="chat-player" class="music-player hidden">
         <button id="chat-toggle-btn" class="pixel-btn music-toggle" title="Chat"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:flex;margin:auto;filter:drop-shadow(1px 1px 0 #000)drop-shadow(-1px -1px 0 #000)drop-shadow(1px -1px 0 #000)drop-shadow(-1px 1px 0 #000);"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="12" y2="13"/></svg></button>
         <div id="chat-panel" class="music-panel hidden">
-            <div id="chat-header" style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #333;">
-                <span id="chat-title" style="flex:1;font-size:7px;color:var(--accent-cyan);">CHAT</span>
+            <div id="chat-header" style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid var(--room-border, #333);">
+                <span id="chat-title" style="flex:1;font-size:7px;color:var(--room-accent, var(--accent-cyan));">CHAT</span>
                 <button id="chat-settings-btn" class="pixel-btn-sm" title="Chat Sounds"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block;filter:drop-shadow(1px 1px 0 #000)drop-shadow(-1px -1px 0 #000)drop-shadow(1px -1px 0 #000)drop-shadow(-1px 1px 0 #000);"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></button>
                 <button id="chat-close-btn" class="pixel-btn-sm" title="Close"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block;filter:drop-shadow(1px 1px 0 #000)drop-shadow(-1px -1px 0 #000)drop-shadow(1px -1px 0 #000)drop-shadow(-1px 1px 0 #000);"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
             <div id="chat-messages" style="flex:1;overflow-y:auto;padding:4px;display:flex;flex-direction:column;gap:4px;min-height:100px;max-height:200px;"></div>
-            <div id="chat-input-row" style="display:flex;gap:4px;padding:4px;border-top:1px solid #333;">
-                <input type="text" id="chat-input" placeholder="Type..." maxlength="200" style="flex:1;background:#111;border:1px solid #333;color:#fff;font-family:var(--pixel-font);font-size:7px;padding:4px;outline:none;">
+            <div id="chat-input-row" style="display:flex;gap:4px;padding:4px;border-top:1px solid var(--room-border, #333);">
+                <input type="text" id="chat-input" placeholder="Type..." maxlength="200" style="flex:1;background:var(--room-panel, #111);border:1px solid var(--room-border, #333);color:#fff;font-family:var(--pixel-font);font-size:7px;padding:4px;outline:none;">
                 <button id="chat-send-btn" class="pixel-btn-sm" title="Send"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block;filter:drop-shadow(1px 1px 0 #000)drop-shadow(-1px -1px 0 #000)drop-shadow(1px -1px 0 #000)drop-shadow(-1px 1px 0 #000);"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
             </div>
-            <div id="chat-sound-settings" class="hidden" style="padding:4px 6px;border-top:1px solid #333;font-size:6px;">
+            <div id="chat-sound-settings" class="hidden" style="padding:4px 6px;border-top:1px solid var(--room-border, #333);font-size:6px;">
                 <div style="color:var(--text-secondary);margin-bottom:2px;">CHAT SOUNDS</div>
                 <div class="settings-volume-row"><span>Typing</span><input type="range" id="chat-vol-typing" min="0" max="1" step="0.05" value="0.5" style="flex:1;height:3px;"><span id="chat-vol-typing-label" class="settings-vol-label">50%</span></div>
                 <div class="settings-volume-row"><span>Send</span><input type="range" id="chat-vol-send" min="0" max="1" step="0.05" value="0.5" style="flex:1;height:3px;"><span id="chat-vol-send-label" class="settings-vol-label">50%</span></div>
@@ -292,7 +294,7 @@
 
         <!-- Room Overlay -->
         <div class="room-overlay">
-            <img id="current-room" class="room-divider-img" src="sprites/images/ui/cg_canvas_divider.webp" alt="">
+            <img id="current-room" class="room-divider-img" src="sprites/images/ui/cg_ui_divider.png" alt="">
         </div>
 
         <!-- Click Button -->
@@ -630,12 +632,12 @@
 <!-- ========================================== -->
 <!-- SCRIPTS -->
 <!-- ========================================== -->
-    <script type="module" src="js/state.js?v=95"></script>
-<script type="module" src="js/gateway.js?v=95"></script>
-<script type="module" src="js/sprites.js?v=95"></script>
-<script type="module" src="js/sfx.js?v=95"></script>
-    <script type="module" src="js/music.js?v=95"></script>
-<script type="module" src="js/app.js?v=95"></script>
+    <script type="module" src="js/state.js?v=111"></script>
+<script type="module" src="js/gateway.js?v=111"></script>
+<script type="module" src="js/sprites.js?v=111"></script>
+<script type="module" src="js/sfx.js?v=111"></script>
+    <script type="module" src="js/music.js?v=111"></script>
+<script type="module" src="js/app.js?v=111"></script>
 
 <!-- Login video loader -->
 <script>

@@ -2231,7 +2231,7 @@ function applyRoomTheme(roomId) {
 function updateRoomUI() {
     const prefix = ROOM_PREFIX[G.current_room] || (G.current_room || '').substring(0, 2);
     const divider = document.getElementById('current-room');
-    if (divider) divider.src = `sprites/images/ui/${prefix}_canvas_divider.webp`;
+    if (divider) divider.src = `sprites/images/ui/${prefix}_ui_divider.png`;
     applyRoomTheme(G.current_room);
     if (dom.currentRoomUpgradeLabel) {
         dom.currentRoomUpgradeLabel.textContent = ROOMS[G.current_room]?.name || 'Campfire Grove';
@@ -3442,20 +3442,30 @@ function initChatSystem() {
     console.log('💬 Chat system ready');
 
     // Register global chat message handler from P2P
-    window._onChatMessage = (username, text) => {
-        addChatMessage(username, text, false);
+    window._onChatMessage = (username, text, tierIcon) => {
+        addChatMessage(username, text, false, tierIcon);
         playChatReceive();
     };
 }
 
-function addChatMessage(username, text, isOwn) {
+function addChatMessage(username, text, isOwn, peerTierIcon) {
     const msgs = document.getElementById('chat-messages');
     if (!msgs) return;
     const el = document.createElement('div');
     el.style.cssText = 'display:flex;gap:4px;align-items:flex-start;padding:2px 0;';
-    const tier = getCurrentTier(G);
-    const customIcon = G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : 0;
-    const iconNum = customIcon || (tier >= 0 ? getTierIconNum(tier) : 0);
+    let iconNum;
+    if (isOwn) {
+        // Own message: use local player's tier icon
+        const tier = getCurrentTier(G);
+        const customIcon = G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : 0;
+        iconNum = customIcon || (tier >= 0 ? getTierIconNum(tier) : 0);
+    } else if (peerTierIcon !== undefined && peerTierIcon !== null) {
+        // Incoming P2P message: use tierIcon from peer's broadcast data
+        iconNum = peerTierIcon;
+    } else {
+        // Fallback
+        iconNum = 0;
+    }
     el.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:2px;max-width:100%;${isOwn ? 'align-items:flex-end;margin-left:auto;' : ''}">
             <div class="chat-username" style="font-size:8px;color:${isOwn ? 'var(--accent-gold)' : 'var(--accent-cyan)'};display:flex;align-items:center;gap:4px;cursor:pointer;" data-username="${escapeHtml(username)}"><img src="sprites/images/icons/individual/${_tierPath(iconNum)}.webp" class="chat-tier-icon" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none'">${escapeHtml(username)}</div>
