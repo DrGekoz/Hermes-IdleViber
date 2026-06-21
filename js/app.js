@@ -1663,13 +1663,23 @@ async function tryInitP2P() {
                 if (t) { const ti = getTierFromPrestige(e.prestige ?? 0); t.textContent = ti >= 0 ? TIERS[ti].name : '—'; }
                 // Update tier icon in left column for P2P peers using their custom display icon
                 const iconCell = r.querySelector('.lb-tier-icon');
-                if (iconCell && e.tierIcon) {
-                    iconCell.innerHTML = `<img src="sprites/images/icons/32/${_tierPath(e.tierIcon)}.webp" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">`;
+                if (iconCell) {
+                    let iconNum = e.tierIcon;
+                    if (!iconNum) {
+                        // Fallback: show prestige-based icon
+                        const tier = getTierFromPrestige(e.prestige ?? 0);
+                        iconNum = tier >= 0 ? getTierIconNum(tier) : 0;
+                    }
+                    if (iconNum) {
+                        iconCell.innerHTML = `<img src="sprites/images/icons/32/${_tierPath(iconNum)}.webp" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">`;
+                    } else {
+                        iconCell.innerHTML = '';
+                    }
                 }
             }
             // Re-sort DOM rows to match P2P score order (descending)
             const p2pRows = [];
-            l.querySelectorAll('.lb-entry:not(.lb-header)').forEach(r => p2pRows.push(r));
+            l.querySelectorAll('.lb-entry:not(.lb-header)[data-p2p]').forEach(r => p2pRows.push(r));
             // Build sort function using cached scores from sorted array
             const scoreMap = {};
             for (const e of sorted) {
