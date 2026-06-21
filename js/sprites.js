@@ -1220,53 +1220,13 @@ function loadExternalSprite(path) {
 //   Two non-looping videos, crossfade at handoff — no pause
 // ============================================================
 const BG_V = {
-    FPS: 12, FRAME_MS: 1000 / 12, CROSSFADE_SEC: 1.5,
-    _v: {}, _v2: {}, _s: {}, _ff: {}, _pp: {}, _inited: false
+    CROSSFADE_SEC: 1.5,
+    _v: {}, _v2: {}, _s: {}, _ff: {}, _inited: false
 };
-const _BG_PP = { campfire_grove:1, study_lounge:1 }; // ping-pong rooms
 
 function _bgKey(roomId) {
     return { campfire_grove:'bg_campfire',cyber_den:'bg_cyber',zen_garden:'bg_zen_garden',
              star_deck:'bg_star_deck',study_lounge:'bg_study_lounge',beach_cove:'bg_beach_cove' }[roomId];
-}
-
-function _startPingPongCapture(n, v, s) {
-    // Capture frames via requestVideoFrameCallback
-    const cw = Math.min(v.videoWidth || 640, 640);
-    const ch = Math.min(v.videoHeight || 360, 360);
-    const frames = [];
-    let frameCount = 0;
-    const maxFrames = Math.ceil(v.duration * 24) + 5; // 24fps est.
-
-    function onFrame(now, metadata) {
-        if (s.done) return;
-        const c = document.createElement('canvas');
-        c.width = cw;
-        c.height = ch;
-        c.getContext('2d').drawImage(v, 0, 0, cw, ch);
-        frames.push(c);
-        frameCount++;
-
-        if (v.currentTime >= v.duration - 0.05 || frameCount >= maxFrames) {
-            // Capture complete
-            v.pause();
-            s.frames = frames;
-            s.done = true;
-            s.ready = true;
-            // Store first frame for pre-capture display
-            s.off.width = cw;
-            s.off.height = ch;
-            s.off.getContext('2d').drawImage(frames[0], 0, 0);
-            return;
-        }
-        v.requestVideoFrameCallback(onFrame);
-    }
-
-    v.play().then(() => {
-        v.requestVideoFrameCallback(onFrame);
-    }).catch(() => {
-        s.ready = true; // fallback to static image
-    });
 }
 
 function _bgInit() {
@@ -1274,11 +1234,10 @@ function _bgInit() {
     BG_V._inited = true;
     const names = ['bg_campfire','bg_cyber','bg_zen_garden','bg_star_deck','bg_study_lounge','bg_beach_cove'];
     for (const n of names) {
-        const isPP = n === 'bg_campfire' || n === 'bg_study_lounge';
         const v = document.createElement('video');
         v.muted = true; v.playsInline = true; v.preload = 'auto';
         v.loop = false; // No native loop — dual-video handoff instead
-        v.src = `sprites/images/bg/${n}.mp4`;
+        v.src = `sprites/images/bg/${n}.mp4?v=2`;
         v.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-1;';
         document.body.appendChild(v);
         BG_V._v[n] = v;
@@ -1294,9 +1253,7 @@ function _bgInit() {
 
         const off = document.createElement('canvas');
         const ffCanvas = document.createElement('canvas');
-        // Ping-pong state: off for fallback frame, frames[], dir, t, lastTick, done
-        const s = { off, ready: false, dur: 0, dir: 1, t: 0, lastTick: 0,
-                    frames: null, done: false };
+        const s = { off, ready: false, dur: 0 };
         BG_V._s[n] = s;
 
         v.addEventListener('loadeddata', () => {
@@ -1308,31 +1265,23 @@ function _bgInit() {
             const sw = off.width, sh = off.height;
             off.getContext('2d').drawImage(v, 0, 0, sw, sh, 0, 0, sw, sh);
             s.dur = v.duration || 1;
-
-            if (isPP) {
-                // Ping-pong: capture ff frame now + start frame capture
+            // Capture first frame via requestVideoFrameCallback
+            // (drawImage at loadeddata may capture black — Chrome hasn't decoded yet)
+            const captureFF = function() {
                 ffCanvas.getContext('2d').drawImage(v, 0, 0, sw, sh, 0, 0, sw, sh);
                 BG_V._ff[n] = ffCanvas;
-                _startPingPongCapture(n, v, s);
+            };
+            if (v.requestVideoFrameCallback) {
+                v.requestVideoFrameCallback(captureFF);
             } else {
-                // Loop rooms: capture first frame via requestVideoFrameCallback
-                // (drawImage at loadeddata may capture black — Chrome hasn't decoded yet)
-                const captureFF = function() {
-                    ffCanvas.getContext('2d').drawImage(v, 0, 0, sw, sh, 0, 0, sw, sh);
-                    BG_V._ff[n] = ffCanvas;
-                };
-                if (v.requestVideoFrameCallback) {
-                    v.requestVideoFrameCallback(captureFF);
-                } else {
-                    captureFF();
-                }
-                s.ready = true;
-                v.play().catch(() => {});
+                captureFF();
             }
+            s.ready = true;
+            v.play().catch(() => {});
         });
         v.load();
         v2.load();
-        if (!isPP) v.play().catch(() => {});
+        v.play().catch(() => {});
     }
 }
 
@@ -1357,61 +1306,34 @@ async function drawBackground(roomId, ctx, w, h) {
     _bgInit();
     const vs = BG_V._s[bgName];
     const v = BG_V._v[bgName];
-    const isPP = !!_BG_PP[roomId];
     const ff = BG_V._ff[bgName];
 
     if (vs && vs.ready && v) {
-        if (isPP) {
-            // Ping-pong: animate through pre-captured frames
-            const frames = vs.frames;
-            if (frames && frames.length > 1) {
-                const now = performance.now();
-                if (now - vs.lastTick >= BG_V.FRAME_MS) {
-                    vs.lastTick = now;
-                    const dt = 1 / BG_V.FPS;
-                    vs.t += dt * vs.dir;
-                    if (vs.dir > 0 && vs.t >= vs.dur) {
-                        vs.t = Math.max(0, vs.dur - dt);
-                        vs.dir = -1;
-                    } else if (vs.dir < 0 && vs.t <= 0) {
-                        vs.t = 0;
-                        vs.dir = 1;
-                    }
-                }
-                // Map t to frame index
-                const progress = Math.max(0, Math.min(1, vs.t / vs.dur));
-                const idx = Math.round(progress * (frames.length - 1));
-                _bgDraw(frames[Math.max(0, Math.min(frames.length - 1, idx))], ctx, w, h);
-            } else if (vs.off) {
-                // Still capturing — use cached first frame
-                _bgDraw(vs.off, ctx, w, h);
+        // Dual-video handoff for seamless loop (no native loop pause)
+        const v2 = BG_V._v2[bgName];
+        if (vs.dur && v.currentTime >= vs.dur - BG_V.CROSSFADE_SEC) {
+            // Approaching end — start standby video
+            if (v2.paused) {
+                v2.currentTime = 0;
+                v2.play().catch(() => {});
             }
-        } else {
-            // Looping: dual-video handoff for seamless loop (no native loop pause)
-            const v2 = BG_V._v2[bgName];
-            if (vs.dur && v.currentTime >= vs.dur - BG_V.CROSSFADE_SEC) {
-                // Approaching end — start standby video
-                if (v2.paused) {
-                    v2.currentTime = 0;
-                    v2.play().catch(() => {});
-                }
-                // Crossfade: fade in standby, keep primary
-                const alpha = Math.min(1, (v.currentTime - (vs.dur - BG_V.CROSSFADE_SEC)) / BG_V.CROSSFADE_SEC);
-                _bgDraw(v, ctx, w, h);
-                if (!v2.paused) {
-                    ctx.globalAlpha = alpha;
-                    _bgDraw(v2, ctx, w, h);
-                    ctx.globalAlpha = 1;
-                }
-                // When primary reaches end, swap roles
-                if (v.ended || v.currentTime >= vs.dur - 0.05) {
-                    v.pause();
-                    v.currentTime = 0;
-                    BG_V._v[bgName] = v2;
-                    BG_V._v2[bgName] = v;
-                }
-            } else if (v.currentTime < BG_V.CROSSFADE_SEC && !v2.paused) {
-                // Just swapped — fade out the old standby (now in v2) during first seconds
+            // Crossfade: fade in standby, keep primary
+            const alpha = Math.min(1, (v.currentTime - (vs.dur - BG_V.CROSSFADE_SEC)) / BG_V.CROSSFADE_SEC);
+            _bgDraw(v, ctx, w, h);
+            if (!v2.paused) {
+                ctx.globalAlpha = alpha;
+                _bgDraw(v2, ctx, w, h);
+                ctx.globalAlpha = 1;
+            }
+            // When primary reaches end, swap roles
+            if (v.ended || v.currentTime >= vs.dur - 0.05) {
+                v.pause();
+                v.currentTime = 0;
+                BG_V._v[bgName] = v2;
+                BG_V._v2[bgName] = v;
+            }
+        } else if (v.currentTime < BG_V.CROSSFADE_SEC && !v2.paused) {
+            // Just swapped — fade out the old standby (now in v2) during first seconds
                 const alpha = Math.max(0, 1 - v.currentTime / BG_V.CROSSFADE_SEC);
                 _bgDraw(v, ctx, w, h);
                 ctx.globalAlpha = alpha;
