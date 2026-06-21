@@ -552,12 +552,14 @@ this._initPeer(k, d);
                     continue;
                 }
                 // Host always offers — retry sending offer if needed (only in 'new' state, not 'connecting')
-                if (this._amHost() && p.pc.signalingState === 'stable' && p.pc.connectionState === 'new') {
+                if (this._amHost() && p._offerSent && p.pc.signalingState === 'stable' && p.pc.connectionState === 'new') {
                     // Check if we've been waiting too long for answer — resend offer
                     const elapsed = p._offerTime ? Date.now() - p._offerTime : 9999;
-                    if (elapsed < 3000 && p._offerSent) continue; // wait at least 3s before resending
+                    if (elapsed < 3000) continue; // wait at least 3s before resending
                     try {
+                        if (p.pc.signalingState !== 'stable') continue;
                         const offer = await p.pc.createOffer();
+                        if (p.pc.signalingState !== 'stable') continue;
                         await p.pc.setLocalDescription(offer);
                         const { doc:fd, setDoc, deleteDoc } = this.fs;
                         await deleteDoc(fd(this.fs.db, 'sig', k, 'offers', this.peerId)).catch(() => {});

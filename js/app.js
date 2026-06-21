@@ -1638,8 +1638,8 @@ async function tryInitP2P() {
                 // Create row if it doesn't exist yet
                 if (!r) {
                     r = document.createElement('div');
-                    r.className = `lb-entry p2p-entry ${displayName === (G.displayName || G.username) ? 'you lb-self-row' : ''}`;
-                    r.innerHTML = '<span class="lb-tier-icon"></span><span class="lb-rank">#?</span><span class="lb-name">' + escapeHtml(displayName) + '</span><span class="lb-vibes">0</span><span class="lb-vps">0</span><span class="lb-pp">0</span><span class="lb-prestige">0</span><span class="lb-tier">--</span>';
+                    r.className = `lb-entry p2p-entry ${name === (G.displayName || G.username) ? 'you lb-self-row' : ''}`;
+                    r.innerHTML = '<span class="lb-tier-icon"></span><span class="lb-rank">#?</span><span class="lb-name">' + escapeHtml(name) + '</span><span class="lb-vibes">0</span><span class="lb-vps">0</span><span class="lb-pp">0</span><span class="lb-prestige">0</span><span class="lb-tier">--</span>';
                     l.appendChild(r);
                     existingRows[name] = r;
                 }
