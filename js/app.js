@@ -2458,6 +2458,16 @@ function fmtVibes(v) { return fmtAll(v); }
 
 function fmtSafe(v, fallback = '0') { return fmtAll(v, fallback); }
 
+// Return the tier name that matches the DISPLAYED icon, not raw prestige
+// If custom tierIcon is set, show that tier's name instead of prestige-based
+function _tierNameForEntry(entry) {
+    if (entry.tierIcon && entry.tierIcon > 0 && entry.tierIcon <= TIERS.length) {
+        return TIERS[entry.tierIcon - 1].name;
+    }
+    const t = entry.tier != null ? entry.tier : (entry.prestige != null ? getTierFromPrestige(entry.prestige) : -1);
+    return t >= 0 ? TIERS[t].name : '—';
+}
+
 // Deduplicate leaderboard entries by playerId (preferred) or name (fallback)
 // When two entries share an identity, keep the one with most progress
 function deduplicateEntries(entries) {
@@ -2605,6 +2615,7 @@ async function updateLeaderboardUI(externalEntries) {
                 prestige: e.prestige,
                 vps: e.vps,
                 tier,
+                tierIcon: e.tierIcon || 0,
             });
         }
     }
@@ -2720,7 +2731,7 @@ async function updateLeaderboardUI(externalEntries) {
             if (ppEl) ppEl.textContent = fmtSafe(entry.pp);
             if (prestigeEl) prestigeEl.textContent = fmtSafe(entry.prestige);
             if (tierEl) {
-                const name = entry.tier >= 0 ? TIERS[entry.tier].name : '—';
+                const name = _tierNameForEntry(entry);
                 tierEl.textContent = name;
             }
         } else {
@@ -2739,7 +2750,7 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-vps">${fmtSafe(entry.vps)}</span>
                     <span class="lb-pp">${fmtSafe(entry.pp)}</span>
                     <span class="lb-prestige">${fmtSafe(entry.prestige)}</span>
-                    <span class="lb-tier">${(() => { const n = (entry.tier >= 0 ? TIERS[entry.tier].name : '—'); return n; })()}</span>
+                    <span class="lb-tier">${(() => { const n = (entry.tierIcon && entry.tierIcon > 0 && entry.tierIcon <= TIERS.length ? TIERS[entry.tierIcon - 1].name : (entry.tier >= 0 ? TIERS[entry.tier].name : '\u2014')); return n; })()}</span>
                 `;
             } else {
                 el.innerHTML = `
@@ -2750,7 +2761,7 @@ async function updateLeaderboardUI(externalEntries) {
                     <span class="lb-vps">${fmtSafe(entry.vps)}</span>
                     <span class="lb-pp">${fmtSafe(entry.pp)}</span>
                     <span class="lb-prestige">${fmtSafe(entry.prestige)}</span>
-                    <span class="lb-tier">${(() => { const n = (entry.tier >= 0 ? TIERS[entry.tier].name : '—'); return n; })()}</span>
+                    <span class="lb-tier">${(() => { const n = (entry.tierIcon && entry.tierIcon > 0 && entry.tierIcon <= TIERS.length ? TIERS[entry.tierIcon - 1].name : (entry.tier >= 0 ? TIERS[entry.tier].name : '\u2014')); return n; })()}</span>
                 `;
             }
         }
