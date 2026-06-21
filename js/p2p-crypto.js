@@ -411,6 +411,8 @@ if (this._amHost()) return; // host doesn't consume its own leaderboard
 const entries = payload.entries || [];
 for (const e of entries) {
 const key = e.id || e.user;
+// Skip self — already tracked via 'self' key below
+if (e.user === this.username) continue;
 this.ledger.set(key, { id: e.id, username: e.user, score:e.s, prestige:e.pr, vps:e.v, pp:e.p, tierIcon:e.ti });
 }
 this.ledger.set('self', { username:this.username, score:this._myScore, prestige:this._myPrestige, vps:this._myVps, pp:this._myPp, tierIcon:this._myTierIcon });
@@ -499,7 +501,7 @@ _relayChat(original) {
 const relayPayload = { type: 'chat', text: original.text, user: original.user, ts: Math.floor(Date.now()/1000) };
 signPayload(relayPayload, this.kp.privateKey).then(msg => {
 for (const [k, peer] of this.peers) {
-if (k === original.user) continue; // skip original sender
+if (peer.name === original.user) continue; // skip original sender (match by display name, not UUID peerId)
 if (peer.ch?.readyState === 'open') try { peer.ch.send(msg); } catch (_) {}
 }
 });

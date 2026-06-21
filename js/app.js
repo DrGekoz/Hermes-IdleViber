@@ -1615,12 +1615,11 @@ async function tryInitP2P() {
         (sorted) => {
             try {
             const l = dom.leaderboardList; if (!l) return;
-            // Debug: show what's in sorted
-            const names = sorted.map(e => e.username).filter(Boolean);
-            if (names.length > 0) console.log('[P2P] Leaderboard entries:', names.join(', '));
             // Cache for profile popup lookups
             lastP2PEntries = sorted;
-            const localPid = getLocalP2PId();
+            // Only log leaderboard entries when the set changes (reduce console spam)
+            const namesSorted = sorted.map(e => e.username).filter(Boolean).sort().join(',');
+            if (namesSorted !== window._lastP2PNames) { window._lastP2PNames = namesSorted; if (namesSorted) console.log('[P2P] Leaderboard entries:', namesSorted); }
             // First pass: build map of existing rows by name
             const existingRows = {};
             l.querySelectorAll('.lb-entry').forEach(r => {
@@ -3659,7 +3658,14 @@ function initChatSystem() {
         // Look up tier icon from P2P ledger (most recent broadcast data)
         let ti = 0;
         if (p2pCrypto && p2pCrypto.ledger) {
-            const entry = p2pCrypto.ledger.m.get(username);
+            // Try direct key lookup first, then iterate values for username match
+            let entry = p2pCrypto.ledger.m.get(username);
+            if (!entry) {
+                // 'self' entry is keyed by 'self', not display name — search values
+                for (const e of p2pCrypto.ledger.m.values()) {
+                    if (e.username === username) { entry = e; break; }
+                }
+            }
             if (entry) {
                 // Use custom display icon if set, otherwise calculate from prestige
                 ti = entry.tierIcon || getTierIconNum(getTierFromPrestige(entry.prestige ?? 0));
