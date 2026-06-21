@@ -199,7 +199,16 @@ node server/index.js
 
 ## ✦ Recent Updates
 
-- **55 Achievement Badge Icons** — all non-tier achievements (vibe, click, prestige, room, VPS, gateway, decor, autoclicker milestones) now have unique pixel-art badge icons — medals, shields, gems, crests, and trophy shapes generated via Codex CLI, chroma-key processed to 256×256 lossless WebP at `sprites/images/icons/achievements/`
+|- **Login Hang Fix** — added 5s timeout to Firebase auth calls via `Promise.race`; guest login and email login now fall through to local mode if Firebase stalls. Auto-registers on login when account doesn't exist in Firestore. Display name availability checked via Firebase + P2P before accepting.
+|- **P2P Leaderboard Overhaul** — leaderboard rewritten with local sort, P2P+Firestore merge, score reconciliation, deduplication, and save-on-close. Host thrashing fixed via exact `DEV_HOST` match + stale peer filter. Handshake hardened with retry timeouts, ICE candidate relay, race guards. Stable `peerId`-based ledger (not display name) prevents key collisions on rename. Chat messages relayed through the host. 30s stale buffer prevents leaderboard flicker on P2P disconnect.
+|- **Player Profile Popups** — clicking a player name on the leaderboard opens a profile popup with game stats. Falls back to Firestore leaderboard data when P2P is unavailable.
+|- **Prestige Exponential Threshold** — prestige threshold formula changed from linear `1T×(n+1)×sqrt(log₂(vps))` to exponential `1T×2.5ⁿ` so each prestige materially harder. Max Prestige button now VPS-gated: only allows prestige cycles where `VPS×5s ≥ next threshold`, preventing infinite chain-prestiging.
+|- **Tier Grid Live Refresh** — tier selection grid in settings now rebuilds on every panel open, reading live game state. Unlocked tiers show gold number + checkmark + full-color icon. Locked tiers show gray number + grayscale icon with brightness dim. Tooltip shows 'UNLOCKED' (green) or 'REQUIRES N prestiges' (gray).
+|- **Tier Names Match Displayed Icons** — tier names on the leaderboard now check the custom icon first (via new `_tierNameForEntry()` helper), falling back to prestige-based tier. Fixes mismatch when a player has a custom tier icon set.
+|- **Big VIBES Display** — large centered VIBES value rendered above the sidebar divider, visible at all times.
+|- **Cache-Busting System** — all asset URLs now carry a version parameter (`?v=N`), bumped on changes to force browser re-download. Currently at v139.
+|- **Background Video Refinements** — Campfire Grove uses dual-video crossfade (matching other rooms' seamless loop technique). Cache-busting applied to all video backgrounds. Ping-pong mode improved for Campfire & Study scenes.
+|- **55 Achievement Badge Icons**
 - **Achievement Progress Bars** — each locked achievement now shows a progress bar and percentage toward completion, calculated per threshold type (lifetime vibes, clicks, prestige count, VPS, gateway latency, decor count, autoclicker count). Unlocked achievements show a checkmark
 - **Achievement `icon_img` Field** — achievements in state.js now reference image files instead of emoji, falling back to emoji on load failure
 - **73 Tier Icons Re-Done** — tiers 243, 246, 249, 262-265, 298-302, 326-329, 392-393, 408-463, and 464-500 regenerated as unique pixel-art rank emblems (not based on tier names), 1:1 aspect ratio, 256×256 lossless WebP
