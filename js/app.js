@@ -1287,6 +1287,12 @@ async function doLogin() {
             // Load cloud save from Firestore
             const cloudState = await fbLoad();
             let mergedGuest = false;
+            // Save credentials locally as fallback for offline mode
+            try {
+                const accounts = JSON.parse(localStorage.getItem('hermes_idleviber_accounts') || '{}');
+                accounts[username.toLowerCase()] = { userId: result.uid, password };
+                localStorage.setItem('hermes_idleviber_accounts', JSON.stringify(accounts));
+            } catch (_) {}
             // Check for guest save to merge
             const guestRaw = localStorage.getItem('hermes_idleviber_guest_save');
             if (guestRaw) {
@@ -1370,6 +1376,12 @@ async function doLogin() {
                 dom.userDisplay.textContent = username; dom.userDisplay.title = username;
                 // Claim the display name
                 try { await fbClaimName(username, ''); } catch (_) {}
+                // Save credentials locally as fallback for offline mode
+                try {
+                    const accounts = JSON.parse(localStorage.getItem('hermes_idleviber_accounts') || '{}');
+                    accounts[username.toLowerCase()] = { userId: regResult.uid, password };
+                    localStorage.setItem('hermes_idleviber_accounts', JSON.stringify(accounts));
+                } catch (_) {}
                 fbSave(G).catch(() => {});
                 fbSubmitScore(G.username, bnToNumber(G.lifetime_vibes), Math.min(bnToNumber(G.total_prestiges || BN_ZERO), 1e9), G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
                 enterGame();
@@ -1436,6 +1448,24 @@ async function doLogin() {
 
     // Block local mode fallback — Firebase auth required
     dom.loginMsg.textContent = '⚠️ Sign in with Google or create an account above';
+    // Last resort: check localStorage for locally stored credentials
+    try {
+        const accounts = JSON.parse(localStorage.getItem('hermes_idleviber_accounts') || '{}');
+        const stored = accounts[username.toLowerCase()];
+        if (stored && stored.password === password) {
+            // Local credential match
+            G.userId = stored.userId || username;
+            G.username = username;
+            G.displayName = username;
+            G.auth_mode = 'local';
+            dom.userDisplay.textContent = username; dom.userDisplay.title = username;
+            dom.loginMsg.textContent = '✅ Logged in (offline mode)';
+            saveGame();
+            enterGame();
+            return;
+        }
+    } catch (_) {}
+    dom.loginMsg.textContent = '⛔ Invalid username or password';
 }
 
 function doGoogleLogin() {
