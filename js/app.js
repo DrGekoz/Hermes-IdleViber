@@ -588,7 +588,7 @@ function initUIEvents() {
             const unlocked = TIERS && TIERS[i - 1] && bnGe(G.total_prestiges || BN_ZERO, TIERS[i - 1].requires);
             const silClass = unlocked ? '' : 'tier-locked';
             gridHtml += `<div class="tier-pick-item ${silClass}" data-tier="${i}" data-req="${req}" style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:4px;cursor:pointer;border:1px solid transparent;border-radius:2px;transition:border-color 0.15s;position:relative;">
-                <img src="sprites/images/icons/individual/${_tierPath(i)}.webp" style="width:44px;height:44px;image-rendering:pixelated;display:block;${unlocked ? '' : 'filter:grayscale(1) brightness(0.4);'}" onerror="this.style.display='none'" loading="lazy">
+                <img src="sprites/images/icons/32/${_tierPath(i)}.webp" style="width:44px;height:44px;image-rendering:pixelated;display:block;${unlocked ? '' : 'filter:grayscale(1) brightness(0.4);'}" onerror="this.style.display='none'" loading="lazy">
                 <span style="font-size:8px;color:#888;">${i}</span>
                 <div class="tier-pick-tooltip hidden" style="position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#111;border:1px solid #ffd700;padding:6px 10px;z-index:99999;white-space:nowrap;pointer-events:none;box-shadow:0 0 15px rgba(255,215,0,0.2);">
                     <div style="text-align:center;">
@@ -1571,7 +1571,7 @@ async function tryInitP2P() {
                     // Update tier icon in left column for P2P peers using their custom display icon
                     const iconCell = r.querySelector('.lb-tier-icon');
                     if (iconCell && e.tierIcon) {
-                            iconCell.innerHTML = `<img src="sprites/images/icons/individual/${_tierPath(e.tierIcon)}.webp" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">`
+                            iconCell.innerHTML = `<img src="sprites/images/icons/32/${_tierPath(e.tierIcon)}.webp" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">`
                     }
                     break;
                 }
@@ -1885,7 +1885,7 @@ function updateShopUI() {
         const el = document.createElement('div');
         el.className = `shop-item ${canBuy ? '' : 'locked'}`;
         el.dataset.tierId = tier.id;
-        const iconHtml = `<img src="sprites/images/icons/individual/${tier.id}_64.webp" alt="${tier.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">💻</span>`;
+        const iconHtml = `<img src="sprites/images/icons/32/${tier.id}_64.webp" alt="${tier.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">💻</span>`;
         el.innerHTML = `
             <div class="shop-item-icon">${iconHtml}</div>
             <div class="shop-item-info">
@@ -2094,7 +2094,7 @@ function renderPrestigeUpgrades() {
         const el = document.createElement('div');
         el.className = `shop-item ${canBuy ? 'affordable' : 'locked'} ${count > 0 ? 'owned' : ''}`;
         el.dataset.upgId = upg.id;
-        const iconName = `individual/${upg.id}_64.webp`;
+        const iconName = `32/${upg.id}_64.webp`;
         const iconHtml = `<img src="sprites/images/icons/${iconName}" alt="${upg.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">🔶</span>`;
         el.innerHTML = `
             <div class="shop-item-icon">${iconHtml}</div>
@@ -2137,7 +2137,7 @@ function updateDecorUI() {
         const el = document.createElement('div');
         el.className = `shop-item ${canBuy ? '' : 'locked'} ${active ? 'active' : ''}`;
         el.dataset.decorId = item.id;
-        const di = `<img src="sprites/images/room_decor/icons/${item.id}.webp" alt="${item.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">${owned ? (active ? '⭐' : '✨') : '🔒'}</span>`;
+        const di = `<img src="sprites/images/room_decor/icons/32/${item.id}.webp" alt="${item.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">${owned ? (active ? '⭐' : '✨') : '🔒'}</span>`;
         el.innerHTML = `
             <div class="shop-item-icon">${di}</div>
             <div class="shop-item-info">
