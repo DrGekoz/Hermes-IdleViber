@@ -1348,6 +1348,26 @@ async function doLogin() {
                 return;
             }
         }
+        // If login failed because account doesn't exist, try registering
+        if (!result || !result.success) {
+            dom.loginMsg.textContent = '⏳ Creating account...';
+            const regResult = await registerWithEmail(username, password);
+            if (regResult && regResult.success) {
+                G.userId = regResult.uid;
+                G.username = username; // displayName is set by registerWithEmail
+                G.displayName = username;
+                G.auth_mode = 'firebase';
+                dom.userDisplay.textContent = username; dom.userDisplay.title = username;
+                fbSave(G).catch(() => {});
+                fbSubmitScore(G.username, bnToNumber(G.lifetime_vibes), Math.min(bnToNumber(G.total_prestiges || BN_ZERO), 1e9), G.total_pp_earned, G.displayName, getVPS()).catch(() => {});
+                enterGame();
+                return;
+            }
+            if (regResult && regResult.error) {
+                dom.loginMsg.textContent = '⛔ ' + regResult.error;
+                return;
+            }
+        }
         // Firebase login failed, fall through to local API
         console.warn('Firebase login failed:', result?.error);
     }
