@@ -28,6 +28,7 @@ import { discoverGateway, pingGateway, getLatencyMultiplier,
 import { generateSprite, renderRoom, ParticleSystem, PAL,
          startPlacement, cancelPlacement, updatePlacementGhost, isPlacing,
          startDrag, updateDrag, endDrag, isDragging, hitTestDecor,
+         startResize, updateResize, endResize, isResizing,
          snapToGrid, getDecorSpriteId } from './sprites.js';
 import { setVolume as setSfxVolume, playClick, playVibe,
          playPrestige as playSfxPrestige, playError, playUnlock,
@@ -584,12 +585,14 @@ function initUIEvents() {
         let gridHtml = '';
         for (let i = 1; i <= 500; i++) {
             const req = (TIERS && TIERS[i - 1]) ? formatNumber(TIERS[i - 1].requires) : '?';
-            gridHtml += `<div class="tier-pick-item" data-tier="${i}" data-req="${req}" style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:4px;cursor:pointer;border:1px solid transparent;border-radius:2px;transition:border-color 0.15s;position:relative;">
-                <img src="sprites/images/icons/individual/tier_${i}.webp" style="width:36px;height:36px;image-rendering:pixelated;display:block;" onerror="this.style.display='none'" loading="lazy">
+            const unlocked = TIERS && TIERS[i - 1] && bnGe(G.total_prestiges || BN_ZERO, TIERS[i - 1].requires);
+            const silClass = unlocked ? '' : 'tier-locked';
+            gridHtml += `<div class="tier-pick-item ${silClass}" data-tier="${i}" data-req="${req}" style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:4px;cursor:pointer;border:1px solid transparent;border-radius:2px;transition:border-color 0.15s;position:relative;">
+                <img src="sprites/images/icons/individual/${_tierPath(i)}.webp" style="width:44px;height:44px;image-rendering:pixelated;display:block;${unlocked ? '' : 'filter:grayscale(1) brightness(0.4);'}" onerror="this.style.display='none'" loading="lazy">
                 <span style="font-size:8px;color:#888;">${i}</span>
                 <div class="tier-pick-tooltip hidden" style="position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#111;border:1px solid #ffd700;padding:6px 10px;z-index:99999;white-space:nowrap;pointer-events:none;box-shadow:0 0 15px rgba(255,215,0,0.2);">
                     <div style="text-align:center;">
-                        <img src="sprites/images/icons/individual/tier_${i}.webp" style="width:80px;height:80px;image-rendering:pixelated;display:block;margin:0 auto 4px;" onerror="this.style.display='none'">
+                        <img src="sprites/images/icons/individual/${_tierPath(i)}.webp" style="width:96px;height:96px;image-rendering:pixelated;display:block;margin:0 auto 4px;${unlocked ? '' : 'filter:grayscale(1) brightness(0.4);'}" onerror="this.style.display='none'">
                         <div style="font-size:8px;color:#ffd700;">TIER ${i}</div>
                     </div>
                 </div>
@@ -626,6 +629,7 @@ function initUIEvents() {
                 tierStatus.style.color = '#0f0';
             }
             saveGame();
+            updateAllUI(); // Refresh leaderboard, chat, profile immediately
         });
         // Hover tooltip show/hide via event delegation
         tierGrid.addEventListener('mouseover', (e) => {
@@ -842,20 +846,37 @@ function initUIEvents() {
         if (e.key === 'Enter') dom.gwConnectBtn.click();
     });
 
-    // Canvas: placement mode + drag
-    const canvas = dom.canvas;
-    canvas.addEventListener('mousemove', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const mx = e.clientX - rect.left;
-        const my = e.clientY - rect.top;
+// Canvas: placement mode + drag + resize
+const canvas = dom.canvas;
+window._hoveredDecor = null; // Track hovered decor for resize handle display (shared with sprites.js)
+canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
 
-        if (isPlacing()) {
-            updatePlacementGhost(mx, my);
+    if (isPlacing()) {
+        updatePlacementGhost(mx, my);
+    }
+    if (isDragging()) {
+        updateDrag(mx, my);
+    }
+    if (isResizing()) {
+        const newSize = updateResize(mx, my);
+        // Use resizeState directly (not _hoveredDecor) to avoid stale reference
+        const state = window._resizeState || {};
+        if (state.decorKey && G.placed_decor[state.decorKey]) {
+            G.placed_decor[state.decorKey][state.index || 0].size = newSize;
         }
-        if (isDragging()) {
-            updateDrag(mx, my);
+    }
+    // Track hover for resize handle — trigger on any part of the decor (but not while dragging/resizing)
+    if (!isDragging() && !isResizing()) {
+        window._hoveredDecor = null;
+        const hit = hitTestDecor(G, mx, my);
+        if (hit) {
+            window._hoveredDecor = hit;
         }
-    });
+    }
+});
 
     canvas.addEventListener('click', (e) => {
         if (!isPlacing()) return;
@@ -869,7 +890,7 @@ function initUIEvents() {
 
         // Add/replace placement (max 1 per decor)
         if (!G.placed_decor[decorId]) G.placed_decor[decorId] = [];
-        G.placed_decor[decorId][0] = { x: snapped.x, y: snapped.y }; // Replace or set first
+        G.placed_decor[decorId][0] = { x: snapped.x, y: snapped.y, size: 1.0 }; // Replace or set first
         if (G.placed_decor[decorId].length > 1) G.placed_decor[decorId].length = 1; // Trim extras
         // Sync to saved placements so they survive prestige
         if (!G.saved_decor_placements) G.saved_decor_placements = {};
@@ -888,6 +909,21 @@ function initUIEvents() {
         const my = e.clientY - rect.top;
         const hit = hitTestDecor(G, mx, my);
         if (hit) {
+            // Check if click is on the resize handle (slightly inset from bottom-right corner)
+            const p = G.placed_decor[hit.decorKey][hit.index];
+            const sz = p.size || 1.0;
+            const base = 102;
+            const w = Math.round(base * sz);
+            const hx = p.x + w - 8;
+            const hy = p.y + w - 8;
+            const handleRadius = 8;
+            if (mx >= hx - handleRadius && mx <= hx + handleRadius &&
+                my >= hy - handleRadius && my <= hy + handleRadius) {
+                // Start resize
+                if (!p.size) p.size = 1.0;
+                startResize(hit.decorKey, hit.index, mx, my, p.size);
+                return;
+            }
             const snapped = snapToGrid(G.placed_decor[hit.decorKey][hit.index].x,
                                        G.placed_decor[hit.decorKey][hit.index].y);
             startDrag(hit.decorKey, hit.index, mx, my, snapped.x, snapped.y);
@@ -925,6 +961,19 @@ function initUIEvents() {
             cancelDecorPlacement();
             if (isDragging()) { endDrag(G); saveGame(); }
             notifyStateChange('decor_active');
+        }
+    });
+
+    // Mouse up — end drag or resize and save
+    document.addEventListener('mouseup', () => {
+        if (isDragging()) {
+            endDrag(G);
+            saveGame();
+        }
+        if (isResizing()) {
+            endResize(G);
+            saveGame();
+            window._hoveredDecor = null;
         }
     });
 
@@ -1522,7 +1571,7 @@ async function tryInitP2P() {
                     // Update tier icon in left column for P2P peers using their custom display icon
                     const iconCell = r.querySelector('.lb-tier-icon');
                     if (iconCell && e.tierIcon) {
-                        iconCell.innerHTML = `<img src="sprites/images/icons/individual/tier_${e.tierIcon}.webp" style="width:24px;height:24px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">`;
+                            iconCell.innerHTML = `<img src="sprites/images/icons/individual/${_tierPath(e.tierIcon)}.webp" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">`
                     }
                     break;
                 }
@@ -2260,6 +2309,11 @@ function updateGatewayUI() {
 
 // ---- LEADERBOARD RENDERING ----
 
+// Map tier number (1-500) to icon filename from the new file ordering
+function _tierPath(n) {
+    return (typeof TIER_ICON_FILES !== 'undefined' && TIER_ICON_FILES[n - 1]) ? TIER_ICON_FILES[n - 1] : 'tier_' + n;
+}
+
 // Universal number formatter for ALL leaderboard cells. Never throws, always returns a safe string.
 function fmtAll(v, fallback = '0') {
     try {
@@ -2522,7 +2576,7 @@ async function updateLeaderboardUI(externalEntries) {
             if (entry.playerId) el.dataset.playerId = entry.playerId;
             if (isDev) {
                 el.innerHTML = `
-                    <span class="lb-tier-icon">${(() => { const ni = (entry.tier >= 0 ? getTierIconNum(entry.tier) : 0); return ni > 0 ? `<img src="sprites/images/icons/individual/tier_${ni}.webp" style="width:24px;height:24px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">` : ''; })()}</span>
+                    <span class="lb-tier-icon">${(() => { const ni = (entry.tier >= 0 ? getTierIconNum(entry.tier) : 0); return ni > 0 ? `<img src="sprites/images/icons/individual/${_tierPath(ni)}.webp" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">` : ''; })()}</span>
                     <span class="lb-rank">#${i + 1}</span>
                     <span class="lb-name dev">◆ ${entry.name} <span class="lb-dev-badge">(DEV)</span></span>
                     <span class="lb-vibes">${fmtVibes(entry.vibes)}</span>
@@ -2533,7 +2587,7 @@ async function updateLeaderboardUI(externalEntries) {
                 `;
             } else {
                 el.innerHTML = `
-                    <span class="lb-tier-icon">${(() => { const isMe = (entry.name === displayName || entry.name === G.username); const customIcon = isMe && G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : 0; const iconNum = customIcon || (entry.tier >= 0 ? getTierIconNum(entry.tier) : 0); return iconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${iconNum}.webp" style="width:24px;height:24px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">` : ''; })()}</span>
+                    <span class="lb-tier-icon">${(() => { const isMe = (entry.name === displayName || entry.name === G.username); const customIcon = isMe && G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : 0; const iconNum = customIcon || (entry.tier >= 0 ? getTierIconNum(entry.tier) : 0); return iconNum > 0 ? `<img src="sprites/images/icons/individual/${_tierPath(iconNum)}.webp" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">` : ''; })()}</span>
                     <span class="lb-rank">#${i + 1}</span>
                     <span class="lb-name">${isYou ? `<img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon-sm" alt=""> ` : ''}${entry.name}</span>
                     <span class="lb-vibes">${fmtVibes(entry.vibes)}</span>
@@ -2600,16 +2654,17 @@ function updateLocalLeaderboardEntry() {
     const tierIconEl = row.querySelector('.lb-tier-icon');
     if (tierIconEl) {
         const cur = getCurrentTier(G);
-        const iconNum = cur >= 0 ? getTierIconNum(cur) : 0;
-        tierIconEl.innerHTML = iconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${iconNum}.webp" class="lb-tier-img" onerror="this.style.display='none'">` : '';
+        const customIcon = G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : 0;
+        const iconNum = customIcon || (cur >= 0 ? getTierIconNum(cur) : 0);
+        tierIconEl.innerHTML = iconNum > 0 ? `<img src="sprites/images/icons/individual/${_tierPath(iconNum)}.webp" class="lb-tier-img" onerror="this.style.display='none'">` : '';
     }
 }
 
 // ---- TIERS UI ----
-// Map tier index to icon number (1-50, cycles back)
+// Map tier index to icon number (1-500)
 function getTierIconNum(tierIdx) {
     if (tierIdx < 0) return 0;
-    // Direct 1:1 mapping to individual tier_N.webp files
+    // Direct 1:1 mapping, used with _tierPath() to get the actual icon file
     return tierIdx + 1;
 }
 // Direct fallback renderer for leaderboard — bypasses any BN/comparison issues
@@ -2625,7 +2680,7 @@ function renderLeaderboardFallback(list) {
     list.innerHTML = '<div class="lb-entry lb-header"><span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span><span class="lb-tier">TIER</span></div>'
         + entries.map((e, i) => {
             const iconNum = e.tierName ? getTierIconNum(e.tierName) : 0;
-            const iconHtml = iconNum > 0 ? `<img src=\"sprites/images/icons/individual/tier_${iconNum}.webp\" class=\"lb-tier-img\" onerror=\"this.style.display='none'\">` : '';
+            const iconHtml = iconNum > 0 ? `<img src=\"sprites/images/icons/individual/${_tierPath(iconNum)}.webp\" class=\"lb-tier-img\" onerror=\"this.style.display='none'\">` : '';
             return '<div class=\"lb-entry\"><span class=\"lb-rank\">#' + (i+1) + '</span><span class=\"lb-name\">' + e.name + '</span><span class=\"lb-vibes\">' + e.vibes + '</span><span class=\"lb-vps\">' + e.vps + '</span><span class=\"lb-pp\">' + e.pp + '</span><span class=\"lb-prestige\">' + e.prestige + '</span><span class=\"lb-tier\">' + e.tier + '</span><span class=\"lb-tier-icon\">' + iconHtml + '</span></div>';
         }).join('');
 }
@@ -2669,7 +2724,7 @@ function renderTiers() {
         el.className = `shop-item ${unlocked ? 'affordable' : 'locked'}`;
         el.style.cssText = 'display:grid;grid-template-columns:auto 1fr;gap:4px;padding:4px 6px;font-size:8px;';
         el.innerHTML = `
-            <span style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-secondary)'};font-size:10px;"><img src="sprites/images/icons/individual/tier_${getTierIconNum(idx)}.webp" style="width:32px;height:32px;image-rendering:pixelated;object-fit:contain;vertical-align:middle;display:inline-block;" onerror="this.style.display='none'"></span>
+            <span style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-secondary)'};font-size:10px;"><img src="sprites/images/icons/individual/${_tierPath(getTierIconNum(idx))}.webp" style="width:44px;height:44px;image-rendering:pixelated;object-fit:contain;vertical-align:middle;display:inline-block;" onerror="this.style.display='none'"></span>
             <div>
                 <div style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-primary)'}"><strong>${tier.name}</strong> — ${formatNumber(tier.requires)} prestiges</div>
                 <div style="color:${unlocked ? 'var(--accent-green)' : 'var(--text-secondary)'}">${tier.bonus}</div>
@@ -2679,7 +2734,7 @@ function renderTiers() {
             tierNumber: idx + 1,
             name: tier.name,
             desc: '<span style="font-size:8px;' + (unlocked ? 'color:var(--accent-green);">✅ UNLOCKED' : 'color:var(--text-secondary);">🔒 LOCKED') + '</span><br><span style="color:var(--accent-gold);">' + formatNumber(tier.requires) + ' Prestiges Required</span>',
-            icon: `sprites/images/icons/individual/tier_${getTierIconNum(idx)}.webp`,
+            icon: `sprites/images/icons/individual/${_tierPath(getTierIconNum(idx))}.webp`,
             stats: [
                 { label: 'Bonus', value: tier.bonus, cls: 'green' },
                 { label: 'Requires', value: formatNumber(tier.requires) + ' prestiges', cls: 'gold' },
@@ -2693,6 +2748,32 @@ function renderTiers() {
 
 // ---- HELPER FUNCTIONS ----
 // ---- ACHIEVEMENTS UI ----
+function getAchievementProgress(ach) {
+    if (!ach || !ach.threshold) return 0;
+    const t = ach.threshold;
+    switch (t.type) {
+        case 'lifetime': return bnDiv(G.lifetime_vibes, t.value);
+        case 'clicks': return G.total_clicks / t.value;
+        case 'prestiges': return G.total_prestiges / t.value;
+        case 'room': return G.unlocked_rooms.includes(t.value) ? 1 : 0;
+        case 'all_rooms': return G.unlocked_rooms.length >= 6 ? 1 : 0;
+        case 'vps': return bnDiv(getVPS(), t.value);
+        case 'gateway': return G.gateway_history && G.gateway_history.length > 0 ? 1 : 0;
+        case 'gateway_low': return (G._gwLatency > 0 && G._gwLatency <= t.value) ? 1 : 0;
+        case 'pings': return G.total_gateway_pings / t.value;
+        case 'decor': return (G.owned_decor ? G.owned_decor.length : 0) / t.value;
+        case 'autoclickers': {
+            let total = 0;
+            for (const ac of AUTOCLICKERS) total += G.autoclickers[ac.id] || 0;
+            for (const roomId of G.unlocked_rooms) {
+                const ras = G.room_autoclickers && G.room_autoclickers[roomId];
+                if (ras) for (const k in ras) total += ras[k] || 0;
+            }
+            return total / t.value;
+        }
+        default: return 0;
+    }
+}
 function updateAchievementsUI() {
     const list = dom.panelAchievements;
     if (!list || !ACHIEVEMENTS) return;
@@ -2708,14 +2789,21 @@ function updateAchievementsUI() {
     </div>`;
     ACHIEVEMENTS.forEach(ach => {
         const earned = G.achievements.includes(ach.id);
+        const progress = Math.min(1, Math.max(0, getAchievementProgress(ach)));
+        const progressPct = Math.round(progress * 100);
         const el = document.createElement('div');
         el.className = `ach-item ${earned ? 'unlocked' : 'locked'}`;
-        el.innerHTML = '<div class="ach-icon">' + ach.icon + '</div>' +
+        const iconSrc = ach.icon_img || '';
+        const iconHtml = iconSrc
+            ? `<img src="${iconSrc}" class="ach-icon-img" alt="" onerror="this.style.display='none'">`
+            : `<div class="ach-icon">${ach.icon}</div>`;
+        el.innerHTML = iconHtml +
             '<div class="ach-info">' +
                 '<div class="ach-name">' + ach.name + '</div>' +
                 '<div class="ach-desc">' + ach.desc + '</div>' +
+                (earned ? '' : '<div class="ach-progress-bar"><div class="ach-progress-fill" style="width:' + progressPct + '%"></div></div>') +
             '</div>' +
-            '<div class="ach-status">' + (earned ? '&#10003;' : '&#128274;') + '</div>';
+            '<div class="ach-status">' + (earned ? '✓' : progressPct + '%') + '</div>';
         list.appendChild(el);
     });
 }
@@ -3366,10 +3454,11 @@ function addChatMessage(username, text, isOwn) {
     const el = document.createElement('div');
     el.style.cssText = 'display:flex;gap:4px;align-items:flex-start;padding:2px 0;';
     const tier = getCurrentTier(G);
-    const iconNum = tier >= 0 ? getTierIconNum(tier) : 0;
+    const customIcon = G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : 0;
+    const iconNum = customIcon || (tier >= 0 ? getTierIconNum(tier) : 0);
     el.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:2px;max-width:100%;${isOwn ? 'align-items:flex-end;margin-left:auto;' : ''}">
-            <div class="chat-username" style="font-size:8px;color:${isOwn ? 'var(--accent-gold)' : 'var(--accent-cyan)'};display:flex;align-items:center;gap:4px;cursor:pointer;" data-username="${escapeHtml(username)}"><img src="sprites/images/icons/individual/tier_${iconNum}.webp" class="chat-tier-icon" style="width:20px;height:20px;image-rendering:pixelated;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none'">${escapeHtml(username)}</div>
+            <div class="chat-username" style="font-size:8px;color:${isOwn ? 'var(--accent-gold)' : 'var(--accent-cyan)'};display:flex;align-items:center;gap:4px;cursor:pointer;" data-username="${escapeHtml(username)}"><img src="sprites/images/icons/individual/${_tierPath(iconNum)}.webp" class="chat-tier-icon" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none'">${escapeHtml(username)}</div>
             <div class="chat-bubble" style="background:${isOwn ? 'rgba(255,215,0,0.15)' : 'rgba(0,255,255,0.1)'};border:1px solid ${isOwn ? 'rgba(255,215,0,0.3)' : 'rgba(0,255,255,0.2)'};border-radius:4px;padding:5px 8px;font-size:8px;word-break:break-word;max-width:280px;">${escapeHtml(text)}</div>
         </div>
     `;
@@ -3445,8 +3534,9 @@ function showPlayerProfile(username) {
     const isLocalPlayer = (username === G.displayName || username === G.username || username === 'Player' || (G.displayName || G.username) === 'Player');
     const tierIdx = isLocalPlayer ? getCurrentTier(G) : (playerData && playerData.tier != null ? playerData.tier : (playerData && playerData.prestige != null ? getTierFromPrestige(Number(playerData.prestige)) : -1));
     const tierName = tierIdx >= 0 ? TIERS[tierIdx].name : (playerData && playerData.tierName ? playerData.tierName : '—');
-    const tierIconNum = tierIdx >= 0 ? getTierIconNum(tierIdx) : 0;
-    const tierIconHtml = tierIconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${tierIconNum}.webp" style="width:154px;height:154px;image-rendering:pixelated;vertical-align:middle;">` : '';
+    const customIcon = isLocalPlayer && G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : 0;
+    const tierIconNum = customIcon || (tierIdx >= 0 ? getTierIconNum(tierIdx) : 0);
+    const tierIconHtml = tierIconNum > 0 ? `<img src="sprites/images/icons/individual/${_tierPath(tierIconNum)}.webp" style="width:154px;height:154px;image-rendering:pixelated;vertical-align:middle;">` : '';
 
     // Stats from leaderboard data or live state
     const vibesStr = isLocalPlayer ? formatNumber(G.vibes) : (playerData ? fmtVibes(playerData.vibes) : '—');

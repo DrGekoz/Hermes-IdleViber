@@ -389,7 +389,7 @@ body {
     flex: 1 1 45%;
     min-width: 0;
     padding: 8px 4px;
-    background: var(--room-tab-inactive, transparent);
+    background-color: var(--room-tab-inactive, transparent);
     border: none;
     border-bottom: 2px solid transparent;
     color: #ffffff;
@@ -401,7 +401,7 @@ body {
     font-family: var(--pixel-font);
     font-size: 8px;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: border-bottom-color 0.15s, color 0.15s;
     white-space: nowrap;
 }
 .sidebar-tabs button:hover {
@@ -411,12 +411,12 @@ body {
         -1px 0 0 #000000,
         0 1px 0 #000000,
         0 -1px 0 #000000;
-    background: rgba(255,255,255,0.03);
+    background-color: rgba(255,255,255,0.03);
 }
 .sidebar-tabs button.active {
     color: #ffffff;
     border-bottom-color: var(--room-accent, var(--accent-gold));
-    background: var(--room-tab-active, rgba(255,215,0,0.05));
+    background-color: var(--room-tab-active, rgba(255,215,0,0.05));
     box-shadow:
         inset 0 0 10px var(--room-accent),
         0 0 8px var(--room-accent);
@@ -559,8 +559,8 @@ body {
 .shop-item.affordable:hover { border-color: var(--accent-gold); box-shadow: 0 0 12px rgba(255,215,0,0.2); }
 .shop-item.active { border-color: var(--accent-green); background: rgba(0,255,136,0.05); }
 
-.shop-item-icon { font-size: 14px; width: 32px; min-width: 32px; text-align: center; display: flex; align-items: center; justify-content: center; }
-.shop-icon-img { width: 28px; height: 28px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0; }
+.shop-item-icon { font-size: 14px; width: 52px; min-width: 52px; text-align: center; display: flex; align-items: center; justify-content: center; }
+.shop-icon-img { width: 44px; height: 44px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0; }
 
 /* Ensure ALL game sprites render crisp when downscaled */
 .shop-item img,
@@ -623,16 +623,17 @@ body {
 
 /* --- BUY ALL BUTTONS --- */
 .buy-all-btn {
-    background: #1a3a1a;
+    display: block;
+    margin: 8px auto 4px;
+    padding: 10px 24px;
+    background-color: #1a3a1a;
     border: 1px solid #2a5a2a;
     color: var(--accent-green);
     font-family: var(--pixel-font);
-    font-size: 8px;
-    padding: 3px 8px;
+    font-size: 10px;
     cursor: pointer;
     border-radius: 2px;
     transition: all 0.15s;
-    vertical-align: middle;
 }
 .buy-all-btn:hover {
     background: #2a5a2a;
@@ -659,11 +660,14 @@ body {
 .ach-item.unlocked { border-color: var(--accent-gold); background: rgba(255,215,0,0.05); }
 .ach-item.locked { opacity: 0.5; }
 .ach-icon { font-size: 16px; width: 28px; text-align: center; flex-shrink: 0; }
+.ach-icon-img { width: 28px; height: 28px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0; }
 .ach-info { flex: 1; min-width: 0; }
 .ach-name { font-size: 8px; color: var(--text-primary); }
 .ach-item.locked .ach-name { color: #444; }
 .ach-desc { font-size: 8px; color: var(--text-secondary); margin-top: 1px; }
 .ach-item.locked .ach-desc { color: #333; }
+.ach-progress-bar { height: 3px; background: #1a1a1a; border: 1px solid #333; margin-top: 3px; border-radius: 1px; overflow: hidden; }
+.ach-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-gold)); transition: width 0.3s; border-radius: 1px; }
 .ach-status { font-size: 10px; color: var(--accent-green); min-width: 16px; text-align: center; }
 
 /* --- SETTINGS TOGGLE ROW --- */
@@ -838,8 +842,8 @@ h1, h2, h3, h4, h5, h6, .game-title, .settings-content h2, .popup-title, .label-
     bottom: 15px;
     left: 15px;
     z-index: 40;
-    background: rgba(0,0,0,0.7);
-    border: 1px solid #222;
+    background: var(--room-panel, rgba(0,0,0,0.7));
+    border: 1px solid var(--room-border, #222);
     padding: 8px 10px;
     width: auto;
     min-width: 240px;
@@ -851,7 +855,7 @@ h1, h2, h3, h4, h5, h6, .game-title, .settings-content h2, .popup-title, .label-
     transition: all 0.2s;
     pointer-events: auto;
 }
-.leaderboard-float:hover { border-color: var(--accent-gold); background: rgba(0,0,0,0.8); }
+.leaderboard-float:hover { border-color: var(--room-accent, var(--accent-gold)); background: var(--room-panel, rgba(0,0,0,0.8)); }
 .leaderboard-float h3 {
     font-size: 8px;
     color: var(--accent-gold);
@@ -869,7 +873,7 @@ h1, h2, h3, h4, h5, h6, .game-title, .settings-content h2, .popup-title, .label-
     max-width: none;
     max-height: none;
     z-index: 9999;
-    background: rgba(0,0,0,0.94);
+    background: var(--room-panel, rgba(0,0,0,0.94));
     border: none;
     cursor: default;
     display: flex;
@@ -1014,8 +1018,8 @@ h1, h2, h3, h4, h5, h6, .game-title, .settings-content h2, .popup-title, .label-
 }
 .lb-dev-badge:hover { z-index: 10002; }
 .lb-rank { color: var(--text-secondary); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lb-tier-icon { width: 28px; text-align: center; vertical-align: middle; padding: 0 2px; }
-.lb-tier-icon img { display: block; margin: 0 auto; image-rendering: pixelated; }
+.lb-tier-icon { width: 48px; text-align: center; vertical-align: middle; padding: 0 2px; }
+.lb-tier-icon img { display: block; margin: 0 auto; image-rendering: pixelated; width: 44px; height: 44px; }
 /* Guest save warning banner */
 .lb-name { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .lb-vibes { color: var(--accent-gold); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1755,20 +1759,20 @@ input[type="range"]::-webkit-slider-thumb {
     padding: 0;
 }
 .music-panel {
-    background: rgba(10,12,25,0.95);
-    border: 2px solid #4af;
+    background: var(--room-panel, rgba(10,12,25,0.95));
+    border: 2px solid var(--room-accent, #4af);
     padding: 8px;
     display: flex;
     flex-direction: column;
     gap: 6px;
     min-width: 160px;
-    box-shadow: 0 0 16px rgba(68,170,255,0.3);
+    box-shadow: 0 0 16px var(--room-accent), 0 0 16px rgba(0,0,0,0.3);
 }
 .music-panel.hidden { display: none; }
 .music-now-playing {
     font-family: var(--pixel-font);
     font-size: 8px;
-    color: #4af;
+    color: var(--room-accent, #4af);
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
