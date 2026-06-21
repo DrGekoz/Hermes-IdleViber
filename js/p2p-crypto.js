@@ -82,15 +82,21 @@ console.log('🔑 P2P keyId:', this.kid, 'nonce:', this._nonce, '(fresh)');
 }
 
 // ---- Host detection ----
-_computeHost(onlineSet) {
-if (!onlineSet) return null;
-// Always include self so DEV_HOST detection works
-const all = new Set(onlineSet);
-all.add(this.username);
-if (all.size === 0) return null;
-if (all.has(DEV_HOST)) return DEV_HOST;
-return [...all].sort()[0];
-}
+    _computeHost(onlineSet) {
+        if (!onlineSet) return null;
+        // Always include self so DEV_HOST detection works
+        const devLower = DEV_HOST.toLowerCase();
+        // First, check if any online user's sanitized ID contains 'drgekoz' (case-insensitive)
+        // This handles display names like 'DrGekoz', 'drgekoz', 'Dr. Gekoz', etc.
+        for (const id of onlineSet) {
+            if (id.toLowerCase().replace(/[^a-z0-9]/g, '').includes(devLower.replace(/[^a-z0-9]/g, ''))) return id;
+        }
+        // Check self
+        if (this.username.toLowerCase().replace(/[^a-z0-9]/g, '').includes(devLower.replace(/[^a-z0-9]/g, ''))) return this.username;
+        // Fallback: alphabetical first
+        const sorted = [...onlineSet].sort((a,b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+        return sorted[0] || this.username;
+    }
 
 _amHost() { return this._isHost; }
 
@@ -138,9 +144,9 @@ this._onPeerGone(k);
 }
 if (!this.peers.has(k)) {
 if (this._connecting.has(k)) return;
-// Only connect: if I'm host (connect to everyone) OR if this peer is the host
-const host = this._computeHost(newOnline);
-const shouldConnect = this._isHost || (host === k);
+                    // Only connect: if I'm host (connect to everyone) OR if this peer is the host
+                    const host = this._computeHost(newOnline);
+                    const shouldConnect = this._isHost || (host && host.toLowerCase() === k.toLowerCase());
 if (!shouldConnect) return; // skip — not host, not connecting to
                     this._connecting.add(k);
                     try {
@@ -196,8 +202,12 @@ if (this.peers.size === 0) this._rescanPeers();
 
 if (!this._uploadTimer) this._uploadTimer = setInterval(() => this._uploadIfElected(), 900000);
 
-// Log initial host status
-setTimeout(() => console.log('[P2P] Elected Host =', this._isHost, '—', this._isHost ? 'I am the HOST' : 'Host is', this._computeHost(this._onlineUsernames)), 500);
+        // Log initial host status
+        setTimeout(() => {
+            const host = this._computeHost(this._onlineUsernames);
+            console.log('[P2P] Elected Host =', this._isHost, '—', this._isHost ? 'I am the HOST' : 'Host is', host);
+            if (!this._isHost && host) console.log('[P2P] Connecting to host:', host);
+        }, 500);
 }
 
 // Disconnect all peers (used on host migration)
