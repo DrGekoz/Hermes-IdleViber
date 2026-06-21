@@ -300,13 +300,13 @@ console.log('📤 P2P answer sent to', pk);
 } catch (e) { console.warn('❌ _onOffer err:', e); }
 }
 
-async _onAnswer(pk, sdp) {
-const p = this.peers.get(pk);
-if (!p) { console.log('🧹 _onAnswer stale, delete:', pk); this._cleanSigDoc(pk).catch(()=>{}); return; }
-if (!p.pc || p.pc.signalingState !== 'have-local-offer') {
-if (p.pc && (p.pc.connectionState === 'connected' || p.pc.connectionState === 'connecting')) return;
-setTimeout(() => this._onAnswer(pk, sdp), 200); return;
-}
+    async _onAnswer(pk, sdp) {
+        const p = this.peers.get(pk);
+        if (!p) { this._cleanSigDoc(pk).catch(()=>{}); return; }
+        if (!p.pc || p.pc.signalingState !== 'have-local-offer') {
+            if (p.pc && (p.pc.connectionState === 'connected' || p.pc.connectionState === 'connecting' || p.pc.connectionState === 'closed')) return;
+            setTimeout(() => this._onAnswer(pk, sdp), 200); return;
+        }
 console.log('📩 P2P answer from', pk);
 try {
 await p.pc.setRemoteDescription(new RTCSessionDescription(sdp));
@@ -325,9 +325,9 @@ return deleteDoc(doc(this.fs.db, 'sig', this.username, 'offers', pk)).catch(() =
 
 // ---- Message routing ----
 async _onMsg(pk, data) {
-const p = this.peers.get(pk); if (!p) { console.warn('📩 _onMsg unknown:', pk); return; }
-const payload = await verifyMsg(data, p.pub);
-if (!payload) { console.warn('❌ _onMsg verify fail', pk, 'data:', data); return; }
+    const p = this.peers.get(pk); if (!p) { console.warn('📩 _onMsg unknown:', pk); return; }
+    const payload = await verifyMsg(data, p.pub);
+    if (!payload) { return; } // stale message from previous key rotation, silently drop
 
 // Chat message — host relays to everyone, guest just displays
 if (payload.type === 'chat') {
@@ -507,8 +507,8 @@ this._initPeer(k, d);
                     this._initPeer(k, d);
                     continue;
                 }
-                // Host always offers — retry sending offer if needed
-                if (this._amHost() && p.pc.signalingState === 'stable' && (p.pc.connectionState === 'new' || p.pc.connectionState === 'connecting')) {
+                // Host always offers — retry sending offer if needed (only in 'new' state, not 'connecting')
+                if (this._amHost() && p.pc.signalingState === 'stable' && p.pc.connectionState === 'new') {
                     try {
                         const offer = await p.pc.createOffer();
                         await p.pc.setLocalDescription(offer);
@@ -518,7 +518,7 @@ this._initPeer(k, d);
                         console.log('[P2P] 1s-retry — host offer sent to', k);
                     } catch (e) { console.warn('⚠️ P2P 1s-retry offer failed for', k, ':', e.message); }
                 }
-                // Guest waiting for host offer — check Firestore for pending offers
+                // Guest waiting for host offer — check Firestore for pending offers (only in 'new' state)
                 if (!this._amHost() && p.pc.signalingState === 'stable' && p.pc.connectionState === 'new') {
                     try {
                         const offerSnap = await getDoc(fdoc(this.fs.db, 'sig', this.username, 'offers', k));
