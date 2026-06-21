@@ -3680,7 +3680,7 @@ function addChatMessage(username, text, isOwn, peerTierIcon) {
     while (msgs.children.length > 50) msgs.removeChild(msgs.firstChild);
 }
 
-function showPlayerProfile(username) {
+async function showPlayerProfile(username) {
     const popup = document.getElementById('profile-popup');
     const content = document.getElementById('profile-content');
     const closeBtn = document.getElementById('profile-close');
@@ -3718,6 +3718,25 @@ function showPlayerProfile(username) {
                 }
             }
         }
+    }
+    // Fallback: query Firestore leaderboard directly
+    if (!playerData && fbReady && typeof fbGetLeaderboard === 'function') {
+        try {
+            const fbEntries = await fbGetLeaderboard(100);
+            if (fbEntries) {
+                const match = fbEntries.find(e => e.username === username || e.name === username || e.display_name === username);
+                if (match) {
+                    playerData = {
+                        vibes: match.score_full ?? match.score ?? 0,
+                        vps: match.vps_full ?? match.vps ?? 0,
+                        pp: match.pp_full ?? match.total_pp ?? 0,
+                        prestige: match.prestige_level ?? 0,
+                        tier: getTierFromPrestige(match.prestige_level ?? 0),
+                        tierName: undefined,
+                    };
+                }
+            }
+        } catch (_) {}
     }
 
     // For the local player, use live game state
