@@ -589,78 +589,101 @@ function initUIEvents() {
             if (e.key === 'Enter') dom.settingsGwConnect.click();
         });
     }
-    // Settings: tier icon picker (horizonal scrollable grid)
-    const tierGrid = document.getElementById('settings-tier-grid');
-    const tierScroll = document.getElementById('settings-tier-scroll');
-    const tierStatus = document.getElementById('settings-tier-status');
-    if (tierGrid) {
-        // Build all 500 tier icons with data attributes for module event handler
+    // Settings: tier icon picker (horizonal scrollable grid) — refreshable on each open
+    let _tierGridBuilt = false;
+    function refreshTierGrid() {
+        const tierGrid = document.getElementById('settings-tier-grid');
+        const tierScroll = document.getElementById('settings-tier-scroll');
+        const tierStatus = document.getElementById('settings-tier-status');
+        if (!tierGrid) return;
+        // Mark that we've initialized (so the click handler only registers once)
+        if (!_tierGridBuilt) {
+            _tierGridBuilt = true;
+            // Event delegation: click handler in module scope (has access to G, TIERS, bnGe, playClick)
+            tierGrid.addEventListener('click', (e) => {
+                const item = e.target.closest('.tier-pick-item');
+                if (!item) return;
+                const n = parseInt(item.dataset.tier);
+                const tierIdx = n - 1;
+                // Check if this tier is unlocked by the player
+                const unlocked = TIERS && TIERS[tierIdx] && bnGe(G.total_prestiges || BN_ZERO, TIERS[tierIdx].requires);
+                if (!unlocked) {
+                    if (tierStatus) {
+                        tierStatus.textContent = '\u{1F512} Tier ' + n + ' not yet unlocked \u2014 requires ' + item.dataset.req + ' prestiges';
+                        tierStatus.style.color = '#f44';
+                    }
+                    return;
+                }
+                // Play sound and apply
+                try { playClick(); } catch(_) {}
+                if (!G.settings) G.settings = {};
+                G.settings.display_tier_icon = n;
+                refreshTierGrid(); // Re-render to update gold border + lock states
+                if (tierStatus) {
+                    tierStatus.textContent = '\u2705 Tier Icon Applied \u2014 Tier ' + n;
+                    tierStatus.style.color = '#0f0';
+                }
+                saveGame();
+                updateAllUI(); // Refresh leaderboard, chat, profile immediately
+            });
+            // Hover tooltip show/hide via event delegation
+            tierGrid.addEventListener('mouseover', (e) => {
+                const item = e.target.closest('.tier-pick-item');
+                if (!item) return;
+                const selected = G.settings && G.settings.display_tier_icon == item.dataset.tier;
+                const unlocked = !item.classList.contains('tier-locked');
+                item.style.borderColor = selected ? 'var(--accent-gold)' : (unlocked ? '#555' : '#333');
+                const tip = item.querySelector('.tier-pick-tooltip');
+                if (tip) tip.classList.remove('hidden');
+            });
+            tierGrid.addEventListener('mouseout', (e) => {
+                const item = e.target.closest('.tier-pick-item');
+                if (!item) return;
+                const selected = item.dataset.tier && G.settings && G.settings.display_tier_icon == item.dataset.tier;
+                const unlocked = !item.classList.contains('tier-locked');
+                item.style.borderColor = selected ? 'var(--accent-gold)' : 'transparent';
+                const tip = item.querySelector('.tier-pick-tooltip');
+                if (tip) tip.classList.add('hidden');
+            });
+        }
+        // Re-build grid HTML with live game state
+        const prestige = bnToNumber(G.total_prestiges || BN_ZERO);
         let gridHtml = '';
         for (let i = 1; i <= 500; i++) {
             const req = (TIERS && TIERS[i - 1]) ? formatNumber(TIERS[i - 1].requires) : '?';
             const unlocked = TIERS && TIERS[i - 1] && bnGe(G.total_prestiges || BN_ZERO, TIERS[i - 1].requires);
-            const silClass = unlocked ? '' : 'tier-locked';
-            gridHtml += `<div class="tier-pick-item ${silClass}" data-tier="${i}" data-req="${req}" style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:4px;cursor:pointer;border:1px solid transparent;border-radius:2px;transition:border-color 0.15s;position:relative;">
+            const selected = G.settings && G.settings.display_tier_icon == i;
+            const silClass = unlocked ? 'tier-unlocked' : 'tier-locked';
+            gridHtml += `<div class="tier-pick-item ${silClass}" data-tier="${i}" data-req="${req}" style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:4px;cursor:pointer;border:1px solid ${selected ? 'var(--accent-gold)' : 'transparent'};border-radius:2px;transition:border-color 0.15s;position:relative;">
                 <img src="sprites/images/icons/32/${_tierPath(i)}.webp" style="image-rendering:pixelated;display:block;${unlocked ? '' : 'filter:grayscale(1) brightness(0.4);'}" onerror="this.style.display='none'" loading="lazy">
-                <span style="font-size:8px;color:#888;">${i}</span>
+                <span style="font-size:8px;color:${unlocked ? '#ffd700' : '#555'};">${i}${unlocked ? ' ✓' : ''}</span>
                 <div class="tier-pick-tooltip hidden" style="position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#111;border:1px solid #ffd700;padding:6px 10px;z-index:99999;white-space:nowrap;pointer-events:none;box-shadow:0 0 15px rgba(255,215,0,0.2);">
                     <div style="text-align:center;">
                         <img src="sprites/images/icons/individual/${_tierPath(i)}.webp" style="width:96px;height:96px;image-rendering:pixelated;display:block;margin:0 auto 4px;${unlocked ? '' : 'filter:grayscale(1) brightness(0.4);'}" onerror="this.style.display='none'">
                         <div style="font-size:8px;color:#ffd700;">TIER ${i}</div>
+                        <div style="font-size:7px;color:${unlocked ? '#0f0' : '#888'};">${unlocked ? 'UNLOCKED' : 'REQUIRES ' + req + ' PRESTIGES'}</div>
                     </div>
                 </div>
             </div>`;
         }
         tierGrid.innerHTML = gridHtml;
-        // Highlight the currently selected tier
-        const savedTier = G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : 1;
-        const selected = tierGrid.querySelector(`.tier-pick-item[data-tier="${savedTier}"]`);
-        if (selected) selected.style.borderColor = 'var(--accent-gold)';
-        // Event delegation: click handler in module scope (has access to G, TIERS, bnGe, playClick)
-        tierGrid.addEventListener('click', (e) => {
-            const item = e.target.closest('.tier-pick-item');
-            if (!item) return;
-            const n = parseInt(item.dataset.tier);
-            const tierIdx = n - 1;
-            // Check if this tier is unlocked by the player
-            const unlocked = TIERS && TIERS[tierIdx] && bnGe(G.total_prestiges || BN_ZERO, TIERS[tierIdx].requires);
-            if (!unlocked) {
-                if (tierStatus) {
-                    tierStatus.textContent = '🔒 Tier ' + n + ' not yet unlocked — requires ' + item.dataset.req + ' prestiges';
-                    tierStatus.style.color = '#f44';
-                }
-                return;
-            }
-            // Play sound and apply
-            try { playClick(); } catch(_) {}
-            if (!G.settings) G.settings = {};
-            G.settings.display_tier_icon = n;
-            tierGrid.querySelectorAll('.tier-pick-item').forEach(el => el.style.borderColor = 'transparent');
-            item.style.borderColor = 'var(--accent-gold)';
-            if (tierStatus) {
-                tierStatus.textContent = '✅ Tier Icon Applied — Tier ' + n;
+        // Scroll to selected tier
+        if (tierScroll && G.settings && G.settings.display_tier_icon) {
+            const target = tierGrid.querySelector(`.tier-pick-item[data-tier="${G.settings.display_tier_icon}"]`);
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+        if (tierStatus) {
+            const selected = G.settings && G.settings.display_tier_icon;
+            if (selected) {
+                tierStatus.textContent = '\u2705 Current: Tier ' + selected;
                 tierStatus.style.color = '#0f0';
+            } else {
+                tierStatus.textContent = '';
             }
-            saveGame();
-            updateAllUI(); // Refresh leaderboard, chat, profile immediately
-        });
-        // Hover tooltip show/hide via event delegation
-        tierGrid.addEventListener('mouseover', (e) => {
-            const item = e.target.closest('.tier-pick-item');
-            if (!item) return;
-            item.style.borderColor = '#555';
-            const tip = item.querySelector('.tier-pick-tooltip');
-            if (tip) tip.classList.remove('hidden');
-        });
-        tierGrid.addEventListener('mouseout', (e) => {
-            const item = e.target.closest('.tier-pick-item');
-            if (!item) return;
-            const selected = item.dataset.tier && G.settings && G.settings.display_tier_icon == item.dataset.tier;
-            item.style.borderColor = selected ? 'var(--accent-gold)' : 'transparent';
-            const tip = item.querySelector('.tier-pick-tooltip');
-            if (tip) tip.classList.add('hidden');
-        });
+        }
     }
+    // Initial render so the grid is populated from the start
+    refreshTierGrid();
     // Settings: font apply
     const fontTitle = document.getElementById('settings-font-title');
     const fontBody = document.getElementById('settings-font-body');
@@ -3217,6 +3240,9 @@ function openSettings(tab) {
         const mode = G.auth_mode === 'firebase' ? (G.displayName || G.username || 'Signed in').toUpperCase() : 'NOT SIGNED IN';
         dom.settingsAccountStatus.textContent = mode;
     }
+
+    // Refresh tier grid with live game state (unlocked tiers, affordability)
+    if (typeof refreshTierGrid === 'function') refreshTierGrid();
 
     dom.settingsTabName.classList.remove('active');
     dom.settingsTabAudio.classList.remove('active');
