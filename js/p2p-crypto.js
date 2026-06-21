@@ -220,7 +220,7 @@ if (!this._uploadTimer) this._uploadTimer = setInterval(() => this._uploadIfElec
 // Disconnect all peers (used on host migration)
 _disconnectAll() {
 console.log('[P2P] Elected Host = false — disconnecting for host migration');
-for (const [k] of this.peers) this._onPeerGone(k);
+for (const k of [...this.peers.keys()]) this._onPeerGone(k);
 this._connecting.clear();
 }
 
@@ -248,9 +248,10 @@ const p = this.peers.get(pk); p.pc = pc;
 
 pc.onicecandidate = e => {
 if (!e.candidate) return;
-const { doc, setDoc, deleteDoc } = this.fs;
-            deleteDoc(doc(this.fs.db, 'sig', pk, 'ice', this.peerId)).catch(() => {});
-            setDoc(doc(this.fs.db, 'sig', pk, 'ice', this.peerId), { c: e.candidate.toJSON() }).catch(() => {});
+const { doc, setDoc } = this.fs;
+// Write each ICE candidate to a unique doc so all candidates are available
+const cid = 'c_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+setDoc(doc(this.fs.db, 'sig', pk, 'ice', cid), { c: e.candidate.toJSON(), by: this.peerId }).catch(() => {});
 };
 pc.ondatachannel = e => {
 console.log('📥 P2P inbound channel from', pk);
@@ -345,6 +346,7 @@ if (p) { p._offerSent = false; }
 console.log('✅ P2P connected with', pk);
 // If I'm the host and just connected to a guest, send current leaderboard immediately
 if (this._amHost()) {
+this._lastLeaderboardHash = ''; // force send for newly connected peer
 setTimeout(() => this._hostSendLeaderboard(), 500);
 }
 } catch (e) { console.warn('❌ _onAnswer err:', e); }
@@ -463,6 +465,8 @@ if (this._amHost()) {
 this.onUpdate(this.ledger.sorted());
 this._hostSendLeaderboard();
 } else {
+// Guest: update local ledger immediately, then send score to host
+this.onUpdate(this.ledger.sorted());
 // Guest: send score update to host only
 const payload = { type: 'score', id: this.peerId, user: this.username, s: score, pr: prestige, v: vps, p: pp, ti: tierIcon || 0, ts: ts || Math.floor(Date.now()/1000) };
 const msg = await signPayload(payload, this.kp.privateKey);
@@ -582,6 +586,8 @@ this._initPeer(k, d);
         if (this._connecting.has(k)) return;
         this._connecting.add(k);
         crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']).then(pub => {
+            // Guard: another path may have already connected this peer
+            if (this.peers.has(k) && this.peers.get(k)?.pc) { this._connecting.delete(k); return; }
             this.peers.set(k, { pc:null, ch:null, pub, name: d.u||'?', seq:0, keyId: d.kid||k, nonce: d.nonce||0, tierIcon: d.ti||0 });
             this._connect(k, d.kid, d.nonce||0);
         }).catch(() => { this._connecting.delete(k); });
@@ -643,7 +649,7 @@ if (!this._isHost && host !== k) continue;
         clearInterval(this._scanTimer);
         clearInterval(this._signalTimer);
         if (this._retryPending) { clearTimeout(this._retryPending); this._retryPending = null; }
-        for (const [k] of this.peers) this._onPeerGone(k);
+        for (const k of [...this.peers.keys()]) this._onPeerGone(k);
         if (this._unsubPeers) this._unsubPeers();
         if (this._unsubOffers) this._unsubOffers();
         if (this._unsubIce) this._unsubIce();
