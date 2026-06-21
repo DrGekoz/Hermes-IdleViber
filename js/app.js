@@ -1266,12 +1266,12 @@ function goToLogin() {
 }
 
 async function doGuestLogin() {
+    try {
     const guestNum = getGuestNum();
     const guestName = 'Guest_' + String(guestNum).padStart(2, '0');
     dom.loginMsg.textContent = '⏳ Entering as ' + guestName + '...';
 
     // Try Firebase anonymous sign-in so guest appears on leaderboard
-    // With a 5-second timeout to prevent hanging on CDN import failures
     if (fbReady && fbSignInAnon) {
         try {
             const result = await Promise.race([
@@ -1279,19 +1279,17 @@ async function doGuestLogin() {
                 new Promise(resolve => setTimeout(() => resolve({ _timeout: true }), 5000))
             ]);
             if (result && result._timeout) {
-                // Timeout — fall through to local mode below
                 console.log('⏰ Firebase auth timed out, using local mode');
             } else if (result && result.success) {
                 G.userId = result.uid;
                 G.username = guestName;
                 G.auth_mode = 'firebase';
                 dom.userDisplay.textContent = guestName; dom.userDisplay.title = guestName;
-                // Submit to leaderboard immediately
                 fbSubmitScore(guestName, bnToNumber(G.lifetime_vibes), Math.min(bnToNumber(G.total_prestiges || BN_ZERO), 1e9), G.total_pp_earned, null, getVPS()).catch(() => {});
                 enterGame();
                 return;
             }
-        } catch (_) {}
+        } catch (_) { console.log('⏰ Firebase auth error, using local mode'); }
     }
 
     // Fallback: local mode
@@ -1300,6 +1298,7 @@ async function doGuestLogin() {
     G.auth_mode = 'local';
     dom.userDisplay.textContent = guestName; dom.userDisplay.title = guestName;
     enterGame();
+    } catch(e) { dom.loginMsg.textContent = '⛔ Error: ' + e.message; console.error('Guest login error:', e); }
 }
 
 async function doLogin() {
