@@ -2583,6 +2583,32 @@ async function updateLeaderboardUI(externalEntries) {
         fbHadData = true;
     }
 
+    // If P2P is active and we fetched fresh data (not from P2P callback), merge P2P entries
+    // P2P takes priority over Firestore for real-time accuracy
+    if (!externalEntries && p2pCrypto && lastP2PEntries && lastP2PEntries.length > 0) {
+        const seen = new Set(entries.map(e => (e.name || '').toLowerCase()));
+        for (const e of lastP2PEntries) {
+            if (!e.username || e.username === 'self') continue;
+            const key = e.username.toLowerCase();
+            if (seen.has(key)) {
+                // Overwrite existing entry (P2P takes priority)
+                const idx = entries.findIndex(x => (x.name || '').toLowerCase() === key);
+                if (idx >= 0) entries.splice(idx, 1);
+            }
+            seen.add(key);
+            const tier = getTierFromPrestige(e.prestige ?? 0);
+            entries.push({
+                playerId: e.id || key,
+                name: e.username,
+                vibes: e.score,
+                pp: e.pp,
+                prestige: e.prestige,
+                vps: e.vps,
+                tier,
+            });
+        }
+    }
+
     // Always include local player if not in list (even with Firebase)
     const displayName = G.displayName || G.username || 'Player';
     // Check by playerId first (P2P entries carry identity), then by name
