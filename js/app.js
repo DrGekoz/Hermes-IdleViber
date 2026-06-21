@@ -1548,9 +1548,12 @@ async function tryInitP2P() {
     const mgr = new P2PLeaderboardManager(
         { db, doc:fbApi.doc, setDoc:fbApi.setDoc, collection:fbApi.collection, onSnapshot:fbApi.onSnapshot, deleteDoc:fbApi.deleteDoc, Timestamp:fbApi.Timestamp },
         G.displayName || G.username || 'Player',
-        (sorted) => {
+         (sorted) => {
             try {
             const l = dom.leaderboardList; if (!l) return;
+            // Debug: show what's in sorted
+            const names = sorted.map(e => e.username).filter(Boolean);
+            if (names.length > 0) console.log('[P2P] Leaderboard entries:', names.join(', '));
             // Cache for profile popup lookups
             lastP2PEntries = sorted;
             const localPid = getLocalP2PId();

@@ -341,7 +341,11 @@ return deleteDoc(doc(this.fs.db, 'sig', this.username, 'offers', pk)).catch(() =
 async _onMsg(pk, data) {
     const p = this.peers.get(pk); if (!p) { console.warn('📩 _onMsg unknown:', pk); return; }
     const payload = await verifyMsg(data, p.pub);
-    if (!payload) { return; } // stale message from previous key rotation, silently drop
+    if (!payload) {
+        // Stale message from previous key rotation or mismatch — log briefly
+        if (Math.random() < 0.01) console.log('[P2P] verify fail from', pk, '(stale key — normal during reconnect)');
+        return;
+    }
 
 // Chat message — host relays to everyone, guest just displays
 if (payload.type === 'chat') {
@@ -371,6 +375,7 @@ if (!this._amHost()) {
 return;
 }
 const guestName = payload.user || pk;
+console.log('[P2P] Score from', guestName, '→', payload.s ? payload.s[0].toFixed(2)+'e'+payload.s[1] : '0');
 this.ledger.set(guestName, { username:guestName, score:payload.s, prestige:payload.pr, vps:payload.v, pp:payload.p, tierIcon:payload.ti });
 this.ledger.set('self', { username:this.username, score:this._myScore, prestige:this._myPrestige, vps:this._myVps, pp:this._myPp, tierIcon:this._myTierIcon });
 this.onUpdate(this.ledger.sorted());
