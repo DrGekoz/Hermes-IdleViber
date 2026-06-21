@@ -256,7 +256,6 @@ function init() {
 
     // Check for session cookie and auto-login after Firebase has a moment to restore
     setTimeout(checkAutoLogin, 800);
-    document.getElementById('login-message').textContent = '✅ Init OK - ' + new Date().toLocaleTimeString();
 }
 
 // ---- FIREBASE INIT (non-blocking) ----

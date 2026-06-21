@@ -141,7 +141,7 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 ### 💾 Persistence
 - Auto-save every 30s to localStorage
 - **Firebase Firestore cloud saves** with smart merge — merges local and cloud saves keeping the highest prestiges, PP, and lifetime vibes (never overwrites progress)
-- **P2P WebRTC mesh leaderboard** — real-time score sharing via peer-to-peer data channels with Firestore signaling
+- **P2P Star Topology** — DrGekoz is the permanent host when online. All other players connect to the host only (not each other). The host receives score updates from every peer and broadcasts the full sorted leaderboard back to everyone in real-time. Host migration is automatic when DrGekoz comes online.
 - Hourly Firestore leaderboard sync for persistence
 - Local API server mode for self-hosted accounts
 - Offline earnings calculated on return (10x format above 1000%)
@@ -154,7 +154,7 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 - Dev badge with tooltip on hover for contributors
 
 ### 🏅 Leaderboard
-- **P2P ECDSA Crypto Mesh** — players connect via direct peer-to-peer data channels (WebRTC) using Firestore as a signaling server. Every broadcast is signed with ECDSA P-256 and verified by the receiving peer. 100-byte binary packets carry all columns.
+- **P2P Star Topology** — DrGekoz is the permanent host when online (DEV_HOST). All other players connect to the host only via direct peer-to-peer data channels (WebRTC) using Firestore as a signaling server. The host receives score updates from every peer, maintains the authoritative ledger, and broadcasts the full sorted leaderboard back to all connected peers. Chat messages are relayed through the host. Host migration is seamless when DrGekoz comes online.
 - **Live All-Column Sync** — VIBES, VPS, PP, PRESTIGE, and TIER columns update in real-time across the mesh.
 - **P2P Failsafes** — when broadcast reaches 0 peers, immediately rescans the full signaling directory (forceScan), reconnects every failed peer, and queues 1.5s + 2s retry broadcasts. Three-layer safety: per-tick retry chain, 15s repair timer, 30s full directory scan when isolated.
 - **Firestore fallback** — when P2P fails (NAT restrictions, no peers), automatically switches to Firestore onSnapshot or polling (30s interval)
