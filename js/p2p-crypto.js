@@ -498,3 +498,113 @@ if (!this._isHost && host !== k) continue;
 let p = this.peers.get(k);
 if (!p) {
 this._initPeer(k, d);
+                    continue;
+                }
+                if (p.ch?.readyState === 'open') continue;
+                if (!p.pc || p.pc.connectionState === 'failed' || p.pc.connectionState === 'disconnected' || p.pc.connectionState === 'closed') {
+                    console.log('🔄 P2P reconnecting to', k, '(state:', p.pc?.connectionState, ')');
+                    this._onPeerGone(k);
+                    this._initPeer(k, d);
+                    continue;
+                }
+                // Host always offers — retry sending offer if needed
+                if (this._amHost() && p.pc.signalingState === 'stable' && (p.pc.connectionState === 'new' || p.pc.connectionState === 'connecting')) {
+                    try {
+                        const offer = await p.pc.createOffer();
+                        await p.pc.setLocalDescription(offer);
+                        const { doc:fd, setDoc, deleteDoc } = this.fs;
+                        await deleteDoc(fd(this.fs.db, 'sig', k, 'offers', this.username)).catch(() => {});
+                        await setDoc(fd(this.fs.db, 'sig', k, 'offers', this.username), { t:'offer', s: p.pc.localDescription.toJSON() });
+                        console.log('[P2P] 1s-retry — host offer sent to', k);
+                    } catch (e) { console.warn('⚠️ P2P 1s-retry offer failed for', k, ':', e.message); }
+                }
+                // Guest waiting for host offer — check Firestore for pending offers
+                if (!this._amHost() && p.pc.signalingState === 'stable' && p.pc.connectionState === 'new') {
+                    try {
+                        const offerSnap = await getDoc(fdoc(this.fs.db, 'sig', this.username, 'offers', k));
+                        if (offerSnap.exists()) {
+                            const od = offerSnap.data();
+                            if (od.t === 'offer') {
+                                console.log('[P2P] 1s-retry — detected pending offer from host', k);
+                                this._onOffer(k, od.s);
+                            }
+                        }
+                    } catch (_) {}
+                }
+            }
+        } catch (_) {}
+    }
+
+    _initPeer(k, d) {
+        if (this._connecting.has(k)) return;
+        this._connecting.add(k);
+        crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']).then(pub => {
+            this.peers.set(k, { pc:null, ch:null, pub, name: d.u||'?', seq:0, keyId: d.kid||k, nonce: d.nonce||0, tierIcon: d.ti||0 });
+            this._connect(k, d.kid, d.nonce||0);
+        }).catch(() => {});
+    }
+
+    async _rescanPeers(forceScan) {
+        const { db, doc:fdoc, getDoc, getDocs, collection } = this.fs;
+        if (!db || !getDocs) return;
+        try {
+            const host = this._computeHost(this._onlineUsernames);
+            for (const [k, p] of this.peers) {
+                if (p.ch?.readyState === 'open') continue;
+                if (!p.pc || p.pc.connectionState === 'failed' || p.pc.connectionState === 'disconnected') {
+                    console.log('🔄 P2P reconnecting to', k);
+                    this._onPeerGone(k);
+                    const snap = await getDoc(fdoc(db, 'sig', k));
+                    if (!snap.exists()) continue;
+                    const d = snap.data();
+                    if (!d?.k) continue;
+                    const pub = await crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']);
+                    this.peers.set(k, { pc:null, ch:null, pub, name: d.u||'?', seq:0, keyId: d.kid||k, nonce: d.nonce||0 });
+                    this._connect(k, d.kid, d.nonce||0);
+                }
+            }
+            if (forceScan || this.peers.size === 0) {
+                const snap = await getDocs(collection(db, 'sig'));
+                for (const s of snap.docs) {
+                    const k = s.id;
+                    if (k === this.username) continue;
+                    if (this.peers.has(k)) continue;
+                    if (!this._isHost && host !== k) continue;
+                    const d = s.data();
+                    if (!d?.k || !d?.on) continue;
+                    console.log('📡 P2P discovered peer via scan:', k);
+                    const pub = await crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']);
+                    this.peers.set(k, { pc:null, ch:null, pub, name: d.u||'?', seq:0, keyId: d.kid||k, nonce: d.nonce||0 });
+                    this._connect(k, d.kid, d.nonce||0);
+                }
+            }
+        } catch (e) { console.warn('📡 P2P rescan error:', e.message); }
+    }
+
+    _elect() {
+        return this._amHost();
+    }
+    _uploadIfElected() {
+        if (!this._amHost() || !this.syncFn) return;
+        for (const [, e] of this.ledger.m) {
+            if (e.username && e.username !== 'self') {
+                this.syncFn(e.username, e.score, e.prestige||0, e.pp, e.username, e.vps).catch(()=>{});
+            }
+        }
+    }
+
+    destroy() {
+        clearInterval(this._uploadTimer);
+        clearInterval(this._pingTimer);
+        clearInterval(this._reconnectTimer);
+        clearInterval(this._scanTimer);
+        clearInterval(this._signalTimer);
+        if (this._retryPending) { clearTimeout(this._retryPending); this._retryPending = null; }
+        for (const [k] of this.peers) this._onPeerGone(k);
+        if (this._unsubPeers) this._unsubPeers();
+        if (this._unsubOffers) this._unsubOffers();
+        if (this._unsubIce) this._unsubIce();
+    }
+}
+
+export { P2PLeaderboardManager };

@@ -256,6 +256,7 @@ function init() {
 
     // Check for session cookie and auto-login after Firebase has a moment to restore
     setTimeout(checkAutoLogin, 800);
+    document.getElementById('login-message').textContent = '✅ Init OK - ' + new Date().toLocaleTimeString();
 }
 
 // ---- FIREBASE INIT (non-blocking) ----
@@ -474,7 +475,7 @@ function initUIEvents() {
     dom.loginBtn.addEventListener('click', () => { try { playClick(); } catch(_) {} doLogin(); });
     dom.logoutBtn.addEventListener('click', () => { try { playClick(); } catch(_) {} doLogout(); });
     const guestBtn = document.getElementById('guest-btn');
-    if (guestBtn) guestBtn.addEventListener('click', () => { try { playClick(); } catch(_) {} doGuestLogin(); });
+    if (guestBtn) guestBtn.addEventListener('click', () => { console.log('GUEST BTN CLICKED'); try { playClick(); } catch(_) {} doGuestLogin(); });
     if (dom.settingsBtn) dom.settingsBtn.addEventListener('click', () => { playClick(); openSettings('name'); });
     if (dom.settingsClose) dom.settingsClose.addEventListener('click', () => { playClick(); closeSettings(); });
     if (dom.settingsBackdrop) dom.settingsBackdrop.addEventListener('click', closeSettings);
@@ -3449,7 +3450,14 @@ function applyFonts(titleFont, bodyFont, fontSize) {
 }
 
 // ---- BOOT ----
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        init();
+    } catch(e) {
+        console.error('INIT CRASHED:', e.message, e.stack);
+        document.getElementById('login-message').textContent = '⚠️ Init error: ' + e.message;
+    }
+});
 
 // ---- CHAT SYSTEM ----
 let _chatTypingTimer = null;
