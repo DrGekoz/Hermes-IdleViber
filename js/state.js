@@ -1184,13 +1184,13 @@ function getClickValue(state = G) {
     return result;
 }
 
-// Prestige threshold scales with prestige count: n*(n+9) trillion where n = next prestige #
-// 1st: 10T, 2nd: 22T, 3rd: 36T, 4th: 52T, 5th: 70T, 6th: 90T, 7th: 112T, ...
+// Prestige threshold: exponential growth 1T × 2.5^(n) where n = prestige count + 1
+// 1st: 2.5T, 2nd: 6.25T, 3rd: 15.6T, 4th: 39T, 5th: 97.7T, ...
 function getPrestigeThreshold(state = G) {
     const n = bnToNumber(state.total_prestiges || BN_ZERO) + 1;
-    const vpsRaw = bnToNumber(getVPS(state));
-    const vpsLog = Math.max(1, Math.log2(Math.max(2, vpsRaw)));
-    return Math.floor(1_000_000_000_000 * (n + 1) * Math.sqrt(vpsLog));
+    // Exponential growth: base × 2.5^n
+    // n=1: 2.5T, n=2: 6.25T, n=3: 15.6T, n=4: 39T, n=5: 97.7T
+    return Math.floor(1_000_000_000_000 * Math.pow(2.5, n));
 }
 
 function getPrestigeGain(state = G) {

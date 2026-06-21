@@ -762,6 +762,9 @@ function initUIEvents() {
 
             let count = 0;
             const MAX_RUNS = 50000;
+            const MAX_PRESTIGE_TIME = 5; // seconds: max time we'll simulate per prestige
+            // Snapshot VPS at start — used as proxy for earning power through simulation
+            const simVps = vps;
 
             function doBatch() {
                 const batchSize = 500;
@@ -769,7 +772,14 @@ function initUIEvents() {
                 for (let i = 0; i < batchSize && count < MAX_RUNS; i++) {
                     const threshold = getPrestigeThreshold(G);
 
-                    // Simulate earning enough vibes to meet threshold (direct state, no notifications)
+                    // Check: can current VPS generate enough vibes to reach threshold
+                    // within MAX_PRESTIGE_TIME seconds?
+                    // After prestige, lifetime_vibes resets to 0, so we check if
+                    // VPS × MAX_PRESTIGE_TIME ≥ threshold
+                    const maxEarnable = bnMul(simVps, bnFromNumber(MAX_PRESTIGE_TIME));
+                    if (bnLt(maxEarnable, bnFromNumber(threshold))) break;
+
+                    // Simulate earning enough vibes to meet threshold
                     if (bnLt(G.lifetime_vibes, threshold)) {
                         const needed = bnSub(bnFromNumber(threshold), G.lifetime_vibes);
                         if (bnLe(needed, BN_ZERO)) break;
@@ -3007,7 +3017,8 @@ function updateAchievementsUI() {
         el._tooltipData = {
             name: ach.name,
             desc: ach.desc,
-            icon: iconSrc || '',
+            // Tooltip uses 256x256 version; menu list keeps the 32x32
+            icon: iconSrc ? iconSrc.replace('/32/', '/256/') : '',
             stats: ttpStats,
             progress: earned ? 100 : progressPct,
             earned: earned,
