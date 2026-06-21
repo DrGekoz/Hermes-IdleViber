@@ -226,7 +226,7 @@ if (!this._uploadTimer) this._uploadTimer = setInterval(() => this._uploadIfElec
 // Disconnect all peers (used on host migration)
 _disconnectAll() {
 console.log('[P2P] Elected Host = false — disconnecting for host migration');
-for (const k of [...this.peers.keys()]) this._onPeerGone(k);
+for (const k of [...this.peers.keys()]) this._onPeerGone(k, true);
 this._connecting.clear();
 }
 
@@ -456,15 +456,31 @@ if (peer.ch?.readyState === 'open') try { peer.ch.send(msg); } catch (_) {}
 });
 }
 
-_onPeerGone(pk) {
+_onPeerGone(pk, immediate) {
 const p = this.peers.get(pk);
 if (p) {
 console.log('🔌 P2P peer left:', pk);
 try { p.ch?.close(); } catch (_) {} try { p.pc?.close(); } catch (_) {}
 }
-this.peers.delete(pk); this.ledger.del(pk); this._connecting.delete(pk);
+this.peers.delete(pk); this._connecting.delete(pk);
 delete (this._offerRetries || {})[pk];
-// If host, remove from ledger and rebroadcast
+// Cancel any pending stale-deletion timer
+if (this._staleTimers && this._staleTimers[pk]) { clearTimeout(this._staleTimers[pk]); delete this._staleTimers[pk]; }
+if (immediate) {
+this.ledger.del(pk);
+} else {
+// Stale buffer: keep entry visible for 30s in case of brief disconnect
+if (!this._staleTimers) this._staleTimers = {};
+this._staleTimers[pk] = setTimeout(() => {
+delete this._staleTimers[pk];
+this.ledger.del(pk);
+if (this._amHost()) {
+try { this.onUpdate(this.ledger.sorted()); } catch(e) { console.warn('P2P onUpdate err:', e); }
+setTimeout(() => this._hostSendLeaderboard(), 100);
+}
+}, 30000);
+}
+// If host, update UI and rebroadcast immediately (but entry stays due to stale buffer)
 if (this._amHost()) {
 try { this.onUpdate(this.ledger.sorted()); } catch(e) { console.warn('P2P onUpdate err:', e); }
 setTimeout(() => this._hostSendLeaderboard(), 100);
@@ -607,6 +623,8 @@ this._initPeer(k, d);
 
     _initPeer(k, d) {
         if (this._connecting.has(k)) return;
+        // Cancel pending stale-deletion timer — peer is reconnecting
+        if (this._staleTimers && this._staleTimers[k]) { clearTimeout(this._staleTimers[k]); delete this._staleTimers[k]; }
         this._connecting.add(k);
         crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']).then(pub => {
             // Guard: another path may have already connected this peer
@@ -672,7 +690,9 @@ if (!this._isHost && host !== k) continue;
         clearInterval(this._scanTimer);
         clearInterval(this._signalTimer);
         if (this._retryPending) { clearTimeout(this._retryPending); this._retryPending = null; }
-        for (const k of [...this.peers.keys()]) this._onPeerGone(k);
+        // Clear any pending stale-deletion timers
+        if (this._staleTimers) { for (const k of Object.keys(this._staleTimers)) { clearTimeout(this._staleTimers[k]); } this._staleTimers = {}; }
+        for (const k of [...this.peers.keys()]) this._onPeerGone(k, true);
         if (this._unsubPeers) this._unsubPeers();
         if (this._unsubOffers) this._unsubOffers();
         if (this._unsubIce) this._unsubIce();
