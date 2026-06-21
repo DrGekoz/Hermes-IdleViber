@@ -275,6 +275,7 @@ const { doc, setDoc, deleteDoc } = this.fs;
 console.log('[P2P] Host sending offer to', pk);
             await deleteDoc(doc(this.fs.db, 'sig', pk, 'offers', this.peerId)).catch(() => {});
             await setDoc(doc(this.fs.db, 'sig', pk, 'offers', this.peerId), { t:'offer', s: pc.localDescription.toJSON() });
+            if (p) { p._offerTime = Date.now(); p._offerSent = true; }
         }
 const check = () => {
 if (pc.connectionState === 'connected' || pc.connectionState === 'connecting') return;
@@ -301,7 +302,7 @@ setTimeout(check, 10000);
 
 async _onOffer(pk, sdp) {
 const p = this.peers.get(pk);
-if (!p) { console.log('🧹 _onOffer stale, delete:', pk); this._cleanSigDoc(pk).catch(()=>{}); return; }
+if (!p) { setTimeout(() => this._onOffer(pk, sdp), 500); return; } // wait for peer entry to be created
 if (!p.pc) {
 setTimeout(() => this._onOffer(pk, sdp), 200); return;
 }
@@ -331,6 +332,7 @@ console.log('📤 P2P answer sent to', pk);
 console.log('📩 P2P answer from', pk);
 try {
 await p.pc.setRemoteDescription(new RTCSessionDescription(sdp));
+if (p) { p._offerSent = false; }
 console.log('✅ P2P connected with', pk);
 // If I'm the host and just connected to a guest, send current leaderboard immediately
 if (this._amHost()) {
@@ -537,6 +539,9 @@ this._initPeer(k, d);
                 }
                 // Host always offers — retry sending offer if needed (only in 'new' state, not 'connecting')
                 if (this._amHost() && p.pc.signalingState === 'stable' && p.pc.connectionState === 'new') {
+                    // Check if we've been waiting too long for answer — resend offer
+                    const elapsed = p._offerTime ? Date.now() - p._offerTime : 9999;
+                    if (elapsed < 3000 && p._offerSent) continue; // wait at least 3s before resending
                     try {
                         const offer = await p.pc.createOffer();
                         await p.pc.setLocalDescription(offer);
