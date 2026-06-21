@@ -103,7 +103,7 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 - Offline earnings with 10x format above 1000%
 
 ### 🎨 Visual
-- **270+ pixel art icons** — 90 room upgrade icons + 90 decor icons + tier/prestige/P2P icons + PC tiers + synergy icons, all generated via Codex CLI (16-bit retro style) chroma-key processed to 256×256 lossless WebP
+- **550+ pixel art icons** — 90 room upgrade icons + 90 decor icons + 500 tier icons + 55 achievement badges + 18 prestige upgrades + 6 dividers + 24 button frames, all generated via Codex CLI (16-bit retro style) chroma-key processed to 256×256 lossless WebP
 - **24 room-themed pixel art button frames** — 6 materials × 4 sizes (wood grain rivets for Campfire Grove, glowing circuit traces for Cyber Den, mossy cobblestone for Zen Garden, brushed stainless steel for Star Deck, brass+gold engraved for Study Lounge, light wood+seashell for Beach Cove). Applied to all buttons via `background-image: var(--room-btn-img)` with `image-rendering: pixelated` and auto-switching per room
 - **Unified white text + black stroke** — all UI text globally uses white fill with 8-direction black `text-shadow` outer stroke. Active sidebar tab inverts to black fill + white stroke. Functional colored text (gold prestige, cyan values) retains its fill color. Buttons dim via `filter: brightness(0.85)` on hover. Login page title, subtitle, divider, and messages also use standard white+black.
 - **No borders on buttons** — all cyan 2px borders removed from pixel buttons, sidebar tabs, login buttons, music controls. The button image is the button. Active tab uses room-colored glow instead of a border.
@@ -198,6 +198,14 @@ node server/index.js
 ---
 
 ## ✦ Recent Updates
+
+- **55 Achievement Badge Icons** — all non-tier achievements (vibe, click, prestige, room, VPS, gateway, decor, autoclicker milestones) now have unique pixel-art badge icons — medals, shields, gems, crests, and trophy shapes generated via Codex CLI, chroma-key processed to 256×256 lossless WebP at `sprites/images/icons/achievements/`
+- **Achievement Progress Bars** — each locked achievement now shows a progress bar and percentage toward completion, calculated per threshold type (lifetime vibes, clicks, prestige count, VPS, gateway latency, decor count, autoclicker count). Unlocked achievements show a checkmark
+- **Achievement `icon_img` Field** — achievements in state.js now reference image files instead of emoji, falling back to emoji on load failure
+- **73 Tier Icons Re-Done** — tiers 243, 246, 249, 262-265, 298-302, 326-329, 392-393, 408-463, and 464-500 regenerated as unique pixel-art rank emblems (not based on tier names), 1:1 aspect ratio, 256×256 lossless WebP
+- **6 Canvas Dividers** — pixel-art horizontal dividers (1000×200, 5:1 aspect ratio) for each room theme: warm brown wood (Campfire Grove), glowing circuit traces (Cyber Den), stone/moss (Zen Garden), deep space nebula (Star Deck), mahogany/gold (Study Lounge), sandy beach/turquoise (Beach Cove). Later reverted to original `*_ui_divider.png` files
+- **Canvas Divider Sizing** — dividers display at 69% canvas width (15% larger than default), centered with `aspect-ratio: 5/1`, capped at 1000px native resolution
+- **Campfire Divider Redone** — cg_canvas_divider re-generated with a pixel-art campfire burning in the exact center
 
 - **All 78 Room Upgrade Icons** — every autoclicker across all 6 rooms (cg_spark → bc_ocean_spirit) now has a custom pixel-art icon generated via Codex CLI, processed with chroma-key transparency at 256×256 lossless WebP
 - **50 Tier Rank Emblem Icons** — each tier icon re-generated via Codex CLI as pixel-art rank emblems (30 new, 20 kept from existing) cycling through metal, nature, tech, magic, and cosmic themes, displayed on leaderboard tier column
