@@ -398,7 +398,7 @@ const guestName = payload.id || payload.user || pk;
 console.log('[P2P] Score from', payload.user || guestName, '→', payload.s ? payload.s[0].toFixed(2)+'e'+payload.s[1] : '0');
 this.ledger.set(guestName, { id: payload.id, username: payload.user || guestName, score:payload.s, prestige:payload.pr, vps:payload.v, pp:payload.p, tierIcon:payload.ti });
 this.ledger.set('self', { username:this.username, score:this._myScore, prestige:this._myPrestige, vps:this._myVps, pp:this._myPp, tierIcon:this._myTierIcon });
-this.onUpdate(this.ledger.sorted());
+try { this.onUpdate(this.ledger.sorted()); } catch(e) { console.warn('P2P onUpdate err:', e); }
 // Relay full leaderboard to all guests
 this._hostSendLeaderboard();
 return;
@@ -414,7 +414,7 @@ const key = e.id || e.user;
 this.ledger.set(key, { id: e.id, username: e.user, score:e.s, prestige:e.pr, vps:e.v, pp:e.p, tierIcon:e.ti });
 }
 this.ledger.set('self', { username:this.username, score:this._myScore, prestige:this._myPrestige, vps:this._myVps, pp:this._myPp, tierIcon:this._myTierIcon });
-this.onUpdate(this.ledger.sorted());
+try { this.onUpdate(this.ledger.sorted()); } catch(e) { console.warn('P2P onUpdate err:', e); }
 return;
 }
 }
@@ -445,7 +445,7 @@ this.peers.delete(pk); this.ledger.del(pk); this._connecting.delete(pk);
 delete (this._offerRetries || {})[pk];
 // If host, remove from ledger and rebroadcast
 if (this._amHost()) {
-this.onUpdate(this.ledger.sorted());
+try { this.onUpdate(this.ledger.sorted()); } catch(e) { console.warn('P2P onUpdate err:', e); }
 setTimeout(() => this._hostSendLeaderboard(), 100);
 }
 }
@@ -462,11 +462,11 @@ this.ledger.set('self', { username:this.username, score, prestige, vps, pp, tier
 
 if (this._amHost()) {
 // Host: update own score and rebroadcast leaderboard to all guests
-this.onUpdate(this.ledger.sorted());
+try { this.onUpdate(this.ledger.sorted()); } catch(e) { console.warn('P2P onUpdate err:', e); }
 this._hostSendLeaderboard();
 } else {
 // Guest: update local ledger immediately, then send score to host
-this.onUpdate(this.ledger.sorted());
+try { this.onUpdate(this.ledger.sorted()); } catch(e) { console.warn('P2P onUpdate err:', e); }
 // Guest: send score update to host only
 const payload = { type: 'score', id: this.peerId, user: this.username, s: score, pr: prestige, v: vps, p: pp, ti: tierIcon || 0, ts: ts || Math.floor(Date.now()/1000) };
 const msg = await signPayload(payload, this.kp.privateKey);

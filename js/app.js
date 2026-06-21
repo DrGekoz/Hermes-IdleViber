@@ -1612,8 +1612,7 @@ async function tryInitP2P() {
     const mgr = new P2PLeaderboardManager(
         { db, doc:fbApi.doc, setDoc:fbApi.setDoc, getDoc:fbApi.getDoc, getDocs:fbApi.getDocs, collection:fbApi.collection, onSnapshot:fbApi.onSnapshot, deleteDoc:fbApi.deleteDoc, Timestamp:fbApi.Timestamp },
         G.displayName || G.username || 'Player',
-        getLocalP2PId(),
-         (sorted) => {
+        (sorted) => {
             try {
             const l = dom.leaderboardList; if (!l) return;
             // Debug: show what's in sorted
@@ -1710,7 +1709,8 @@ async function tryInitP2P() {
             }
             } catch(e) { console.warn('P2P lb err:', e.message); }
         },
-        fbSyncLeaderboard
+        fbSyncLeaderboard,
+        getLocalP2PId()
     );
     await mgr.init(); mgr.join(); p2pCrypto = mgr; p2pInitDone = true; p2pStarting = false;
     console.log('🌀 P2P mesh ready —', mgr.kid);
