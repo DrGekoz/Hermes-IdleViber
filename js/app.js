@@ -1549,6 +1549,7 @@ async function tryInitP2P() {
         { db, doc:fbApi.doc, setDoc:fbApi.setDoc, collection:fbApi.collection, onSnapshot:fbApi.onSnapshot, deleteDoc:fbApi.deleteDoc, Timestamp:fbApi.Timestamp },
         G.displayName || G.username || 'Player',
         (sorted) => {
+            try {
             const l = dom.leaderboardList; if (!l) return;
             // Cache for profile popup lookups
             lastP2PEntries = sorted;
@@ -1609,6 +1610,7 @@ async function tryInitP2P() {
                     r.classList.remove('p2p-entry');
                 }
             }
+            } catch(e) { console.warn('P2P lb err:', e.message); }
         },
         fbSyncLeaderboard
     );
