@@ -135,10 +135,8 @@ function serveStatic(req, res, url) {
     const ext = path.extname(filePath);
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
-    // Set stronger cache control for JS modules to prevent stale code
-    const cacheControl = ext === '.js'
-        ? 'no-store, must-revalidate'
-        : 'no-cache';
+    // Never cache anything during development
+    const cacheControl = 'no-store, must-revalidate';
 
     fs.readFile(filePath, (err, data) => {
         if (err) {

@@ -21,6 +21,7 @@ let gatewayStatus = {
     scanning: false,
     scanProgress: 0,
     scanTotal: 0,
+    isHermes: false,
 };
 
 const listeners = [];
@@ -166,8 +167,19 @@ async function scanBatch(ports) {
 // --- MAIN DISCOVERY (locked, with cached port shortcut) ---
 async function discoverGateway() {
     if (activeScanPromise) {
-        // console.log('🔌 Scan already in progress, waiting...');
         return await activeScanPromise;
+    }
+
+    // Skip gateway discovery when running on a remote server (Netlify, etc.)
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        gatewayStatus.connected = false;
+        gatewayStatus.lastError = 'Not localhost';
+        G.gateway_bonus_active = false;
+        G._gwMult = 1.0;
+        G._gwLabel = 'Disconnected';
+        notifyStateChange('gateway');
+        notifyListeners();
+        return { success: false, reason: 'not_localhost' };
     }
 
     activeScanPromise = (async () => {
@@ -276,6 +288,7 @@ async function connectToGateway(port, latency, label) {
     if (gatewayStatus.history.length > CONFIG.MAX_GATEWAY_LATENCY_HISTORY) {
         gatewayStatus.history.shift();
     }
+    gatewayStatus.isHermes = /hermes/i.test(label || '');
     G.gateway_bonus_active = true;
     G._gwMult = getLatencyMultiplier();
     G._gwLabel = getConnectionQuality().label;
@@ -395,15 +408,19 @@ let gatewayTaskLabel = '';
 
 async function checkGatewayBusy() {
     if (!gatewayStatus.connected || !gatewayStatus.url) return false;
+    // Only check busy status on actual Hermes gateways, not random servers
+    if (!gatewayStatus.isHermes) { gatewayTaskBusy = false; gatewayTaskLabel = ''; return false; }
     try {
         const start = performance.now();
         const res = await fetch(`${gatewayStatus.url}/api/status`, {
             method: 'GET',
+            mode: 'no-cors',
             cache: 'no-cache',
             signal: AbortSignal.timeout(1500),
         });
         const latency = performance.now() - start;
-        if (res.ok) {
+        // With no-cors, res.ok is false for opaque responses — treat non-error as alive
+        if (res.type !== 'opaque' && res.ok) {
             try {
                 const data = await res.json();
                 // Hermes gateway reports active sessions, task count, etc.

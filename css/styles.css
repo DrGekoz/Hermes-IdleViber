@@ -820,7 +820,7 @@ body {
     pointer-events: none;
 }
 .room-divider-img {
-    width: 60%;
+    width: 69%;
     max-width: 1000px;
     height: auto;
     aspect-ratio: 5 / 1;
@@ -828,6 +828,9 @@ body {
     object-fit: contain;
     object-position: top center;
     display: block;
+    margin: 0 auto;
+    transform: scale(3);
+    transform-origin: top center;
 }
 .room-overlay .room-genre { font-size: 8px; color: var(--accent-cyan); margin-top: 3px; }
 
@@ -913,7 +916,7 @@ h1, h2, h3, h4, h5, h6, .game-title, .settings-content h2, .popup-title, .label-
 .leaderboard-float .lb-self-row { border-left: 2px solid var(--accent-gold); background: rgba(255,215,0,0.04); }
 .leaderboard-float.collapsed #leaderboard-list .lb-entry:not(.lb-self-row):not(.lb-header) { display: none; }
 .leaderboard-float.collapsed #leaderboard-list .lb-header { display: none; }
-.leaderboard-float.collapsed { max-height: 60px; overflow: hidden; }
+.leaderboard-float.collapsed { max-height: 95px; overflow: hidden; }
 .leaderboard-float.fullscreen #leaderboard-list { table-layout: fixed; }
 .leaderboard-float.fullscreen .lb-tier { width: auto; }
 .leaderboard-minimize { font-size: 8px; padding: 2px 6px; min-width: 0; line-height: 1; }
@@ -1027,7 +1030,7 @@ h1, h2, h3, h4, h5, h6, .game-title, .settings-content h2, .popup-title, .label-
 .lb-pp { color: var(--accent-cyan); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lb-prestige { color: var(--accent-pink); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lb-tier { color: var(--accent-gold); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lb-tier-img { width: 24px; height: 24px; image-rendering: pixelated; object-fit: contain; display: inline-block; vertical-align: middle; flex-shrink: 0; }
+.lb-tier-img { width: 44px; height: 44px; image-rendering: pixelated; object-fit: contain; display: inline-block; vertical-align: middle; flex-shrink: 0; }
 .lb-header { font-size: 8px; padding: 4px 8px; border-bottom: 1px solid #333; color: var(--text-secondary); background: rgba(255,255,255,0.02); cursor: default; pointer-events: none; }
 .lb-header span { color: var(--text-secondary); font-weight: normal; }
 .lb-header:hover { background: rgba(255,255,255,0.02); border-color: #333; }
@@ -1860,6 +1863,13 @@ input[type="range"]::-webkit-slider-thumb {
     background: #1e3a5d !important;
 }
 
+/* Prevent background-image transition glitch on room theme change */
+.sidebar-tabs button {
+    transition: color 0.1s, background-color 0.1s, box-shadow 0.1s, filter 0.1s, border-bottom-color 0.1s !important;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
 /* Sidebar tab state indicators */
 .sidebar-tabs button.has-available::after {
     content: '';
@@ -1871,7 +1881,6 @@ input[type="range"]::-webkit-slider-thumb {
     margin-left: 4px;
     vertical-align: middle;
     box-shadow: 0 0 6px rgba(255,215,0,0.6);
-    animation: pulse-dot 1.5s ease-in-out infinite;
 }
 .sidebar-tabs button.has-ready::after {
     content: '';
@@ -1883,7 +1892,6 @@ input[type="range"]::-webkit-slider-thumb {
     margin-left: 4px;
     vertical-align: middle;
     box-shadow: 0 0 6px rgba(0,255,100,0.6);
-    animation: pulse-dot 1.5s ease-in-out infinite;
 }
 .sidebar-tabs button.has-new::after {
     content: '';
@@ -1895,7 +1903,6 @@ input[type="range"]::-webkit-slider-thumb {
     margin-left: 4px;
     vertical-align: middle;
     box-shadow: 0 0 6px rgba(0,200,255,0.6);
-    animation: pulse-dot 1s ease-in-out infinite;
 }
 @keyframes pulse-dot {
     0%, 100% { opacity: 0.4; transform: scale(0.8); }
@@ -1954,7 +1961,7 @@ button.secondary:hover {
     background-image: var(--room-btn-img) !important;
     background-size: 100% 100% !important;
     background-repeat: no-repeat !important;
-    color: var(--room-btn-text-color-inv, #000000);
+    color: var(--room-btn-text-color-inv, #000000) !important;
     text-shadow:
         1px 0 0 #ffffff,
         -1px 0 0 #ffffff,
@@ -1963,7 +1970,7 @@ button.secondary:hover {
         1px 1px 0 #ffffff,
         -1px -1px 0 #ffffff,
         1px -1px 0 #ffffff,
-        -1px 1px 0 #ffffff;
+        -1px 1px 0 #ffffff !important;
 }
 /* Small buttons */
 #music-prev, #music-play, #music-next,

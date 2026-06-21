@@ -240,6 +240,15 @@ function init() {
     initGateway();
     initAPI();
     initUIEvents();
+    // Preload initial room's button images so they don't flash on first apply
+    (function preloadInitialBtn() {
+        const roomId = G.current_room || 'campfire_grove';
+        const prefix = (typeof ROOM_PREFIX !== 'undefined' && ROOM_PREFIX[roomId]) || roomId.substring(0, 2);
+        ['', '_sm', '_wide', '_xl'].forEach(s => {
+            const i = new Image();
+            i.src = `/sprites/images/ui/${prefix}_btn${s}.webp`;
+        });
+    })();
     initGameLoop();
     startTimers();
     updateAllUI();
@@ -588,7 +597,7 @@ function initUIEvents() {
             const unlocked = TIERS && TIERS[i - 1] && bnGe(G.total_prestiges || BN_ZERO, TIERS[i - 1].requires);
             const silClass = unlocked ? '' : 'tier-locked';
             gridHtml += `<div class="tier-pick-item ${silClass}" data-tier="${i}" data-req="${req}" style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:4px;cursor:pointer;border:1px solid transparent;border-radius:2px;transition:border-color 0.15s;position:relative;">
-                <img src="sprites/images/icons/32/${_tierPath(i)}.webp" style="width:44px;height:44px;image-rendering:pixelated;display:block;${unlocked ? '' : 'filter:grayscale(1) brightness(0.4);'}" onerror="this.style.display='none'" loading="lazy">
+                <img src="sprites/images/icons/32/${_tierPath(i)}.webp" style="image-rendering:pixelated;display:block;${unlocked ? '' : 'filter:grayscale(1) brightness(0.4);'}" onerror="this.style.display='none'" loading="lazy">
                 <span style="font-size:8px;color:#888;">${i}</span>
                 <div class="tier-pick-tooltip hidden" style="position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#111;border:1px solid #ffd700;padding:6px 10px;z-index:99999;white-space:nowrap;pointer-events:none;box-shadow:0 0 15px rgba(255,215,0,0.2);">
                     <div style="text-align:center;">
@@ -1544,36 +1553,60 @@ async function tryInitP2P() {
             // Cache for profile popup lookups
             lastP2PEntries = sorted;
             const localPid = getLocalP2PId();
+            // First pass: build map of existing rows by name
+            const existingRows = {};
+            l.querySelectorAll('.lb-entry').forEach(r => {
+                const n = r.querySelector('.lb-name');
+                if (!n) return;
+                existingRows[n.textContent.replace('◆ ','').replace('⭐ ','').replace(/\(DEV\).*/s, '').trim()] = r;
+            });
+            // Second pass: update or create rows for each P2P entry
+            const p2pActive = new Set();
             for (const e of sorted) {
-                const rows = l.querySelectorAll('.lb-entry');
-                for (const r of rows) {
-                    const n = r.querySelector('.lb-name'); if (!n) continue;
-                    const rowName = n.textContent.replace('◆ ','').replace('⭐ ','').replace(/\(DEV\).*/s, '').trim();
-                    if (rowName !== e.username) continue;
-                    const v=r.querySelector('.lb-vibes'), s=r.querySelector('.lb-vps'), pp=r.querySelector('.lb-pp'), pr=r.querySelector('.lb-prestige'), t=r.querySelector('.lb-tier');
-                    if (v) {
-                        let txt;
-                        try {
-                            if (Array.isArray(e.score)) txt = formatBN(e.score);
-                            else if (typeof e.score === 'number') txt = formatNumber(e.score);
-                            else txt = String(e.score);
-                        } catch(e2) { txt = '0'; console.warn('P2P fmt err', e2); }
-                        v.textContent = txt;
-                    }
-                    if (s) {
-                        try { s.textContent = Array.isArray(e.vps) ? formatBN(e.vps) : formatNumber(e.vps); } catch(_){}
-                    }
-                    if (pp) {
-                        try { pp.textContent = Array.isArray(e.pp) ? formatBN(e.pp) : formatNumber(e.pp); } catch(_){}
-                    }
-                    if (pr) pr.textContent = fmtSafe(e.prestige);
-                    if (t) { const ti = getTierFromPrestige(e.prestige ?? 0); t.textContent = ti >= 0 ? TIERS[ti].name : '—'; }
-                    // Update tier icon in left column for P2P peers using their custom display icon
-                    const iconCell = r.querySelector('.lb-tier-icon');
-                    if (iconCell && e.tierIcon) {
-                            iconCell.innerHTML = `<img src="sprites/images/icons/32/${_tierPath(e.tierIcon)}.webp" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">`
-                    }
-                    break;
+                if (!e.username || e.username === 'self') continue;
+                const name = e.username;
+                p2pActive.add(name);
+                let r = existingRows[name];
+                // Create row if it doesn't exist yet
+                if (!r) {
+                    r = document.createElement('div');
+                    r.className = `lb-entry p2p-entry ${name === (G.displayName || G.username) ? 'you lb-self-row' : ''}`;
+                    r.innerHTML = `<span class="lb-tier-icon"></span><span class="lb-rank">#?</span><span class="lb-name">${name}</span><span class="lb-vibes">0</span><span class="lb-vps">0</span><span class="lb-pp">0</span><span class="lb-prestige">0</span><span class="lb-tier">—</span>`;
+                    l.appendChild(r);
+                    existingRows[name] = r;
+                }
+                r.dataset.p2p = '1';
+                const v=r.querySelector('.lb-vibes'), s=r.querySelector('.lb-vps'), pp=r.querySelector('.lb-pp'), pr=r.querySelector('.lb-prestige'), t=r.querySelector('.lb-tier'), rank=r.querySelector('.lb-rank');
+                if (v) {
+                    let txt;
+                    try {
+                        if (Array.isArray(e.score)) txt = formatBN(e.score);
+                        else if (typeof e.score === 'number') txt = formatNumber(e.score);
+                        else txt = String(e.score);
+                    } catch(e2) { txt = '0'; console.warn('P2P fmt err', e2); }
+                    v.textContent = txt;
+                }
+                if (s) {
+                    try { s.textContent = Array.isArray(e.vps) ? formatBN(e.vps) : formatNumber(e.vps); } catch(_){}
+                }
+                if (pp) {
+                    try { pp.textContent = Array.isArray(e.pp) ? formatBN(e.pp) : formatNumber(e.pp); } catch(_){}
+                }
+                if (pr) pr.textContent = fmtSafe(e.prestige);
+                if (t) { const ti = getTierFromPrestige(e.prestige ?? 0); t.textContent = ti >= 0 ? TIERS[ti].name : '—'; }
+                if (rank) rank.textContent = '#' + (Array.from(l.children).indexOf(r) + 1);
+                // Update tier icon in left column for P2P peers using their custom display icon
+                const iconCell = r.querySelector('.lb-tier-icon');
+                if (iconCell && e.tierIcon) {
+                    iconCell.innerHTML = `<img src="sprites/images/icons/32/${_tierPath(e.tierIcon)}.webp" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">`;
+                }
+            }
+            // Third pass: remove P2P overlay from rows whose peers disconnected
+            // Next Firestore leaderboard cycle (every 15s) restores their data
+            for (const [name, r] of Object.entries(existingRows)) {
+                if (r.dataset && r.dataset.p2p && !p2pActive.has(name)) {
+                    delete r.dataset.p2p;
+                    r.classList.remove('p2p-entry');
                 }
             }
         },
@@ -2213,10 +2246,18 @@ function applyRoomTheme(roomId) {
     root.style.setProperty('--room-resource-bg', t.resource_bg);
     // Set room-themed button background images
     const prefix = ROOM_PREFIX[roomId] || roomId.substring(0, 2);
-    root.style.setProperty('--room-btn-img', `url(/sprites/images/ui/${prefix}_btn.webp)`);
-    root.style.setProperty('--room-btn-sm-img', `url(/sprites/images/ui/${prefix}_btn_sm.webp)`);
-    root.style.setProperty('--room-btn-wide-img', `url(/sprites/images/ui/${prefix}_btn_wide.webp)`);
-    root.style.setProperty('--room-btn-xl-img', `url(/sprites/images/ui/${prefix}_btn_xl.webp)`);
+    const btnUrl = `/sprites/images/ui/${prefix}_btn.webp`;
+    // Set immediately so browser starts loading it — no gap where --room-btn-img is none
+    root.style.setProperty('--room-btn-img', `url(${btnUrl})`);
+    // Silently preload so next room change is instant
+    const preloadImg = new Image(); preloadImg.src = btnUrl;
+    // Preload remaining button variants
+    const variants = ['sm', 'wide', 'xl'];
+    variants.forEach(v => {
+        const u = `/sprites/images/ui/${prefix}_btn_${v}.webp`;
+        root.style.setProperty(`--room-btn-${v}-img`, `url(${u})`);
+        const pi = new Image(); pi.src = u;
+    });
     // Set text contrast vars (always white fill + black stroke)
     root.style.setProperty('--room-btn-text-color', '#ffffff');
     root.style.setProperty('--room-btn-text-stroke', '#000000');
@@ -2656,7 +2697,7 @@ function updateLocalLeaderboardEntry() {
         const cur = getCurrentTier(G);
         const customIcon = G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : 0;
         const iconNum = customIcon || (cur >= 0 ? getTierIconNum(cur) : 0);
-        tierIconEl.innerHTML = iconNum > 0 ? `<img src="sprites/images/icons/individual/${_tierPath(iconNum)}.webp" class="lb-tier-img" onerror="this.style.display='none'">` : '';
+        tierIconEl.innerHTML = iconNum > 0 ? `<img src="sprites/images/icons/individual/${_tierPath(iconNum)}.webp" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">` : '';
     }
 }
 
@@ -2680,7 +2721,7 @@ function renderLeaderboardFallback(list) {
     list.innerHTML = '<div class="lb-entry lb-header"><span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span><span class="lb-tier">TIER</span></div>'
         + entries.map((e, i) => {
             const iconNum = e.tierName ? getTierIconNum(e.tierName) : 0;
-            const iconHtml = iconNum > 0 ? `<img src=\"sprites/images/icons/individual/${_tierPath(iconNum)}.webp\" class=\"lb-tier-img\" onerror=\"this.style.display='none'\">` : '';
+            const iconHtml = iconNum > 0 ? `<img src=\"sprites/images/icons/individual/${_tierPath(iconNum)}.webp\" style=\"width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;display:block;\" onerror=\"this.style.display='none'\">` : '';
             return '<div class=\"lb-entry\"><span class=\"lb-rank\">#' + (i+1) + '</span><span class=\"lb-name\">' + e.name + '</span><span class=\"lb-vibes\">' + e.vibes + '</span><span class=\"lb-vps\">' + e.vps + '</span><span class=\"lb-pp\">' + e.pp + '</span><span class=\"lb-prestige\">' + e.prestige + '</span><span class=\"lb-tier\">' + e.tier + '</span><span class=\"lb-tier-icon\">' + iconHtml + '</span></div>';
         }).join('');
 }
@@ -2774,6 +2815,32 @@ function getAchievementProgress(ach) {
         default: return 0;
     }
 }
+function getAchievementCurrentValue(ach) {
+    if (!ach || !ach.threshold) return 0;
+    const t = ach.threshold;
+    switch (t.type) {
+        case 'lifetime': return Number(bnToNumber(G.lifetime_vibes)) || 0;
+        case 'clicks': return G.total_clicks || 0;
+        case 'prestiges': return Number(bnToNumber(G.total_prestiges)) || 0;
+        case 'room': return G.unlocked_rooms.includes(t.value) ? t.value : 0;
+        case 'all_rooms': return G.unlocked_rooms.length;
+        case 'vps': return Number(bnToNumber(getVPS())) || 0;
+        case 'gateway': return G.gateway_history && G.gateway_history.length > 0 ? 1 : 0;
+        case 'gateway_low': return G._gwLatency || 0;
+        case 'pings': return G.total_gateway_pings || 0;
+        case 'decor': return G.owned_decor ? G.owned_decor.length : 0;
+        case 'autoclickers': {
+            let total = 0;
+            for (const ac of AUTOCLICKERS) total += G.autoclickers[ac.id] || 0;
+            for (const roomId of G.unlocked_rooms) {
+                const ras = G.room_autoclickers && G.room_autoclickers[roomId];
+                if (ras) for (const k in ras) total += ras[k] || 0;
+            }
+            return total;
+        }
+        default: return 0;
+    }
+}
 function updateAchievementsUI() {
     const list = dom.panelAchievements;
     if (!list || !ACHIEVEMENTS) return;
@@ -2804,6 +2871,21 @@ function updateAchievementsUI() {
                 (earned ? '' : '<div class="ach-progress-bar"><div class="ach-progress-fill" style="width:' + progressPct + '%"></div></div>') +
             '</div>' +
             '<div class="ach-status">' + (earned ? '✓' : progressPct + '%') + '</div>';
+        // Tooltip data for hover
+        const currentVal = getAchievementCurrentValue(ach);
+        const targetVal = ach.threshold.value;
+        const ttpStats = [];
+        if (!earned && targetVal !== undefined) {
+            ttpStats.push({ label: 'Progress', value: formatNumber(currentVal) + ' / ' + formatNumber(targetVal) });
+        }
+        el._tooltipData = {
+            name: ach.name,
+            desc: ach.desc,
+            icon: iconSrc || '',
+            stats: ttpStats,
+            progress: earned ? 100 : progressPct,
+            earned: earned,
+        };
         list.appendChild(el);
     });
 }
@@ -3054,6 +3136,14 @@ function showShopTooltip(data, event) {
         });
     }
     if (data.owned) html += `<div class="tt-stat"><span class="tt-value green">✓ OWNED</span></div>`;
+    // Achievement progress bar in tooltip
+    if (data.progress !== undefined && !data.earned) {
+        const pct = Math.min(100, Math.max(0, data.progress));
+        html += `<div class="tt-stat"><span class="tt-label">Progress</span><span class="tt-value">${pct}%</span></div>`;
+        html += `<div style="height:4px;background:#1a1a1a;border:1px solid #333;margin:4px 0;border-radius:2px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent-cyan),var(--accent-gold));border-radius:2px;"></div></div>`;
+    } else if (data.earned) {
+        html += `<div class="tt-stat"><span class="tt-value green">✓ COMPLETE</span></div>`;
+    }
     
     tt.innerHTML = html;
     tt.classList.remove('hidden');
@@ -3072,20 +3162,20 @@ function hideShopTooltip() {
 }
 
 function initTooltipDelegation() {
-    const panels = ['upgrade-list', 'prestige-upgrade-list', 'decor-list', 'gw-upgrade-list', 'tier-list'];
+    const panels = ['upgrade-list', 'prestige-upgrade-list', 'decor-list', 'gw-upgrade-list', 'tier-list', 'panel-achievements'];
     panels.forEach(panelId => {
         const panel = document.getElementById(panelId);
         if (!panel) return;
         
         panel.addEventListener('mouseover', (e) => {
-            const item = e.target.closest('.shop-item');
+            const item = e.target.closest('.shop-item, .ach-item');
             if (!item) { hideShopTooltip(); return; }
             const ttData = item._tooltipData;
             if (ttData) showShopTooltip(ttData, e);
         });
         
         panel.addEventListener('mouseout', (e) => {
-            const item = e.target.closest('.shop-item');
+            const item = e.target.closest('.shop-item, .ach-item');
             if (!item || !e.relatedTarget || !item.contains(e.relatedTarget)) {
                 hideShopTooltip();
             }
@@ -3442,8 +3532,17 @@ function initChatSystem() {
     console.log('💬 Chat system ready');
 
     // Register global chat message handler from P2P
-    window._onChatMessage = (username, text, tierIcon) => {
-        addChatMessage(username, text, false, tierIcon);
+    window._onChatMessage = (username, text) => {
+        // Look up tier icon from P2P ledger (most recent broadcast data)
+        let ti = 0;
+        if (p2pCrypto && p2pCrypto.ledger) {
+            const entry = p2pCrypto.ledger.m.get(username);
+            if (entry) {
+                // Use custom display icon if set, otherwise calculate from prestige
+                ti = entry.tierIcon || getTierIconNum(getTierFromPrestige(entry.prestige ?? 0));
+            }
+        }
+        addChatMessage(username, text, false, ti);
         playChatReceive();
     };
 }

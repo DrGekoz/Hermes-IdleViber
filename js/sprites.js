@@ -10,6 +10,19 @@ const PLACEMENT_SNAP = 1;  // Pixel-perfect placement
 // Decor render size: 40% of 256x256 webp source
 const DECOR_RENDER_SIZE = 102;
 
+// --- RESIZE STATE ---
+const resizeState = {
+    active: false,
+    decorKey: null,
+    index: -1,
+    startX: 0,
+    startY: 0,
+    startSize: 1.0,
+    decorId: null,
+};
+// Expose to app.js for reading during mousemove
+window._resizeState = resizeState;
+
 // --- PLACEMENT STATE ---
 const placementState = {
     active: false,
@@ -705,11 +718,11 @@ function getSpriteGridSize(spriteId) {
     };
 }
 
-function getSpritePixelSize(spriteId) {
+function getSpritePixelSize(spriteId, sizeFactor = 1.0) {
     const def = SPRITES[spriteId];
     if (def) return { w: def.w * 2, h: def.h * 2 };
     // Room decor items render at 40% of source size (256x256 → 102x102)
-    if (spriteId && spriteId.includes('_')) return { w: DECOR_RENDER_SIZE, h: DECOR_RENDER_SIZE };
+    if (spriteId && spriteId.includes('_')) return { w: Math.round(DECOR_RENDER_SIZE * sizeFactor), h: Math.round(DECOR_RENDER_SIZE * sizeFactor) };
     return { w: 32, h: 32 };
 }
 
@@ -1619,7 +1632,7 @@ function renderRoom(roomId, canvas, state) {
             for (const r of results) {
                 if (!r || !r.sprite || !r.sprite.width) continue;
                 const snapped = snapToGrid(r.p.x, r.p.y);
-                const ds = getSpritePixelSize(decorToSprite(r.decorKey));
+                const ds = getSpritePixelSize(decorToSprite(r.decorKey), r.p.size || 1.0);
                 if (dragState.active && dragState.decorKey === r.decorKey && dragState.index === r.index) {
                     ctx.save();
                     ctx.translate(dragState.currentX + ds.w/2, dragState.currentY + ds.h/2);
@@ -1628,6 +1641,26 @@ function renderRoom(roomId, canvas, state) {
                     ctx.restore();
                 } else {
                     ctx.drawImage(r.sprite, snapped.x, snapped.y, ds.w, ds.h);
+                }
+                // Draw resize handle (small circle at bottom-right corner, slightly inset)
+                if (window._hoveredDecor && window._hoveredDecor.decorKey === r.decorKey && window._hoveredDecor.index === r.index) {
+                    const hx = snapped.x + ds.w - 8;
+                    const hy = snapped.y + ds.h - 8;
+                    ctx.save();
+                    ctx.fillStyle = '#4af';
+                    ctx.beginPath();
+                    ctx.arc(hx, hy, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    // Draw expand arrows icon
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '7px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('↘', hx, hy + 1);
+                    ctx.restore();
                 }
             }
             drawGodrays(ctx, w, h);
@@ -1785,9 +1818,34 @@ function endDrag(state, finalX, finalY) {
     return true;
 }
 
-function isDragging() {
-    return dragState.active;
+function isDragging() { return dragState.active; }
+
+// --- RESIZE ---
+function startResize(decorKey, index, startX, startY, startSize) {
+    resizeState.active = true;
+    resizeState.decorKey = decorKey;
+    resizeState.index = index;
+    resizeState.startX = startX;
+    resizeState.startY = startY;
+    resizeState.startSize = startSize;
 }
+function updateResize(mouseX, mouseY) {
+    if (!resizeState.active) return resizeState.startSize;
+    // Track delta from start position — dragging right/down = larger
+    const dx = mouseX - resizeState.startX;
+    const newSize = Math.max(0.3, Math.min(3.0, resizeState.startSize + dx / 80));
+    return newSize;
+}
+function endResize(state) {
+    if (resizeState.active && state && resizeState.decorKey) {
+        // Sync to saved placements
+        if (!state.saved_decor_placements) state.saved_decor_placements = {};
+        state.saved_decor_placements[resizeState.decorKey] =
+            JSON.parse(JSON.stringify(state.placed_decor[resizeState.decorKey]));
+    }
+    resizeState.active = false;
+}
+function isResizing() { return resizeState.active; }
 
 function hitTestDecor(state, mx, my) {
     if (!state.placed_decor) return null;
@@ -1804,7 +1862,7 @@ function hitTestDecor(state, mx, my) {
         for (let i = placements.length - 1; i >= 0; i--) {
             const p = placements[i];
             const spriteId = decorToSprite(key);
-            const size = getSpritePixelSize(spriteId);
+            const size = getSpritePixelSize(spriteId, p.size || 1.0);
             if (mx >= p.x && mx <= p.x + size.w &&
                 my >= p.y && my <= p.y + size.h) {
                 return { decorKey: key, index: i };
@@ -1889,6 +1947,10 @@ export {
     updateDrag,
     endDrag,
     isDragging,
+    startResize,
+    updateResize,
+    endResize,
+    isResizing,
     hitTestDecor,
     drawBackground,
     setSpriteRoot,
