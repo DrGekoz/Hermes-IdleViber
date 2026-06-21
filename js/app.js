@@ -1580,7 +1580,7 @@ async function tryInitP2P() {
                     existingRows[name] = r;
                 }
                 r.dataset.p2p = '1';
-                const v=r.querySelector('.lb-vibes'), s=r.querySelector('.lb-vps'), pp=r.querySelector('.lb-pp'), pr=r.querySelector('.lb-prestige'), t=r.querySelector('.lb-tier'), rank=r.querySelector('.lb-rank');
+                const v=r.querySelector('.lb-vibes'), vps=r.querySelector('.lb-vps'), pp=r.querySelector('.lb-pp'), pr=r.querySelector('.lb-prestige'), t=r.querySelector('.lb-tier');
                 if (v) {
                     let txt;
                     try {
@@ -1590,21 +1590,47 @@ async function tryInitP2P() {
                     } catch(e2) { txt = '0'; console.warn('P2P fmt err', e2); }
                     v.textContent = txt;
                 }
-                if (s) {
-                    try { s.textContent = Array.isArray(e.vps) ? formatBN(e.vps) : formatNumber(e.vps); } catch(_){}
+                if (vps) {
+                    try { vps.textContent = Array.isArray(e.vps) ? formatBN(e.vps) : formatNumber(e.vps); } catch(_){}
                 }
                 if (pp) {
                     try { pp.textContent = Array.isArray(e.pp) ? formatBN(e.pp) : formatNumber(e.pp); } catch(_){}
                 }
                 if (pr) pr.textContent = fmtSafe(e.prestige);
                 if (t) { const ti = getTierFromPrestige(e.prestige ?? 0); t.textContent = ti >= 0 ? TIERS[ti].name : '—'; }
-                if (rank) rank.textContent = '#' + (Array.from(l.children).indexOf(r) + 1);
                 // Update tier icon in left column for P2P peers using their custom display icon
                 const iconCell = r.querySelector('.lb-tier-icon');
                 if (iconCell && e.tierIcon) {
                     iconCell.innerHTML = `<img src="sprites/images/icons/32/${_tierPath(e.tierIcon)}.webp" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">`;
                 }
             }
+            // Re-sort DOM rows to match P2P score order (descending)
+            const p2pRows = [];
+            l.querySelectorAll('.lb-entry:not(.lb-header)').forEach(r => p2pRows.push(r));
+            // Build sort function using cached scores from sorted array
+            const scoreMap = {};
+            for (const e of sorted) {
+                if (!e.username || e.username === 'self') continue;
+                const sv = Array.isArray(e.score) ? e.score[0]*Math.pow(10,e.score[1]) : (e.score || 0);
+                scoreMap[e.username] = sv;
+            }
+            p2pRows.sort((a, b) => {
+                const na = (a.querySelector('.lb-name')?.textContent || '').replace('◆ ','').replace('⭐ ','').replace(/\(DEV\).*/s, '').trim();
+                const nb = (b.querySelector('.lb-name')?.textContent || '').replace('◆ ','').replace('⭐ ','').replace(/\(DEV\).*/s, '').trim();
+                const sa = scoreMap[na] !== undefined ? scoreMap[na] : 0;
+                const sb = scoreMap[nb] !== undefined ? scoreMap[nb] : 0;
+                return sb - sa;
+            });
+            // Re-append in sorted order (preserve header)
+            const header = l.querySelector('.lb-header');
+            p2pRows.forEach(r => l.appendChild(r));
+            if (header) l.insertBefore(header, l.firstChild);
+            // Update rank numbers
+            const allRows = l.querySelectorAll('.lb-entry:not(.lb-header)');
+            allRows.forEach((r, i) => {
+                const rank = r.querySelector('.lb-rank');
+                if (rank) rank.textContent = '#' + (i + 1);
+            });
             // Third pass: remove P2P overlay from rows whose peers disconnected
             // Next Firestore leaderboard cycle (every 15s) restores their data
             for (const [name, r] of Object.entries(existingRows)) {
