@@ -1546,7 +1546,7 @@ async function tryInitP2P() {
     if (!db || !fbApi) { console.log('🌀 P2P waiting for DB/Firestore...'); p2pStarting = false; setTimeout(tryInitP2P, 500); return; }
     console.log('🌀 P2P initializing crypto mesh...');
     const mgr = new P2PLeaderboardManager(
-        { db, doc:fbApi.doc, setDoc:fbApi.setDoc, collection:fbApi.collection, onSnapshot:fbApi.onSnapshot, deleteDoc:fbApi.deleteDoc, Timestamp:fbApi.Timestamp },
+        { db, doc:fbApi.doc, setDoc:fbApi.setDoc, getDoc:fbApi.getDoc, getDocs:fbApi.getDocs, collection:fbApi.collection, onSnapshot:fbApi.onSnapshot, deleteDoc:fbApi.deleteDoc, Timestamp:fbApi.Timestamp },
         G.displayName || G.username || 'Player',
          (sorted) => {
             try {
