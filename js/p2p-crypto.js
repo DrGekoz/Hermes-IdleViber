@@ -62,18 +62,21 @@ const DEV_HOST = 'DrGekoz';
 
 // ============================================================
 class P2PLeaderboardManager {
-constructor(firestore, username, onUpdate, syncFn) {
-this.fs = firestore; this.username = username; this.onUpdate = onUpdate;
-this.syncFn = syncFn; this.ledger = new Ledger();
-this.peers = new Map(); this.kp = null; this.kid = null;
-this.seq = 0; this._uploadTimer = null; this._pingTimer = null; this._reconnectTimer = null; this._signalTimer = null;
-this._nonce = Math.floor(Math.random() * 2147483647);
-this._retryPending = null; this._connecting = new Set();
+    constructor(firestore, username, onUpdate, syncFn, peerId) {
+        this.fs = firestore; this.username = username; this.onUpdate = onUpdate;
+        this.syncFn = syncFn; this.ledger = new Ledger();
+        this.peers = new Map(); this.kp = null; this.kid = null;
+        this.seq = 0; this._uploadTimer = null; this._pingTimer = null; this._reconnectTimer = null; this._signalTimer = null;
+        this._nonce = Math.floor(Math.random() * 2147483647);
+        this._retryPending = null; this._connecting = new Set();
 this._onlineUsernames = new Set();
+this._onlineNames = {}; // peerId -> display name for host detection
 this._isHost = false;
-this._lastLeaderboardHash = '';
-this._myScore = 0; this._myPrestige = 0; this._myVps = 0; this._myPp = 0; this._myTierIcon = 0;
-}
+        this._lastLeaderboardHash = '';
+        this._myScore = 0; this._myPrestige = 0; this._myVps = 0; this._myPp = 0; this._myTierIcon = 0;
+        // Stable peer ID — never changes, used as ledger key instead of display name
+        this.peerId = peerId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'p' + Date.now() + '_' + Math.random().toString(36).substr(2, 9));
+    }
 
 async init() {
 this.kp = await loadOrGenKeys();
@@ -84,18 +87,22 @@ console.log('🔑 P2P keyId:', this.kid, 'nonce:', this._nonce, '(fresh)');
 // ---- Host detection ----
     _computeHost(onlineSet) {
         if (!onlineSet) return null;
-        // Always include self so DEV_HOST detection works
         const devLower = DEV_HOST.toLowerCase();
-        // First, check if any online user's sanitized ID contains 'drgekoz' (case-insensitive)
-        // This handles display names like 'DrGekoz', 'drgekoz', 'Dr. Gekoz', etc.
+        // Check peer IDs (UUIDs) and display names for DEV_HOST match
         for (const id of onlineSet) {
             if (id.toLowerCase().replace(/[^a-z0-9]/g, '').includes(devLower.replace(/[^a-z0-9]/g, ''))) return id;
+            const dn = this._onlineNames[id];
+            if (dn && dn.toLowerCase().replace(/[^a-z0-9]/g, '').includes(devLower.replace(/[^a-z0-9]/g, ''))) return id;
         }
         // Check self
-        if (this.username.toLowerCase().replace(/[^a-z0-9]/g, '').includes(devLower.replace(/[^a-z0-9]/g, ''))) return this.username;
+        if (this.username.toLowerCase().replace(/[^a-z0-9]/g, '').includes(devLower.replace(/[^a-z0-9]/g, ''))) {
+            // Return self peerId as the host
+            for (const id of onlineSet) if (id === this.peerId) return id;
+            return this.peerId;
+        }
         // Fallback: alphabetical first
         const sorted = [...onlineSet].sort((a,b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-        return sorted[0] || this.username;
+        return sorted[0] || this.peerId;
     }
 
 _amHost() { return this._isHost; }
@@ -104,27 +111,27 @@ join() {
 const { db, doc, setDoc, collection, onSnapshot, deleteDoc, Timestamp } = this.fs;
 if (!db || !doc || !setDoc) { console.warn('🌀 P2P join missing Firestore API'); return; }
 console.log('[P2P] Joining star network as', this.username);
-const myRef = doc(db, 'sig', this.username.replace(/[.#$\/\[\]]/g, '_'));
-crypto.subtle.exportKey('jwk', this.kp.publicKey).then(jwk => {
-setDoc(myRef, { u: this.username, k: jwk, kid: this.kid, nonce: this._nonce, on: 1, ts: Timestamp.now() }, { merge: true });
-});
+        const myRef = doc(db, 'sig', this.peerId);
+        crypto.subtle.exportKey('jwk', this.kp.publicKey).then(jwk => {
+            setDoc(myRef, { u: this.username, pid: this.peerId, k: jwk, kid: this.kid, nonce: this._nonce, on: 1, ts: Timestamp.now() }, { merge: true });
+        });
 window.addEventListener('beforeunload', () => { deleteDoc(myRef).catch(() => {}); });
 
 // ---- Track all online peers and detect host changes ----
 const peersRef = collection(db, 'sig');
 this._unsubPeers = onSnapshot(peersRef, snap => {
 const newOnline = new Set();
-snap.docs.forEach(s => { const id = s.id; if (id !== this.username) newOnline.add(id); });
+snap.docs.forEach(s => { const id = s.id; if (id === this.peerId) return; newOnline.add(id); this._onlineNames[id] = s.data().u || id; });
 // Detect peers that went offline
 for (const k of this._onlineUsernames) {
 if (!newOnline.has(k)) this._onPeerGone(k);
 }
 this._onlineUsernames = newOnline;
-const oldHost = this._computeHost(this._onlineUsernames);
-const wasHost = this._isHost;
-this._isHost = (this._computeHost(newOnline) === this.username);
-if (!wasHost && this._isHost) {
-console.log('[P2P] Elected Host = true — I am now the HOST');
+            const oldHost = this._computeHost(this._onlineUsernames);
+            const wasHost = this._isHost;
+            this._isHost = (this._computeHost(newOnline) === this.peerId);
+            if (!wasHost && this._isHost) {
+                console.log('[P2P] Elected Host = true — I am now the HOST');
 // If we just became host (DrGekoz logged in), broadcast migration
 this._broadcastHostMigration();
 } else if (wasHost && !this._isHost) {
@@ -133,8 +140,8 @@ console.log('[P2P] Elected Host = false — host changed to:', this._computeHost
 this._disconnectAll();
 }
 // Connect to the current host (or to everyone if I'm the host)
-snap.docChanges().forEach(async ch => {
-const k = ch.doc.id; if (k === this.username) return;
+            snap.docChanges().forEach(async ch => {
+                const k = ch.doc.id; if (k === this.peerId) return;
 if (ch.type === 'removed') { /* handled above */ return; }
 const d = ch.doc.data(); if (!d?.k) return;
 const existing = this.peers.get(k);
@@ -159,7 +166,7 @@ if (!shouldConnect) return; // skip — not host, not connecting to
 });
 
 // ---- Offer/answer signaling ----
-const mySigRef = collection(db, 'sig', this.username, 'offers');
+const mySigRef = collection(db, 'sig', this.peerId, 'offers');
 this._unsubOffers = onSnapshot(mySigRef, snap => {
 snap.docChanges().forEach(ch => {
 if (ch.type === 'removed') return;
@@ -171,7 +178,7 @@ if (d.t === 'offer') this._onOffer(pk, d.s);
 else if (d.t === 'answer') this._onAnswer(pk, d.s);
 });
 });
-const iceRef = collection(db, 'sig', this.username, 'ice');
+const iceRef = collection(db, 'sig', this.peerId, 'ice');
 this._unsubIce = onSnapshot(iceRef, snap => {
 snap.docChanges().forEach(ch => {
 if (ch.type === 'removed') return;
@@ -242,8 +249,8 @@ const p = this.peers.get(pk); p.pc = pc;
 pc.onicecandidate = e => {
 if (!e.candidate) return;
 const { doc, setDoc, deleteDoc } = this.fs;
-deleteDoc(doc(this.fs.db, 'sig', pk, 'ice', this.username)).catch(() => {});
-setDoc(doc(this.fs.db, 'sig', pk, 'ice', this.username), { c: e.candidate.toJSON() }).catch(() => {});
+            deleteDoc(doc(this.fs.db, 'sig', pk, 'ice', this.peerId)).catch(() => {});
+            setDoc(doc(this.fs.db, 'sig', pk, 'ice', this.peerId), { c: e.candidate.toJSON() }).catch(() => {});
 };
 pc.ondatachannel = e => {
 console.log('📥 P2P inbound channel from', pk);
@@ -266,9 +273,9 @@ if (ch.readyState === 'open') console.log('[P2P] Channel already open — host �
 const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
 const { doc, setDoc, deleteDoc } = this.fs;
 console.log('[P2P] Host sending offer to', pk);
-await deleteDoc(doc(this.fs.db, 'sig', pk, 'offers', this.username)).catch(() => {});
-await setDoc(doc(this.fs.db, 'sig', pk, 'offers', this.username), { t:'offer', s: pc.localDescription.toJSON() });
-}
+            await deleteDoc(doc(this.fs.db, 'sig', pk, 'offers', this.peerId)).catch(() => {});
+            await setDoc(doc(this.fs.db, 'sig', pk, 'offers', this.peerId), { t:'offer', s: pc.localDescription.toJSON() });
+        }
 const check = () => {
 if (pc.connectionState === 'connected' || pc.connectionState === 'connecting') return;
 if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
@@ -307,9 +314,9 @@ try {
 await p.pc.setRemoteDescription(new RTCSessionDescription(sdp));
 const ans = await p.pc.createAnswer(); await p.pc.setLocalDescription(ans);
 const { doc, setDoc, deleteDoc } = this.fs;
-await deleteDoc(doc(this.fs.db, 'sig', pk, 'offers', this.username)).catch(() => {});
-await deleteDoc(doc(this.fs.db, 'sig', this.username, 'offers', pk)).catch(() => {});
-await setDoc(doc(this.fs.db, 'sig', pk, 'offers', this.username), { t:'answer', s: p.pc.localDescription.toJSON() });
+            await deleteDoc(doc(this.fs.db, 'sig', pk, 'offers', this.peerId)).catch(() => {});
+            await deleteDoc(doc(this.fs.db, 'sig', this.peerId, 'offers', pk)).catch(() => {});
+            await setDoc(doc(this.fs.db, 'sig', pk, 'offers', this.peerId), { t:'answer', s: p.pc.localDescription.toJSON() });
 console.log('📤 P2P answer sent to', pk);
 } catch (e) { console.warn('❌ _onOffer err:', e); }
 }
@@ -334,7 +341,7 @@ setTimeout(() => this._hostSendLeaderboard(), 500);
 
 _cleanSigDoc(pk) {
 const { doc, deleteDoc } = this.fs;
-return deleteDoc(doc(this.fs.db, 'sig', this.username, 'offers', pk)).catch(() => {});
+return deleteDoc(doc(this.fs.db, 'sig', this.peerId, 'offers', pk)).catch(() => {});
 }
 
 // ---- Message routing ----
@@ -360,7 +367,7 @@ return;
 // Host migration — this peer told us to switch to a new host
 if (payload.type === 'host_migrate') {
 console.log('👑 P2P host migration to:', payload.host);
-if (payload.host !== this.username) {
+if (payload.host !== this.peerId) {
 // I'm not the new host, disconnect everything and reconnect to new host
 this._disconnectAll();
 }
@@ -374,9 +381,9 @@ if (!this._amHost()) {
 // Non-host receiving a score update — ignore (relay only)
 return;
 }
-const guestName = payload.user || pk;
-console.log('[P2P] Score from', guestName, '→', payload.s ? payload.s[0].toFixed(2)+'e'+payload.s[1] : '0');
-this.ledger.set(guestName, { username:guestName, score:payload.s, prestige:payload.pr, vps:payload.v, pp:payload.p, tierIcon:payload.ti });
+const guestName = payload.id || payload.user || pk;
+console.log('[P2P] Score from', payload.user || guestName, '→', payload.s ? payload.s[0].toFixed(2)+'e'+payload.s[1] : '0');
+this.ledger.set(guestName, { id: payload.id, username: payload.user || guestName, score:payload.s, prestige:payload.pr, vps:payload.v, pp:payload.p, tierIcon:payload.ti });
 this.ledger.set('self', { username:this.username, score:this._myScore, prestige:this._myPrestige, vps:this._myVps, pp:this._myPp, tierIcon:this._myTierIcon });
 this.onUpdate(this.ledger.sorted());
 // Relay full leaderboard to all guests
@@ -390,7 +397,8 @@ if (this._amHost()) return; // host doesn't consume its own leaderboard
 // Guest receives authoritative leaderboard from host
 const entries = payload.entries || [];
 for (const e of entries) {
-this.ledger.set(e.user, { username:e.user, score:e.s, prestige:e.pr, vps:e.v, pp:e.p, tierIcon:e.ti });
+const key = e.id || e.user;
+this.ledger.set(key, { id: e.id, username: e.user, score:e.s, prestige:e.pr, vps:e.v, pp:e.p, tierIcon:e.ti });
 }
 this.ledger.set('self', { username:this.username, score:this._myScore, prestige:this._myPrestige, vps:this._myVps, pp:this._myPp, tierIcon:this._myTierIcon });
 this.onUpdate(this.ledger.sorted());
@@ -401,7 +409,7 @@ return;
 // Host sends full sorted leaderboard to all connected guests
 _hostSendLeaderboard() {
 const entries = this.ledger.sorted().map(e => ({
-user: e.username, s: e.score, pr: e.prestige, v: e.vps, p: e.pp, ti: e.tierIcon
+id: e.id || e.username, user: e.username, s: e.score, pr: e.prestige, v: e.vps, p: e.pp, ti: e.tierIcon
 }));
 const hash = JSON.stringify(entries);
 if (hash === this._lastLeaderboardHash) return; // skip if no change
@@ -444,7 +452,7 @@ this.onUpdate(this.ledger.sorted());
 this._hostSendLeaderboard();
 } else {
 // Guest: send score update to host only
-const payload = { type: 'score', user: this.username, s: score, pr: prestige, v: vps, p: pp, ti: tierIcon || 0, ts: ts || Math.floor(Date.now()/1000) };
+const payload = { type: 'score', id: this.peerId, user: this.username, s: score, pr: prestige, v: vps, p: pp, ti: tierIcon || 0, ts: ts || Math.floor(Date.now()/1000) };
 const msg = await signPayload(payload, this.kp.privateKey);
 let sent = 0;
 for (const [, peer] of this.peers) {
@@ -490,18 +498,19 @@ const snap = await getDocs(collection(db, 'sig'));
 const onlinePeers = [];
 for (const s of snap.docs) {
 const k = s.id;
-if (k === this.username) continue;
+if (k === this.peerId) continue;
 const d = s.data();
 if (!d?.k || !d?.on) continue;
+this._onlineNames[k] = d.u || k;
 onlinePeers.push({ id: k, data: d });
 }
 // Recompute host status
 const newOnline = new Set(onlinePeers.map(p => p.id));
 this._onlineUsernames = newOnline;
-const wasHost = this._isHost;
-this._isHost = (this._computeHost(newOnline) === this.username);
-if (!wasHost && this._isHost) {
-console.log('[P2P] Elected Host = true (signaling retry)');
+            const wasHost = this._isHost;
+            this._isHost = (this._computeHost(newOnline) === this.peerId);
+            if (!wasHost && this._isHost) {
+                console.log('[P2P] Elected Host = true (signaling retry)');
 this._broadcastHostMigration();
 } else if (wasHost && !this._isHost) {
 console.log('[P2P] Elected Host = false (signaling retry) — reconnecting');
@@ -532,15 +541,15 @@ this._initPeer(k, d);
                         const offer = await p.pc.createOffer();
                         await p.pc.setLocalDescription(offer);
                         const { doc:fd, setDoc, deleteDoc } = this.fs;
-                        await deleteDoc(fd(this.fs.db, 'sig', k, 'offers', this.username)).catch(() => {});
-                        await setDoc(fd(this.fs.db, 'sig', k, 'offers', this.username), { t:'offer', s: p.pc.localDescription.toJSON() });
+                        await deleteDoc(fd(this.fs.db, 'sig', k, 'offers', this.peerId)).catch(() => {});
+                        await setDoc(fd(this.fs.db, 'sig', k, 'offers', this.peerId), { t:'offer', s: p.pc.localDescription.toJSON() });
                         console.log('[P2P] 1s-retry — host offer sent to', k);
                     } catch (e) { console.warn('⚠️ P2P 1s-retry offer failed for', k, ':', e.message); }
                 }
                 // Guest waiting for host offer — check Firestore for pending offers (only in 'new' state)
                 if (!this._amHost() && p.pc.signalingState === 'stable' && p.pc.connectionState === 'new') {
                     try {
-                        const offerSnap = await getDoc(fdoc(this.fs.db, 'sig', this.username, 'offers', k));
+                        const offerSnap = await getDoc(fdoc(this.fs.db, 'sig', this.peerId, 'offers', k));
                         if (offerSnap.exists()) {
                             const od = offerSnap.data();
                             if (od.t === 'offer') {
@@ -586,9 +595,9 @@ this._initPeer(k, d);
                 const snap = await getDocs(collection(db, 'sig'));
                 for (const s of snap.docs) {
                     const k = s.id;
-                    if (k === this.username) continue;
-                    if (this.peers.has(k)) continue;
-                    if (!this._isHost && host !== k) continue;
+if (k === this.peerId) continue;
+if (this.peers.has(k)) continue;
+if (!this._isHost && host !== k) continue;
                     const d = s.data();
                     if (!d?.k || !d?.on) continue;
                     console.log('📡 P2P discovered peer via scan:', k);

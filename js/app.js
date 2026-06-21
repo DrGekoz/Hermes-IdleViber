@@ -1548,6 +1548,7 @@ async function tryInitP2P() {
     const mgr = new P2PLeaderboardManager(
         { db, doc:fbApi.doc, setDoc:fbApi.setDoc, getDoc:fbApi.getDoc, getDocs:fbApi.getDocs, collection:fbApi.collection, onSnapshot:fbApi.onSnapshot, deleteDoc:fbApi.deleteDoc, Timestamp:fbApi.Timestamp },
         G.displayName || G.username || 'Player',
+        getLocalP2PId(),
          (sorted) => {
             try {
             const l = dom.leaderboardList; if (!l) return;
@@ -1574,8 +1575,8 @@ async function tryInitP2P() {
                 // Create row if it doesn't exist yet
                 if (!r) {
                     r = document.createElement('div');
-                    r.className = `lb-entry p2p-entry ${name === (G.displayName || G.username) ? 'you lb-self-row' : ''}`;
-                    r.innerHTML = `<span class="lb-tier-icon"></span><span class="lb-rank">#?</span><span class="lb-name">${name}</span><span class="lb-vibes">0</span><span class="lb-vps">0</span><span class="lb-pp">0</span><span class="lb-prestige">0</span><span class="lb-tier">—</span>`;
+                    r.className = `lb-entry p2p-entry ${displayName === (G.displayName || G.username) ? 'you lb-self-row' : ''}`;
+                    r.innerHTML = '<span class="lb-tier-icon"></span><span class="lb-rank">#?</span><span class="lb-name">' + escapeHtml(displayName) + '</span><span class="lb-vibes">0</span><span class="lb-vps">0</span><span class="lb-pp">0</span><span class="lb-prestige">0</span><span class="lb-tier">--</span>';
                     l.appendChild(r);
                     existingRows[name] = r;
                 }
@@ -1611,14 +1612,18 @@ async function tryInitP2P() {
             const scoreMap = {};
             for (const e of sorted) {
                 if (!e.username || e.username === 'self') continue;
+                const key = e.id || e.username;
                 const sv = Array.isArray(e.score) ? e.score[0]*Math.pow(10,e.score[1]) : (e.score || 0);
+                scoreMap[key] = sv;
+                // Also index by display name for DOM row matching
                 scoreMap[e.username] = sv;
             }
             p2pRows.sort((a, b) => {
                 const na = (a.querySelector('.lb-name')?.textContent || '').replace('◆ ','').replace('⭐ ','').replace(/\(DEV\).*/s, '').trim();
                 const nb = (b.querySelector('.lb-name')?.textContent || '').replace('◆ ','').replace('⭐ ','').replace(/\(DEV\).*/s, '').trim();
-                const sa = scoreMap[na] !== undefined ? scoreMap[na] : 0;
-                const sb = scoreMap[nb] !== undefined ? scoreMap[nb] : 0;
+                // Try display name first, then fall back to name for score lookup
+                let sa = scoreMap[na]; if (sa === undefined) sa = 0;
+                let sb = scoreMap[nb]; if (sb === undefined) sb = 0;
                 return sb - sa;
             });
             // Re-append in sorted order (preserve header)
