@@ -135,10 +135,17 @@ function migrateBN(state) {
     if (state.total_prestiges === undefined || state.total_prestiges === null) state.total_prestiges = BN_ZERO;
     // Guard against corrupted BN_MAX sentinel values (from Infinity/NaN overflow)
     // A real new player should not have BN_MAX vibes or prestige points
-    if (state.vibes && Array.isArray(state.vibes) && state.vibes[1] >= Number.MAX_SAFE_INTEGER - 1) state.vibes = BN_ZERO;
-    if (state.lifetime_vibes && Array.isArray(state.lifetime_vibes) && state.lifetime_vibes[1] >= Number.MAX_SAFE_INTEGER - 1) state.lifetime_vibes = BN_ZERO;
-    if (state.prestige_points && Array.isArray(state.prestige_points) && state.prestige_points[1] >= Number.MAX_SAFE_INTEGER - 1) state.prestige_points = BN_ZERO;
-    if (state.total_pp_earned && Array.isArray(state.total_pp_earned) && state.total_pp_earned[1] >= Number.MAX_SAFE_INTEGER - 1) state.total_pp_earned = BN_ZERO;
+    let corrupted = false;
+    // Catch the specific Number.MAX_VALUE corruption: mantissa ≈ 1.7976931348623157, exponent 308
+    if (state.vibes && Array.isArray(state.vibes) && state.vibes[0] > 1.79 && state.vibes[0] < 1.8 && state.vibes[1] > 300) { state.vibes = BN_ZERO; corrupted = true; }
+    if (state.lifetime_vibes && Array.isArray(state.lifetime_vibes) && state.lifetime_vibes[0] > 1.79 && state.lifetime_vibes[0] < 1.8 && state.lifetime_vibes[1] > 300) { state.lifetime_vibes = BN_ZERO; corrupted = true; }
+    if (state.prestige_points && Array.isArray(state.prestige_points) && state.prestige_points[0] > 1.79 && state.prestige_points[0] < 1.8 && state.prestige_points[1] > 300) { state.prestige_points = BN_ZERO; corrupted = true; }
+    if (state.total_pp_earned && Array.isArray(state.total_pp_earned) && state.total_pp_earned[0] > 1.79 && state.total_pp_earned[0] < 1.8 && state.total_pp_earned[1] > 300) { state.total_pp_earned = BN_ZERO; corrupted = true; }
+    // If corruption was detected and fixed, push the corrected data to Firestore immediately
+    if (corrupted && fbReady && G.auth_mode === 'firebase') {
+        fbSave(G).catch(() => {});
+        fbSubmitScore(G.username || 'Player', 0, 0, BN_ZERO, G.displayName, BN_ZERO).catch(() => {});
+    }
     // Migrate old gateway_upgrades to prestige_upgrades
     if (state.gateway_upgrades) {
         state.prestige_upgrades = state.prestige_upgrades || {};
@@ -226,6 +233,7 @@ function init() {
     initFirebaseAsync();
     loadGame();
     applySidebarPosition(); // Restore sidebar position from saved state
+    applyFonts(); // Apply saved fonts
     initCanvas();
     initParticles();
     initGateway();
@@ -348,9 +356,11 @@ function cacheDOM() {
         settingsUpgradeMsg: $('settings-upgrade-msg'),
         settingsTabName: $('settings-tab-name'),
         settingsTabAudio: $('settings-tab-audio'),
+        settingsTabProfile: $('settings-tab-profile'),
         settingsTabCredits: $('settings-tab-credits'),
         settingsPanelName: $('settings-panel-name'),
         settingsPanelAudio: $('settings-panel-audio'),
+        settingsPanelProfile: $('settings-panel-profile'),
         settingsPanelCredits: $('settings-panel-credits'),
         settingsSfxVolume: $('settings-sfx-volume'),
         settingsSfxVolLabel: $('settings-sfx-vol-label'),
@@ -398,6 +408,12 @@ function initParticles() {
         const count = 1 + Math.floor(Math.random() * 3);
         particles.add('dust', null, null, count);
     }, 200);
+    // Clear particles when returning from background to avoid burst overload
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            particles.particles = [];
+        }
+    });
 }
 
 // ---- GATEWAY ----
@@ -529,6 +545,7 @@ function initUIEvents() {
     // Settings tabs
     if (dom.settingsTabName) dom.settingsTabName.addEventListener('click', () => openSettings('name'));
     if (dom.settingsTabAudio) dom.settingsTabAudio.addEventListener('click', () => { openSettings('audio'); playClick(); });
+    if (dom.settingsTabProfile) dom.settingsTabProfile.addEventListener('click', () => openSettings('profile'));
     if (dom.settingsTabCredits) dom.settingsTabCredits.addEventListener('click', () => openSettings('credits'));
     // Settings: Gateway port sync
     if (dom.settingsGwConnect && dom.settingsGwPort) {
@@ -556,6 +573,95 @@ function initUIEvents() {
         });
         dom.settingsGwPort.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') dom.settingsGwConnect.click();
+        });
+    }
+    // Settings: tier icon picker (horizonal scrollable grid)
+    const tierGrid = document.getElementById('settings-tier-grid');
+    const tierScroll = document.getElementById('settings-tier-scroll');
+    const tierStatus = document.getElementById('settings-tier-status');
+    if (tierGrid) {
+        // Build all 500 tier icons with data attributes for module event handler
+        let gridHtml = '';
+        for (let i = 1; i <= 500; i++) {
+            const req = (TIERS && TIERS[i - 1]) ? formatNumber(TIERS[i - 1].requires) : '?';
+            gridHtml += `<div class="tier-pick-item" data-tier="${i}" data-req="${req}" style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:4px;cursor:pointer;border:1px solid transparent;border-radius:2px;transition:border-color 0.15s;position:relative;">
+                <img src="sprites/images/icons/individual/tier_${i}.webp" style="width:36px;height:36px;image-rendering:pixelated;display:block;" onerror="this.style.display='none'" loading="lazy">
+                <span style="font-size:8px;color:#888;">${i}</span>
+                <div class="tier-pick-tooltip hidden" style="position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#111;border:1px solid #ffd700;padding:6px 10px;z-index:99999;white-space:nowrap;pointer-events:none;box-shadow:0 0 15px rgba(255,215,0,0.2);">
+                    <div style="text-align:center;">
+                        <img src="sprites/images/icons/individual/tier_${i}.webp" style="width:80px;height:80px;image-rendering:pixelated;display:block;margin:0 auto 4px;" onerror="this.style.display='none'">
+                        <div style="font-size:8px;color:#ffd700;">TIER ${i}</div>
+                    </div>
+                </div>
+            </div>`;
+        }
+        tierGrid.innerHTML = gridHtml;
+        // Highlight the currently selected tier
+        const savedTier = G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : 1;
+        const selected = tierGrid.querySelector(`.tier-pick-item[data-tier="${savedTier}"]`);
+        if (selected) selected.style.borderColor = 'var(--accent-gold)';
+        // Event delegation: click handler in module scope (has access to G, TIERS, bnGe, playClick)
+        tierGrid.addEventListener('click', (e) => {
+            const item = e.target.closest('.tier-pick-item');
+            if (!item) return;
+            const n = parseInt(item.dataset.tier);
+            const tierIdx = n - 1;
+            // Check if this tier is unlocked by the player
+            const unlocked = TIERS && TIERS[tierIdx] && bnGe(G.total_prestiges || BN_ZERO, TIERS[tierIdx].requires);
+            if (!unlocked) {
+                if (tierStatus) {
+                    tierStatus.textContent = '🔒 Tier ' + n + ' not yet unlocked — requires ' + item.dataset.req + ' prestiges';
+                    tierStatus.style.color = '#f44';
+                }
+                return;
+            }
+            // Play sound and apply
+            try { playClick(); } catch(_) {}
+            if (!G.settings) G.settings = {};
+            G.settings.display_tier_icon = n;
+            tierGrid.querySelectorAll('.tier-pick-item').forEach(el => el.style.borderColor = 'transparent');
+            item.style.borderColor = 'var(--accent-gold)';
+            if (tierStatus) {
+                tierStatus.textContent = '✅ Tier Icon Applied — Tier ' + n;
+                tierStatus.style.color = '#0f0';
+            }
+            saveGame();
+        });
+        // Hover tooltip show/hide via event delegation
+        tierGrid.addEventListener('mouseover', (e) => {
+            const item = e.target.closest('.tier-pick-item');
+            if (!item) return;
+            item.style.borderColor = '#555';
+            const tip = item.querySelector('.tier-pick-tooltip');
+            if (tip) tip.classList.remove('hidden');
+        });
+        tierGrid.addEventListener('mouseout', (e) => {
+            const item = e.target.closest('.tier-pick-item');
+            if (!item) return;
+            const selected = item.dataset.tier && G.settings && G.settings.display_tier_icon == item.dataset.tier;
+            item.style.borderColor = selected ? 'var(--accent-gold)' : 'transparent';
+            const tip = item.querySelector('.tier-pick-tooltip');
+            if (tip) tip.classList.add('hidden');
+        });
+    }
+    // Settings: font apply
+    const fontTitle = document.getElementById('settings-font-title');
+    const fontBody = document.getElementById('settings-font-body');
+    const fontApply = document.getElementById('settings-font-apply');
+    const fontStatus = document.getElementById('settings-font-status');
+    if (fontApply && fontTitle && fontBody) {
+        fontApply.addEventListener('click', () => {
+            const titleFont = fontTitle.value;
+            const bodyFont = fontBody.value;
+            const fontSizeEl = document.getElementById('settings-font-size');
+            const fontSize = fontSizeEl ? fontSizeEl.value : '8';
+            if (!G.settings) G.settings = {};
+            G.settings.title_font = titleFont;
+            G.settings.body_font = bodyFont;
+            G.settings.font_size = fontSize;
+            applyFonts(titleFont, bodyFont, fontSize);
+            if (fontStatus) { fontStatus.textContent = '✅ Fonts applied'; fontStatus.style.color = '#0f0'; }
+            saveGame();
         });
     }
     // Settings: Audio volume sliders
@@ -825,6 +931,15 @@ function initUIEvents() {
     // Leaderboard: minimize button toggles collapse, click toggles fullscreen
     dom.leaderboardMinimize.addEventListener('click', (e) => {
         e.stopPropagation();
+        // In fullscreen, clicking ▲ exits fullscreen
+        if (dom.leaderboardPanel.classList.contains('fullscreen')) {
+            dom.leaderboardPanel.classList.remove('fullscreen');
+            dom.leaderboardPanel.classList.remove('collapsed');
+            dom.leaderboardMinimize.textContent = '▲';
+            dom.leaderboardMinimize.classList.add('normal');
+            return;
+        }
+        // Normal mode: toggle collapsed (drop-up)
         if (dom.leaderboardPanel.classList.contains('collapsed')) {
             dom.leaderboardPanel.classList.remove('collapsed');
             dom.leaderboardMinimize.textContent = '▲';
@@ -835,9 +950,16 @@ function initUIEvents() {
     });
     dom.leaderboardPanel.addEventListener('click', (e) => {
         if (e.target.closest('.leaderboard-minimize') || e.target.closest('.lb-name')) return;
+        const wasFullscreen = dom.leaderboardPanel.classList.contains('fullscreen');
         dom.leaderboardPanel.classList.toggle('fullscreen');
         dom.leaderboardPanel.classList.remove('collapsed');
         dom.leaderboardMinimize.textContent = '▲';
+        // Toggle normal-mode class for the minimize button
+        if (wasFullscreen) {
+            dom.leaderboardMinimize.classList.add('normal');
+        } else {
+            dom.leaderboardMinimize.classList.remove('normal');
+        }
         updateLeaderboardUI();
     });
 
@@ -854,7 +976,7 @@ function initUIEvents() {
             if (!username) return;
             if (!lbList._tip) {
                 const tip = document.createElement('div');
-                tip.style.cssText = 'position:fixed;background:#111;border:1px solid #555;padding:4px 8px;font-size:6px;color:#aaa;pointer-events:none;z-index:30000;white-space:nowrap;';
+                tip.style.cssText = 'position:fixed;background:#111;border:1px solid #555;padding:4px 8px;font-size:8px;color:#aaa;pointer-events:none;z-index:30000;white-space:nowrap;';
                 tip.textContent = 'Click to view profile';
                 document.body.appendChild(tip);
                 lbList._tip = tip;
@@ -899,6 +1021,18 @@ function initUIEvents() {
     if (dom.buyAllUpgrades) dom.buyAllUpgrades.addEventListener('click', () => { playClick(); buyAllUpgrades(); });
     if (dom.buyAllDecor) dom.buyAllDecor.addEventListener('click', () => { playClick(); buyAllDecor(); });
     if (dom.buyAllPrestige) dom.buyAllPrestige.addEventListener('click', () => { playClick(); buyAllPrestige(); });
+    // Buy All tooltips (same style as shop tooltips)
+    const buyAllTooltipData = {
+        upgrades: { name: '⚡ Buy All', desc: 'Buys upgrades in order of highest VPS per cost,<br>repeating until funds are exhausted.', icon: '', stats: [{ label: 'Strategy', value: 'Best value first', cls: 'gold' }] },
+        decor: { name: '⚡ Buy All Decor', desc: 'Buys decor in order of highest VPS multiplier per cost,<br>repeating until funds are exhausted.', icon: '', stats: [{ label: 'Strategy', value: 'Best value first', cls: 'gold' }] },
+        prestige: { name: '⚡ Buy All Prestige', desc: 'Buys prestige upgrades in order of highest value per cost,<br>repeating until PP are exhausted.', icon: '', stats: [{ label: 'Strategy', value: 'Best value first', cls: 'gold' }] }
+    };
+    ['upgrades','decor','prestige'].forEach(key => {
+        const btn = dom['buyAll' + key.charAt(0).toUpperCase() + key.slice(1)];
+        if (!btn) return;
+        btn.addEventListener('mouseenter', () => showShopTooltip(buyAllTooltipData[key], null));
+        btn.addEventListener('mouseleave', hideShopTooltip);
+    });
 
     // Music player
     initMusicPlayer();
@@ -1297,6 +1431,11 @@ function enterGame() {
     resizeCanvas();
     // Apply offline progress earned while away
     const offline = applyOfflineProgress();
+    // Ensure vibes start at zero for new players (guard against any overflow)
+    if (bnGt(G.vibes, bnFromNumber(1e15))) {
+        G.vibes = BN_ZERO;
+        G.lifetime_vibes = BN_ZERO;
+    }
     updateAllUI();
     applySidebarPosition();
     initGameLoop();
@@ -1353,6 +1492,9 @@ async function tryInitP2P() {
         G.displayName || G.username || 'Player',
         (sorted) => {
             const l = dom.leaderboardList; if (!l) return;
+            // Cache for profile popup lookups
+            lastP2PEntries = sorted;
+            const localPid = getLocalP2PId();
             for (const e of sorted) {
                 const rows = l.querySelectorAll('.lb-entry');
                 for (const r of rows) {
@@ -1377,6 +1519,11 @@ async function tryInitP2P() {
                     }
                     if (pr) pr.textContent = fmtSafe(e.prestige);
                     if (t) { const ti = getTierFromPrestige(e.prestige ?? 0); t.textContent = ti >= 0 ? TIERS[ti].name : '—'; }
+                    // Update tier icon in left column for P2P peers using their custom display icon
+                    const iconCell = r.querySelector('.lb-tier-icon');
+                    if (iconCell && e.tierIcon) {
+                        iconCell.innerHTML = `<img src="sprites/images/icons/individual/tier_${e.tierIcon}.webp" style="width:24px;height:24px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">`;
+                    }
                     break;
                 }
             }
@@ -1407,7 +1554,7 @@ function initGameLoop() {
         }
         // Crypto P2P broadcast every tick (~100ms, 10x/sec)
         if (p2pCrypto) {
-            p2pCrypto.broadcast(G.lifetime_vibes, bnToNumber(G.total_prestiges), getVPS(), G.total_pp_earned);
+            p2pCrypto.broadcast(G.lifetime_vibes, bnToNumber(G.total_prestiges), getVPS(), G.total_pp_earned, null, G.settings && G.settings.display_tier_icon || 0);
         }
         // Update sidebar tab indicators every tick (lightweight)
         updateSidebarTabIndicators();
@@ -1946,7 +2093,7 @@ function updateDecorUI() {
             <div class="shop-item-icon">${di}</div>
             <div class="shop-item-info">
                 <div class="shop-item-name">${item.name}</div>
-                <div class="shop-item-desc">${item.type} decor</div>
+                <div class="shop-item-desc">${item.desc || item.name}</div>
             </div>
             <div class="shop-item-right">
                 ${owned ? (active ? '<span style="color:#0f0">ACTIVATED</span>' : '<span style="color:#ff0">EQUIP</span>') : `<div class="shop-item-cost">${formatNumber(item.cost)} ✦</div>`}
@@ -2035,7 +2182,7 @@ function applyRoomTheme(roomId) {
 function updateRoomUI() {
     const prefix = ROOM_PREFIX[G.current_room] || (G.current_room || '').substring(0, 2);
     const divider = document.getElementById('current-room');
-    if (divider) divider.src = `sprites/images/ui/${prefix}_ui_divider.png`;
+    if (divider) divider.src = `sprites/images/ui/${prefix}_canvas_divider.webp`;
     applyRoomTheme(G.current_room);
     if (dom.currentRoomUpgradeLabel) {
         dom.currentRoomUpgradeLabel.textContent = ROOMS[G.current_room]?.name || 'Campfire Grove';
@@ -2320,7 +2467,7 @@ async function updateLeaderboardUI(externalEntries) {
             list.innerHTML = '';
             empty = document.createElement('div');
             empty.className = 'lb-entry lb-empty';
-            empty.style.cssText = 'justify-content:center;color:#666;font-size:7px;padding:12px 5px;border:none;';
+            empty.style.cssText = 'justify-content:center;color:#666;font-size:8px;padding:12px 5px;border:none;';
             empty.textContent = '✨ No entries yet — log in and play to be first!';
             list.appendChild(empty);
         }
@@ -2331,7 +2478,7 @@ async function updateLeaderboardUI(externalEntries) {
     // Generate header row (inside list so columns align with entries)
     const hdrEl = document.createElement('div');
     hdrEl.className = 'lb-entry lb-header';
-    hdrEl.innerHTML = '<span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span><span class="lb-tier">TIER</span>';
+    hdrEl.innerHTML = '<span class="lb-tier-icon"></span><span class="lb-rank">#</span><span class="lb-name">NAME</span><span class="lb-vibes">VIBES</span><span class="lb-vps">VPS</span><span class="lb-pp">PP</span><span class="lb-prestige">PRESTIGE</span><span class="lb-tier">TIER</span>';
     fragment.appendChild(hdrEl);
     entries.slice(0, maxRows).forEach((entry, i) => {
         const rowName = nameField(entry.name);
@@ -2364,8 +2511,7 @@ async function updateLeaderboardUI(externalEntries) {
             if (prestigeEl) prestigeEl.textContent = fmtSafe(entry.prestige);
             if (tierEl) {
                 const name = entry.tier >= 0 ? TIERS[entry.tier].name : '—';
-                const iconNum = entry.tier >= 0 ? getTierIconNum(entry.tier) : 0;
-                tierEl.innerHTML = name + (iconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${iconNum}.webp" class="lb-tier-img" style="width:24px;height:24px;vertical-align:middle;margin-left:3px;image-rendering:pixelated;" onerror="this.style.display='none'">` : '');
+                tierEl.textContent = name;
             }
         } else {
             // Create new row
@@ -2376,30 +2522,25 @@ async function updateLeaderboardUI(externalEntries) {
             if (entry.playerId) el.dataset.playerId = entry.playerId;
             if (isDev) {
                 el.innerHTML = `
+                    <span class="lb-tier-icon">${(() => { const ni = (entry.tier >= 0 ? getTierIconNum(entry.tier) : 0); return ni > 0 ? `<img src="sprites/images/icons/individual/tier_${ni}.webp" style="width:24px;height:24px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">` : ''; })()}</span>
                     <span class="lb-rank">#${i + 1}</span>
-                    <span class="lb-name dev">◆ ${entry.name} <span class="lb-dev-badge">(DEV)
-                        <span class="dev-tooltip">
-                            <strong>Official Game Dev</strong>
-                            <a href="https://adsdoctormelbourne.com.au" target="_blank" rel="noopener">🌐 Website</a>
-                            <a href="https://github.com/DrGekoz" target="_blank" rel="noopener">🐙 GitHub</a>
-                            <a href="https://buymeacoffee.com/DrGekoz" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
-                        </span>
-                    </span></span>
+                    <span class="lb-name dev">◆ ${entry.name} <span class="lb-dev-badge">(DEV)</span></span>
                     <span class="lb-vibes">${fmtVibes(entry.vibes)}</span>
                     <span class="lb-vps">${fmtSafe(entry.vps)}</span>
                     <span class="lb-pp">${fmtSafe(entry.pp)}</span>
                     <span class="lb-prestige">${fmtSafe(entry.prestige)}</span>
-                    <span class="lb-tier">${(() => { const n = (entry.tier >= 0 ? TIERS[entry.tier].name : '—'); const ni = (entry.tier >= 0 ? getTierIconNum(entry.tier) : 0); return n + (ni > 0 ? `<img src="sprites/images/icons/individual/tier_${ni}.webp" class="lb-tier-img" style="width:24px;height:24px;vertical-align:middle;margin-left:3px;image-rendering:pixelated;" onerror="this.style.display='none'">` : ''); })()}</span>
+                    <span class="lb-tier">${(() => { const n = (entry.tier >= 0 ? TIERS[entry.tier].name : '—'); return n; })()}</span>
                 `;
             } else {
                 el.innerHTML = `
+                    <span class="lb-tier-icon">${(() => { const isMe = (entry.name === displayName || entry.name === G.username); const customIcon = isMe && G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : 0; const iconNum = customIcon || (entry.tier >= 0 ? getTierIconNum(entry.tier) : 0); return iconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${iconNum}.webp" style="width:24px;height:24px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">` : ''; })()}</span>
                     <span class="lb-rank">#${i + 1}</span>
                     <span class="lb-name">${isYou ? `<img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon-sm" alt=""> ` : ''}${entry.name}</span>
                     <span class="lb-vibes">${fmtVibes(entry.vibes)}</span>
                     <span class="lb-vps">${fmtSafe(entry.vps)}</span>
                     <span class="lb-pp">${fmtSafe(entry.pp)}</span>
                     <span class="lb-prestige">${fmtSafe(entry.prestige)}</span>
-                    <span class="lb-tier">${(() => { const n = (entry.tier >= 0 ? TIERS[entry.tier].name : '—'); const ni = (entry.tier >= 0 ? getTierIconNum(entry.tier) : 0); return n + (ni > 0 ? `<img src="sprites/images/icons/individual/tier_${ni}.webp" class="lb-tier-img" style="width:24px;height:24px;vertical-align:middle;margin-left:3px;image-rendering:pixelated;" onerror="this.style.display='none'">` : ''); })()}</span>
+                    <span class="lb-tier">${(() => { const n = (entry.tier >= 0 ? TIERS[entry.tier].name : '—'); return n; })()}</span>
                 `;
             }
         }
@@ -2526,17 +2667,18 @@ function renderTiers() {
         const unlocked = bnGe(G.total_prestiges, tier.requires);
         const el = document.createElement('div');
         el.className = `shop-item ${unlocked ? 'affordable' : 'locked'}`;
-        el.style.cssText = 'display:grid;grid-template-columns:auto 1fr;gap:4px;padding:4px 6px;font-size:6px;';
+        el.style.cssText = 'display:grid;grid-template-columns:auto 1fr;gap:4px;padding:4px 6px;font-size:8px;';
         el.innerHTML = `
-            <span style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-secondary)'};font-size:8px;"><img src="sprites/images/icons/individual/tier_${getTierIconNum(idx)}.webp" style="width:28px;height:28px;image-rendering:pixelated;object-fit:contain;vertical-align:middle;display:inline-block;" onerror="this.style.display='none'"></span>
+            <span style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-secondary)'};font-size:10px;"><img src="sprites/images/icons/individual/tier_${getTierIconNum(idx)}.webp" style="width:32px;height:32px;image-rendering:pixelated;object-fit:contain;vertical-align:middle;display:inline-block;" onerror="this.style.display='none'"></span>
             <div>
                 <div style="color:${unlocked ? 'var(--accent-gold)' : 'var(--text-primary)'}"><strong>${tier.name}</strong> — ${formatNumber(tier.requires)} prestiges</div>
                 <div style="color:${unlocked ? 'var(--accent-green)' : 'var(--text-secondary)'}">${tier.bonus}</div>
             </div>
         `;
         el._tooltipData = {
+            tierNumber: idx + 1,
             name: tier.name,
-            desc: (unlocked ? '✅ Unlocked' : '🔒 Locked') + ' — ' + formatNumber(tier.requires) + ' prestiges required',
+            desc: '<span style="font-size:8px;' + (unlocked ? 'color:var(--accent-green);">✅ UNLOCKED' : 'color:var(--text-secondary);">🔒 LOCKED') + '</span><br><span style="color:var(--accent-gold);">' + formatNumber(tier.requires) + ' Prestiges Required</span>',
             icon: `sprites/images/icons/individual/tier_${getTierIconNum(idx)}.webp`,
             stats: [
                 { label: 'Bonus', value: tier.bonus, cls: 'green' },
@@ -2558,11 +2700,11 @@ function updateAchievementsUI() {
     const total = ACHIEVEMENTS.length;
     const pct = total > 0 ? Math.round(unlocked / total * 100) : 0;
     list.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-        <span style="font-size:7px;color:var(--accent-gold);white-space:nowrap;">🏆 ${unlocked}/${total}</span>
+        <span style="font-size:8px;color:var(--accent-gold);white-space:nowrap;">🏆 ${unlocked}/${total}</span>
         <div style="flex:1;height:6px;background:#1a1a1a;border:1px solid #333;position:relative;">
             <div style="height:100%;width:${pct}%;background:linear-gradient(90deg, #ffd700, #ffaa00);transition:width 0.5s;"></div>
         </div>
-        <span style="font-size:6px;color:var(--text-secondary);white-space:nowrap;">${pct}%</span>
+        <span style="font-size:8px;color:var(--text-secondary);white-space:nowrap;">${pct}%</span>
     </div>`;
     ACHIEVEMENTS.forEach(ach => {
         const earned = G.achievements.includes(ach.id);
@@ -2758,9 +2900,11 @@ function openSettings(tab) {
 
     dom.settingsTabName.classList.remove('active');
     dom.settingsTabAudio.classList.remove('active');
+    dom.settingsTabProfile.classList.remove('active');
     dom.settingsTabCredits.classList.remove('active');
     dom.settingsPanelName.classList.add('hidden');
     dom.settingsPanelAudio.classList.add('hidden');
+    dom.settingsPanelProfile.classList.add('hidden');
     dom.settingsPanelCredits.classList.add('hidden');
 
     if (tab === 'name') {
@@ -2769,6 +2913,27 @@ function openSettings(tab) {
     } else if (tab === 'audio') {
         dom.settingsTabAudio.classList.add('active');
         dom.settingsPanelAudio.classList.remove('hidden');
+    } else if (tab === 'profile') {
+        dom.settingsTabProfile.classList.add('active');
+        dom.settingsPanelProfile.classList.remove('hidden');
+        // Highlight selected tier in grid
+        const savedTier = G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : (getCurrentTier(G) >= 0 ? getCurrentTier(G) + 1 : 1);
+        const tierGrid = document.getElementById('settings-tier-grid');
+        if (tierGrid) {
+            tierGrid.querySelectorAll('.tier-pick-item').forEach(el => el.style.borderColor = 'transparent');
+            const selected = tierGrid.querySelector(`.tier-pick-item[data-tier="${Math.max(1, Math.min(500, savedTier))}"]`);
+            if (selected) {
+                selected.style.borderColor = 'var(--accent-gold)';
+                selected.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+        }
+        // Sync font dropdowns
+        const fontTitleEl = document.getElementById('settings-font-title');
+        const fontBodyEl = document.getElementById('settings-font-body');
+        const fontSizeEl = document.getElementById('settings-font-size');
+        if (fontTitleEl && G.settings && G.settings.title_font) fontTitleEl.value = G.settings.title_font;
+        if (fontBodyEl && G.settings && G.settings.body_font) fontBodyEl.value = G.settings.body_font;
+        if (fontSizeEl && G.settings && G.settings.font_size) fontSizeEl.value = G.settings.font_size;
     } else {
         dom.settingsTabCredits.classList.add('active');
         dom.settingsPanelCredits.classList.remove('hidden');
@@ -2791,6 +2956,7 @@ function showShopTooltip(data, event) {
     if (!tt) return;
     
     let html = '';
+    if (data.tierNumber) html += `<div class="tt-tier-num">TIER ${data.tierNumber}</div>`;
     if (data.icon) html += `<img src="${data.icon}" class="tt-icon-img" onerror="this.style.display='none'">`;
     if (data.name) html += `<div class="tt-name">${data.name}</div>`;
     if (data.desc) html += `<div class="tt-desc">${data.desc}</div>`;
@@ -2958,32 +3124,31 @@ function updateShopItemTooltip(item, tierId) {
     };
 }
 
-// ---- BUY ALL BUTTONS ----
+// ---- BUY ALL BUTTONS (value-based: highest VPS/cost first) ----
 function buyAllUpgrades() {
     const room = G.current_room || 'campfire_grove';
     const roomDefs = typeof ROOM_AUTOCLICKERS !== 'undefined' ? (ROOM_AUTOCLICKERS[room] || []) : [];
     const defs = roomDefs.length > 0 ? roomDefs : AUTOCLICKERS;
     if (defs.length === 0) return;
 
-    // Sort by baseCost descending (most expensive first)
-    const sorted = [...defs].sort((a, b) => b.baseCost - a.baseCost);
-    const roomClickers = (G.room_autoclickers || {})[room] || {};
     let bought = 0;
+    let safety = 0;
 
-    for (const tier of sorted) {
-        const count = roomClickers[tier.id] || 0;
-        const vibesNum = bnToNumber(G.vibes);
-        let maxQty = 0;
-        if (isFinite(vibesNum) && vibesNum > 0) {
-            maxQty = getMaxBuyable(tier.baseCost, count, vibesNum);
-        } else if (bnGt(G.vibes, BN_ZERO)) {
-            // Very large BN — buy 1 at a time (safe path)
-            maxQty = 1;
+    while (safety++ < 500) {
+        let best = null;
+        let bestVal = -1;
+        for (const tier of defs) {
+            // Read count fresh from state each iteration (don't cache roomClickers)
+            const count = ((G.room_autoclickers || {})[room] || {})[tier.id] || 0;
+            const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
+            if (!bnGe(G.vibes, cost)) continue;
+            // VPS per unit after buying = tier.vps * (1 + synergy)
+            const val = tier.vps / cost;
+            if (val > bestVal) { bestVal = val; best = tier; }
         }
-        if (maxQty > 0) {
-            const result = buyAutoclicker(tier.id, maxQty);
-            if (result) bought += result;
-        }
+        if (!best) break;
+        const result = buyAutoclicker(best.id, 1);
+        if (result) bought += result; else break;
     }
 
     if (bought > 0) {
@@ -2997,14 +3162,21 @@ function buyAllDecor() {
     const items = getDecorForRoom(room) || [];
     if (items.length === 0) return;
 
-    // Sort by cost descending, filter unowned
-    const sorted = items.filter(d => !G.owned_decor.includes(d.id)).sort((a, b) => b.cost - a.cost);
     let bought = 0;
+    let safety = 0;
 
-    for (const item of sorted) {
-        if (bnGe(G.vibes, item.cost) && !G.owned_decor.includes(item.id)) {
-            if (buyDecor(item.id)) bought++;
+    while (safety++ < 200) {
+        let best = null;
+        let bestVal = -1;
+        for (const item of items) {
+            if (G.owned_decor.includes(item.id)) continue;
+            if (!bnGe(G.vibes, item.cost)) continue;
+            // Value = VPS multiplier increase per cost
+            const val = (item.vpsMult - 1) / item.cost;
+            if (val > bestVal) { bestVal = val; best = item; }
         }
+        if (!best) break;
+        if (buyDecor(best.id)) bought++; else break;
     }
 
     if (bought > 0) {
@@ -3017,23 +3189,27 @@ function buyAllDecor() {
 function buyAllPrestige() {
     if (!PRESTIGE_UPGRADES || PRESTIGE_UPGRADES.length === 0) return;
 
-    // Build sorted list by progressive cost descending
-    const withCost = PRESTIGE_UPGRADES.map(upg => {
-        const count = G.prestige_upgrades[upg.id] || 0;
-        const cost = getPrestigeUpgradeCost(upg.id);
-        return { upg, cost, count };
-    }).sort((a, b) => bnCompare(b.cost, a.cost));
-
     let bought = 0;
+    let safety = 0;
 
-    for (const entry of withCost) {
-        if (bnGe(G.prestige_points, entry.cost)) {
-            if (buyPrestigeUpgrade(entry.upg.id)) {
-                bought++;
-                // After buying one, recalculate remaining costs
-                // Since buying changes prestige_points, re-check next iterations
-            }
+    while (safety++ < 200) {
+        let best = null;
+        let bestVal = -1;
+        for (const upg of PRESTIGE_UPGRADES) {
+            const count = G.prestige_upgrades[upg.id] || 0;
+            const cost = getPrestigeUpgradeCost(upg.id);
+            if (!bnGe(G.prestige_points, cost)) continue;
+            // Value estimate: gate VPS upgrades give higher value per cost
+            let val;
+            if (upg.type === 'gw_add') val = upg.value / bnToNumber(cost);
+            else if (upg.type === 'base_vps') val = upg.value / bnToNumber(cost);
+            else if (upg.type === 'click_mult') val = 0.5 / bnToNumber(cost);
+            else if (upg.type === 'perma_mult') val = (Math.pow(upg.value, count + 1) - Math.pow(upg.value, count)) / bnToNumber(cost);
+            else val = 0.1 / bnToNumber(cost);
+            if (val > bestVal) { bestVal = val; best = upg; }
         }
+        if (!best) break;
+        if (buyPrestigeUpgrade(best.id)) bought++; else break;
     }
 
     if (bought > 0) {
@@ -3054,6 +3230,44 @@ function applySidebarPosition() {
     if (dom.settingsSidebarPos) {
         dom.settingsSidebarPos.checked = G.settings && G.settings.sidebar_position === 'right';
     }
+}
+
+// ---- FONTS ----
+const FONT_OPTIONS = {
+    title: ["'Press Start 2P',monospace","'Silkscreen',monospace","'Pixelify Sans',monospace","'VT323',monospace","'DotGothic16',monospace","'Micro 5',monospace","'Tiny5',monospace","'Rubik Pixel',monospace","'Monoton',monospace","'Major Mono Display',monospace","'Space Mono',monospace","'Share Tech Mono',monospace","'Fragment Mono',monospace","'IBM Plex Mono',monospace","'JetBrains Mono',monospace"],
+    body: ["'Press Start 2P',monospace","'Silkscreen',monospace","'Pixelify Sans',monospace","'VT323',monospace","'DotGothic16',monospace","'Micro 5',monospace","'Tiny5',monospace","'Rubik Pixel',monospace","'Monoton',monospace","'Major Mono Display',monospace","'Space Mono',monospace","'Share Tech Mono',monospace","'Fragment Mono',monospace","'IBM Plex Mono',monospace","'JetBrains Mono',monospace"]
+};
+function applyFonts(titleFont, bodyFont, fontSize) {
+    const title = titleFont || (G.settings && G.settings.title_font) || "'Press Start 2P',monospace";
+    const body = bodyFont || (G.settings && G.settings.body_font) || "'Press Start 2P',monospace";
+    const size = parseInt(fontSize || (G.settings && G.settings.font_size) || '8');
+    document.documentElement.style.setProperty('--title-font', title);
+    document.documentElement.style.setProperty('--pixel-font', body);
+    document.documentElement.style.fontSize = size + 'px';
+    document.body.style.fontSize = size + 'px';
+    // Inject style that overrides all explicit font sizes so they scale with the slider
+    let styleEl = document.getElementById('user-font-size-style');
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'user-font-size-style';
+        document.head.appendChild(styleEl);
+    }
+    // Scale icons proportionally to font size change
+    const iconScale = size / 8;
+    styleEl.textContent = `
+        *, *::before, *::after { font-size: ${size}px !important; }
+        h2, .sidebar-header h2 { font-size: ${Math.round(size * 1.375)}px !important; }
+        h1 { font-size: ${Math.round(size * 1.5)}px !important; }
+        .shop-item img, .shop-icon-img, .tt-icon-img, .lb-tier-icon img,
+        .chat-tier-icon, .vibe-icon, .vibe-icon-sm,
+        .lb-tier-img, .tier-pick-item img,
+        .settings-support-icon svg
+        { width: auto; height: ${Math.round(iconScale * 20)}px; max-height: ${Math.round(iconScale * 154)}px; }
+        .vibe-icon { height: ${Math.round(iconScale * 16)}px; }
+        .vibe-icon-sm { height: ${Math.round(iconScale * 12)}px; }
+        .lb-tier-img { height: ${Math.round(iconScale * 24)}px; }
+        .tt-icon-img { height: ${Math.round(iconScale * 154)}px; }
+    `;
 }
 
 // ---- BOOT ----
@@ -3155,8 +3369,8 @@ function addChatMessage(username, text, isOwn) {
     const iconNum = tier >= 0 ? getTierIconNum(tier) : 0;
     el.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:2px;max-width:100%;${isOwn ? 'align-items:flex-end;margin-left:auto;' : ''}">
-            <div class="chat-username" style="font-size:5px;color:${isOwn ? 'var(--accent-gold)' : 'var(--accent-cyan)'};display:flex;align-items:center;gap:3px;cursor:pointer;" data-username="${escapeHtml(username)}"><img src="sprites/images/icons/individual/tier_${iconNum}.webp" class="chat-tier-icon" style="width:14px;height:14px;image-rendering:pixelated;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none'">${escapeHtml(username)}</div>
-            <div class="chat-bubble" style="background:${isOwn ? 'rgba(255,215,0,0.15)' : 'rgba(0,255,255,0.1)'};border:1px solid ${isOwn ? 'rgba(255,215,0,0.3)' : 'rgba(0,255,255,0.2)'};border-radius:4px;padding:5px 8px;font-size:7px;word-break:break-word;max-width:280px;">${escapeHtml(text)}</div>
+            <div class="chat-username" style="font-size:8px;color:${isOwn ? 'var(--accent-gold)' : 'var(--accent-cyan)'};display:flex;align-items:center;gap:4px;cursor:pointer;" data-username="${escapeHtml(username)}"><img src="sprites/images/icons/individual/tier_${iconNum}.webp" class="chat-tier-icon" style="width:20px;height:20px;image-rendering:pixelated;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none'">${escapeHtml(username)}</div>
+            <div class="chat-bubble" style="background:${isOwn ? 'rgba(255,215,0,0.15)' : 'rgba(0,255,255,0.1)'};border:1px solid ${isOwn ? 'rgba(255,215,0,0.3)' : 'rgba(0,255,255,0.2)'};border-radius:4px;padding:5px 8px;font-size:8px;word-break:break-word;max-width:280px;">${escapeHtml(text)}</div>
         </div>
     `;
     // Click username → show profile
@@ -3167,7 +3381,7 @@ function addChatMessage(username, text, isOwn) {
             // Simple tooltip on hover
             const tip = document.createElement('div');
             tip.className = 'chat-name-tooltip';
-            tip.style.cssText = 'position:fixed;background:#111;border:1px solid #555;padding:4px 8px;font-size:6px;color:#aaa;pointer-events:none;z-index:30000;white-space:nowrap;';
+            tip.style.cssText = 'position:fixed;background:#111;border:1px solid #555;padding:4px 8px;font-size:8px;color:#aaa;pointer-events:none;z-index:30000;white-space:nowrap;';
             tip.textContent = 'Click to view ' + username + "'s profile";
             document.body.appendChild(tip);
             nameEl._tooltip = tip;
@@ -3193,24 +3407,64 @@ function showPlayerProfile(username) {
     const closeBtn = document.getElementById('profile-close');
     if (!popup || !content) return;
 
-    // Gather stats from game state
-    const tierIdx = getCurrentTier(G);
-    const tierName = tierIdx >= 0 ? TIERS[tierIdx].name : '—';
-    const tierIconNum = tierIdx >= 0 ? getTierIconNum(tierIdx) : 0;
-    const tierIconHtml = tierIconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${tierIconNum}.webp" style="width:28px;height:28px;image-rendering:pixelated;vertical-align:middle;">` : '';
-    const clickMult = 1; // simplified
-    const vpsMult = 1;
-    const prestigeCount = G.total_prestiges || BN_ZERO;
-    const totalPp = G.total_pp_earned || BN_ZERO;
-    const achievementsUnlocked = (G.achievements || []).length;
-    const achievementsTotal = ACHIEVEMENTS ? ACHIEVEMENTS.length : 0;
-    const roomsUnlocked = (G.unlocked_rooms || []).length;
-    const roomsTotal = ROOMS ? Object.keys(ROOMS).length : 0;
-    const totalDecor = (G.owned_decor || []).length;
+    // Try to find player data from leaderboard entries (P2P / server)
+    let playerData = null;
+    const nameField = (n) => n.replace('◆ ', '').replace('⭐ ', '').trim();
+    if (lastP2PEntries) {
+        playerData = lastP2PEntries.find(e => nameField(e.name || '') === username || e.playerId === username);
+    }
+    if (!playerData) {
+        // Check the rendered leaderboard DOM for the entry
+        const list = document.getElementById('leaderboard-list');
+        if (list) {
+            const rows = list.querySelectorAll('.lb-entry:not(.lb-header)');
+            for (const row of rows) {
+                const nameEl = row.querySelector('.lb-name');
+                if (!nameEl) continue;
+                const rowName = nameField(nameEl.textContent);
+                if (rowName === username) {
+                    const vibeEl = row.querySelector('.lb-vibes');
+                    const vpsEl = row.querySelector('.lb-vps');
+                    const ppEl = row.querySelector('.lb-pp');
+                    const prestigeEl = row.querySelector('.lb-prestige');
+                    const tierEl = row.querySelector('.lb-tier');
+                    playerData = {
+                        vibes: vibeEl ? vibeEl.textContent : '0',
+                        vps: vpsEl ? vpsEl.textContent : '0',
+                        pp: ppEl ? ppEl.textContent : '0',
+                        prestige: prestigeEl ? prestigeEl.textContent : '0',
+                        tierName: tierEl ? tierEl.textContent.replace(/<img.*/, '').trim() : '—',
+                    };
+                    break;
+                }
+            }
+        }
+    }
 
-    // Count total autoclickers
-    let totalClickers = 0;
-    if (G.room_autoclickers) {
+    // For the local player, use live game state
+    const isLocalPlayer = (username === G.displayName || username === G.username || username === 'Player' || (G.displayName || G.username) === 'Player');
+    const tierIdx = isLocalPlayer ? getCurrentTier(G) : (playerData && playerData.tier != null ? playerData.tier : (playerData && playerData.prestige != null ? getTierFromPrestige(Number(playerData.prestige)) : -1));
+    const tierName = tierIdx >= 0 ? TIERS[tierIdx].name : (playerData && playerData.tierName ? playerData.tierName : '—');
+    const tierIconNum = tierIdx >= 0 ? getTierIconNum(tierIdx) : 0;
+    const tierIconHtml = tierIconNum > 0 ? `<img src="sprites/images/icons/individual/tier_${tierIconNum}.webp" style="width:154px;height:154px;image-rendering:pixelated;vertical-align:middle;">` : '';
+
+    // Stats from leaderboard data or live state
+    const vibesStr = isLocalPlayer ? formatNumber(G.vibes) : (playerData ? fmtVibes(playerData.vibes) : '—');
+    const vpsStr = isLocalPlayer ? formatNumber(getVPS()) : (playerData ? fmtSafe(playerData.vps) : '—');
+    const clickStr = isLocalPlayer ? formatNumber(getClickValue()) : '—';
+    const prestigeStr = isLocalPlayer ? formatNumber(G.total_prestiges || BN_ZERO) : (playerData ? fmtSafe(playerData.prestige) : '—');
+    const ppStr = isLocalPlayer ? formatNumber(G.total_pp_earned || BN_ZERO) : (playerData ? fmtSafe(playerData.pp) : '—');
+    const roomsUnlocked = isLocalPlayer ? (G.unlocked_rooms || []).length : '—';
+    const roomsTotal = ROOMS ? Object.keys(ROOMS).length : 0;
+    const totalDecor = isLocalPlayer ? (G.owned_decor || []).length : '—';
+    const achievementsUnlocked = isLocalPlayer ? (G.achievements || []).length : 0;
+    const achievementsTotal = ACHIEVEMENTS ? ACHIEVEMENTS.length : 0;
+    const achievementPct = achievementsTotal > 0 ? Math.round((achievementsUnlocked / achievementsTotal) * 100) : 0;
+
+    // Count total autoclickers (local only)
+    let totalClickers = '—';
+    if (isLocalPlayer && G.room_autoclickers) {
+        totalClickers = 0;
         for (const roomId of Object.keys(G.room_autoclickers)) {
             for (const count of Object.values(G.room_autoclickers[roomId])) {
                 totalClickers += count || 0;
@@ -3223,21 +3477,35 @@ function showPlayerProfile(username) {
             ${tierIconHtml}
             <div>
                 <div style="font-size:11px;color:var(--accent-gold);font-weight:bold;">${escapeHtml(username)}</div>
-                <div style="font-size:7px;color:var(--text-secondary);">${tierName}</div>
+                <div style="font-size:8px;color:var(--text-secondary);">${tierName}</div>
             </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <div class="prestige-stat-box"><span class="prestige-stat-label">VIBES</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${formatNumber(G.vibes)}</span></div>
-            <div class="prestige-stat-box"><span class="prestige-stat-label">VPS</span><span class="prestige-stat-value" style="color:var(--accent-green);">${formatNumber(getVPS())}</span></div>
-            <div class="prestige-stat-box"><span class="prestige-stat-label">CLICK</span><span class="prestige-stat-value" style="color:var(--accent-cyan);">${formatNumber(getClickValue())}</span></div>
-            <div class="prestige-stat-box"><span class="prestige-stat-label">PRESTIGES</span><span class="prestige-stat-value" style="color:var(--accent-pink);">${formatNumber(prestigeCount)}</span></div>
-            <div class="prestige-stat-box"><span class="prestige-stat-label">PP EARNED</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${formatNumber(totalPp)}</span></div>
-            <div class="prestige-stat-box"><span class="prestige-stat-label">TIER</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${tierName}</span></div>
-            <div class="prestige-stat-box"><span class="prestige-stat-label">ACHIEVEMENTS</span><span class="prestige-stat-value" style="color:var(--accent-cyan);">${achievementsUnlocked}/${achievementsTotal}</span></div>
+            <div class="prestige-stat-box" style="grid-column:1/-1;"><span class="prestige-stat-label">TIER ${tierIconNum > 0 ? tierIconNum : '?'}</span><span class="prestige-stat-value" style="color:var(--accent-gold);font-size:10px;">${tierName}</span></div>
+            <div class="prestige-stat-box"><span class="prestige-stat-label">VIBES</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${vibesStr}</span></div>
+            <div class="prestige-stat-box"><span class="prestige-stat-label">VPS</span><span class="prestige-stat-value" style="color:var(--accent-green);">${vpsStr}</span></div>
+            <div class="prestige-stat-box"><span class="prestige-stat-label">CLICK</span><span class="prestige-stat-value" style="color:var(--accent-cyan);">${clickStr}</span></div>
+            <div class="prestige-stat-box"><span class="prestige-stat-label">PRESTIGES</span><span class="prestige-stat-value" style="color:var(--accent-pink);">${prestigeStr}</span></div>
+            <div class="prestige-stat-box"><span class="prestige-stat-label">Total PP Earned</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${ppStr}</span></div>
             <div class="prestige-stat-box"><span class="prestige-stat-label">ROOMS</span><span class="prestige-stat-value" style="color:var(--accent-green);">${roomsUnlocked}/${roomsTotal}</span></div>
             <div class="prestige-stat-box"><span class="prestige-stat-label">UPGRADES</span><span class="prestige-stat-value" style="color:var(--accent-cyan);">${totalClickers}</span></div>
             <div class="prestige-stat-box"><span class="prestige-stat-label">DECOR</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${totalDecor}</span></div>
+            <div class="prestige-stat-box" style="grid-column:1/-1;">
+                <span class="prestige-stat-label">ACHIEVEMENTS ${achievementsUnlocked}/${achievementsTotal}</span>
+                <div style="width:100%;height:8px;background:#222;border-radius:2px;margin-top:4px;overflow:hidden;">
+                    <div style="width:${achievementPct}%;height:100%;background:var(--accent-cyan);border-radius:2px;transition:width 0.3s;"></div>
+                </div>
+            </div>
         </div>
+        ${/^drgekoz$/i.test(username) ? `
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid #ffd70033;text-align:center;">
+            <div style="font-size:8px;color:#ffd700;margin-bottom:6px;">✦ GAME DEVELOPER ✦</div>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                <a href="https://adsdoctormelbourne.com.au" target="_blank" rel="noopener" style="color:#0af;text-decoration:none;font-size:8px;padding:4px 8px;border:1px solid #333;border-radius:2px;">🌐 Website</a>
+                <a href="https://github.com/DrGekoz" target="_blank" rel="noopener" style="color:#0af;text-decoration:none;font-size:8px;padding:4px 8px;border:1px solid #333;border-radius:2px;">🐙 GitHub</a>
+                <a href="https://buymeacoffee.com/DrGekoz" target="_blank" rel="noopener" style="color:#0af;text-decoration:none;font-size:8px;padding:4px 8px;border:1px solid #333;border-radius:2px;">☕ Buy Me a Coffee</a>
+            </div>
+        </div>` : ''}
     `;
 
     popup.classList.remove('hidden');
