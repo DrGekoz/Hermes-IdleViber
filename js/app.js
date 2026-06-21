@@ -82,7 +82,9 @@ let p2pInitialized = false; // P2P mesh initialized
 let p2pStarting = false;    // Guard against concurrent tryInitP2P calls
 let fbSyncTimer = null;     // Hourly Firestore sync timer
 let lbFastTimer = null;     // 50ms leaderboard fast render
-let lastP2PEntries = null;  // Cached P2P entries for fast render
+let lastP2PEntries = null;  // Cached P2P entries for fast render + profile popups
+let _p2pMergedHash = '';    // Hash to detect P2P data changes
+let _pendingLBUpdate = null; // Debounce handle for full leaderboard render
 let p2pBroadcastTick = 0;   // Tick counter for periodic P2P broadcast
 
 // Get the local player's P2P ID (prefer module state over localStorage for scoped identity)
@@ -1613,110 +1615,73 @@ async function tryInitP2P() {
         { db, doc:fbApi.doc, setDoc:fbApi.setDoc, getDoc:fbApi.getDoc, getDocs:fbApi.getDocs, collection:fbApi.collection, onSnapshot:fbApi.onSnapshot, deleteDoc:fbApi.deleteDoc, Timestamp:fbApi.Timestamp },
         G.displayName || G.username || 'Player',
         (sorted) => {
-            try {
-            const l = dom.leaderboardList; if (!l) return;
-            // Cache for profile popup lookups
+            // Cache for fast render (lbFastTimer) and profile popups
             lastP2PEntries = sorted;
-            // Only log leaderboard entries when the set changes (reduce console spam)
+            // Only log when entry set changes
             const namesSorted = sorted.map(e => e.username).filter(Boolean).sort().join(',');
-            if (namesSorted !== window._lastP2PNames) { window._lastP2PNames = namesSorted; if (namesSorted) console.log('[P2P] Leaderboard entries:', namesSorted); }
-            // First pass: build map of existing rows by name
-            const existingRows = {};
-            l.querySelectorAll('.lb-entry').forEach(r => {
-                const n = r.querySelector('.lb-name');
-                if (!n) return;
-                existingRows[n.textContent.replace('◆ ','').replace('⭐ ','').replace(/\(DEV\).*/s, '').trim()] = r;
-            });
-            // Second pass: update or create rows for each P2P entry
-            const p2pActive = new Set();
+            if (namesSorted !== window._lastP2PNames) { window._lastP2PNames = namesSorted; if (namesSorted) console.log('[P2P] Entries:', namesSorted); }
+            // Build merged leaderboard: P2P entries (priority) + Firestore cached entries (fallback)
+            const fbCache = window._lastFBEntries || [];
+            const merged = [];
+            const seen = new Set();
+            const displayName = G.displayName || G.username || 'Player';
             for (const e of sorted) {
                 if (!e.username || e.username === 'self') continue;
-                const name = e.username;
-                p2pActive.add(name);
-                let r = existingRows[name];
-                // Create row if it doesn't exist yet
-                if (!r) {
-                    r = document.createElement('div');
-                    r.className = `lb-entry p2p-entry ${name === (G.displayName || G.username) ? 'you lb-self-row' : ''}`;
-                    r.innerHTML = '<span class="lb-tier-icon"></span><span class="lb-rank">#?</span><span class="lb-name">' + escapeHtml(name) + '</span><span class="lb-vibes">0</span><span class="lb-vps">0</span><span class="lb-pp">0</span><span class="lb-prestige">0</span><span class="lb-tier">--</span>';
-                    l.appendChild(r);
-                    existingRows[name] = r;
-                }
-                r.dataset.p2p = '1';
-                const v=r.querySelector('.lb-vibes'), vps=r.querySelector('.lb-vps'), pp=r.querySelector('.lb-pp'), pr=r.querySelector('.lb-prestige'), t=r.querySelector('.lb-tier');
-                if (v) {
-                    let txt;
-                    try {
-                        if (Array.isArray(e.score)) txt = formatBN(e.score);
-                        else if (typeof e.score === 'number') txt = formatNumber(e.score);
-                        else txt = String(e.score);
-                    } catch(e2) { txt = '0'; console.warn('P2P fmt err', e2); }
-                    v.textContent = txt;
-                }
-                if (vps) {
-                    try { vps.textContent = Array.isArray(e.vps) ? formatBN(e.vps) : formatNumber(e.vps); } catch(_){}
-                }
-                if (pp) {
-                    try { pp.textContent = Array.isArray(e.pp) ? formatBN(e.pp) : formatNumber(e.pp); } catch(_){}
-                }
-                if (pr) pr.textContent = fmtSafe(e.prestige);
-                if (t) { const ti = getTierFromPrestige(e.prestige ?? 0); t.textContent = ti >= 0 ? TIERS[ti].name : '—'; }
-                // Update tier icon in left column for P2P peers using their custom display icon
-                const iconCell = r.querySelector('.lb-tier-icon');
-                if (iconCell) {
-                    let iconNum = e.tierIcon;
-                    if (!iconNum) {
-                        // Fallback: show prestige-based icon
-                        const tier = getTierFromPrestige(e.prestige ?? 0);
-                        iconNum = tier >= 0 ? getTierIconNum(tier) : 0;
-                    }
-                    if (iconNum) {
-                        iconCell.innerHTML = `<img src="sprites/images/icons/32/${_tierPath(iconNum)}.webp" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;display:block;" onerror="this.style.display='none'">`;
-                    } else {
-                        iconCell.innerHTML = '';
-                    }
-                }
+                const key = e.username.toLowerCase();
+                seen.add(key);
+                const tier = getTierFromPrestige(e.prestige ?? 0);
+                // Use custom display icon if set, otherwise prestige-based
+                let iconNum = e.tierIcon || 0;
+                if (!iconNum) { const t = getTierFromPrestige(e.prestige ?? 0); iconNum = t >= 0 ? getTierIconNum(t) : 0; }
+                merged.push({
+                    playerId: e.id || key,
+                    name: e.username,
+                    vibes: e.score,
+                    pp: e.pp,
+                    prestige: e.prestige,
+                    vps: e.vps,
+                    tier,
+                    tierIcon: iconNum,
+                    _p2p: true,
+                });
             }
-            // Re-sort DOM rows to match P2P score order (descending)
-            const p2pRows = [];
-            l.querySelectorAll('.lb-entry:not(.lb-header)[data-p2p]').forEach(r => p2pRows.push(r));
-            // Build sort function using cached scores from sorted array
-            const scoreMap = {};
-            for (const e of sorted) {
-                if (!e.username || e.username === 'self') continue;
-                const key = e.id || e.username;
-                const sv = Array.isArray(e.score) ? e.score[0]*Math.pow(10,e.score[1]) : (e.score || 0);
-                scoreMap[key] = sv;
-                // Also index by display name for DOM row matching
-                scoreMap[e.username] = sv;
+            // Add local player from live game state (overrides P2P 'self' data with authoritative local)
+            const localKey = displayName.toLowerCase();
+            if (!seen.has(localKey)) {
+                seen.add(localKey);
+                const localTier = getCurrentTier(G);
+                const customIcon = G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : 0;
+                const localIconNum = customIcon || getTierIconNum(localTier >= 0 ? localTier : 0);
+                merged.push({
+                    playerId: getLocalP2PId() || fbUser?.uid || 'local',
+                    name: displayName,
+                    vibes: G.lifetime_vibes,
+                    pp: G.total_pp_earned,
+                    prestige: G.total_prestiges,
+                    vps: getVPS(),
+                    tier: localTier,
+                    tierIcon: localIconNum,
+                    _p2p: true,
+                });
             }
-            p2pRows.sort((a, b) => {
-                const na = (a.querySelector('.lb-name')?.textContent || '').replace('◆ ','').replace('⭐ ','').replace(/\(DEV\).*/s, '').trim();
-                const nb = (b.querySelector('.lb-name')?.textContent || '').replace('◆ ','').replace('⭐ ','').replace(/\(DEV\).*/s, '').trim();
-                // Try display name first, then fall back to name for score lookup
-                let sa = scoreMap[na]; if (sa === undefined) sa = 0;
-                let sb = scoreMap[nb]; if (sb === undefined) sb = 0;
-                return sb - sa;
-            });
-            // Re-append in sorted order (preserve header)
-            const header = l.querySelector('.lb-header');
-            p2pRows.forEach(r => l.appendChild(r));
-            if (header) l.insertBefore(header, l.firstChild);
-            // Update rank numbers
-            const allRows = l.querySelectorAll('.lb-entry:not(.lb-header)');
-            allRows.forEach((r, i) => {
-                const rank = r.querySelector('.lb-rank');
-                if (rank) rank.textContent = '#' + (i + 1);
-            });
-            // Third pass: remove P2P overlay from rows whose peers disconnected
-            // Next Firestore leaderboard cycle (every 15s) restores their data
-            for (const [name, r] of Object.entries(existingRows)) {
-                if (r.dataset && r.dataset.p2p && !p2pActive.has(name)) {
-                    delete r.dataset.p2p;
-                    r.classList.remove('p2p-entry');
-                }
+            // Firestore fallback: entries not covered by P2P
+            for (const e of fbCache) {
+                const fk = (e.name || e.username || '').toLowerCase();
+                if (!fk || seen.has(fk)) continue;
+                seen.add(fk);
+                merged.push(e);
             }
-            } catch(e) { console.warn('P2P lb err:', e.message); }
+            // Hash to detect actual changes before triggering full render
+            const hash = merged.map(e => e.name + ':' + (e.prestige||0) + ':' + (Array.isArray(e.vibes) ? e.vibes.join('e') : e.vibes)).join('|');
+            if (hash !== _p2pMergedHash) {
+                _p2pMergedHash = hash;
+                // Debounce full re-render to avoid thrashing (50ms = 2 ticks)
+                if (_pendingLBUpdate) clearTimeout(_pendingLBUpdate);
+                _pendingLBUpdate = setTimeout(() => {
+                    _pendingLBUpdate = null;
+                    updateLeaderboardUI(merged);
+                }, 50);
+            }
         },
         fbSyncLeaderboard,
         getLocalP2PId()
@@ -1807,6 +1772,16 @@ function initGameLoop() {
             }
         }, 50);
     }
+
+    // Save game before page close/reload
+    window.addEventListener('beforeunload', () => {
+        saveGame();
+        if (G.auth_mode === 'firebase' && fbUser) {
+            fbSave(G).catch(() => {});
+        } else if (G.auth_token && G.server_online) {
+            apiSave(G.auth_token, G).catch(() => {});
+        }
+    });
 
     // --- RENDER LOOP: runs at display refresh rate (up to 180Hz) ---
     let lastBgRoom = null;
@@ -2574,6 +2549,8 @@ async function updateLeaderboardUI(externalEntries) {
                     vps: e.vps_full ?? e.vps ?? 0,
                     tier: getTierFromPrestige(e.prestige_level ?? 0),
                 }));
+                // Cache for P2P merge
+                window._lastFBEntries = entries;
             }
         }
 

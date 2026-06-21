@@ -50,9 +50,15 @@ constructor() { this.m = new Map(); }
 set(k,v) { this.m.set(k,v); }
 del(k) { this.m.delete(k); }
 sorted() { return [...this.m.values()].sort((a,b)=>{
-const sa = Array.isArray(a.score) ? a.score[0]*Math.pow(10,a.score[1]) : a.score;
-const sb = Array.isArray(b.score) ? b.score[0]*Math.pow(10,b.score[1]) : b.score;
-return sb - sa;
+const _n = v => Array.isArray(v) ? Number(v[0])*Math.pow(10,Number(v[1])) : Number(v||0);
+const ap = Number(a.prestige||0), bp = Number(b.prestige||0);
+if (bp !== ap) return bp - ap;         // Prestige desc
+const app = _n(a.pp), bpp = _n(b.pp);
+if (bpp !== app) return bpp - app;     // PP desc
+const av = _n(a.vps), bv = _n(b.vps);
+if (bv !== av) return bv - av;         // VPS desc
+const sa = _n(a.score), sb = _n(b.score);
+return sb - sa;                         // VIBES desc
 }); }
 }
 
@@ -409,10 +415,23 @@ if (payload.type === 'leaderboard') {
 if (this._amHost()) return; // host doesn't consume its own leaderboard
 // Guest receives authoritative leaderboard from host
 const entries = payload.entries || [];
+// Score reconciliation: for self entry, keep whichever is higher (local vs host)
 for (const e of entries) {
 const key = e.id || e.user;
-// Skip self — already tracked via 'self' key below
-if (e.user === this.username) continue;
+if (e.user === this.username) {
+// Compare host's view of our score with local — keep higher
+const hostScore = Array.isArray(e.s) ? Number(e.s[0])*Math.pow(10,Number(e.s[1])) : Number(e.s||0);
+const localScore = Array.isArray(this._myScore) ? Number(this._myScore[0])*Math.pow(10,Number(this._myScore[1])) : Number(this._myScore||0);
+if (hostScore > localScore) {
+this._myScore = e.s;
+this._myPrestige = Math.max(this._myPrestige, e.pr||0);
+this._myVps = e.v;
+this._myPp = e.p;
+this._myTierIcon = e.ti || this._myTierIcon;
+this.ledger.set('self', { username:this.username, score:this._myScore, prestige:this._myPrestige, vps:this._myVps, pp:this._myPp, tierIcon:this._myTierIcon });
+}
+continue; // skip setting as peer entry — 'self' handled below
+}
 this.ledger.set(key, { id: e.id, username: e.user, score:e.s, prestige:e.pr, vps:e.v, pp:e.p, tierIcon:e.ti });
 }
 this.ledger.set('self', { username:this.username, score:this._myScore, prestige:this._myPrestige, vps:this._myVps, pp:this._myPp, tierIcon:this._myTierIcon });
