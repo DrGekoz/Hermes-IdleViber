@@ -173,7 +173,7 @@ async function logout() {
 }
 
 // ---- LEADERBOARD ----
-async function submitScoreToLeaderboard(username, score, prestigeLevel, totalPp, displayName, vps) {
+async function submitScoreToLeaderboard(username, score, prestigeLevel, totalPp, displayName, vps, bio) {
     if (!currentUser || !db) {
         console.warn('🔥 LB submit skipped: no user/db', {hasUser:!!currentUser, hasDb:!!db});
         return { error: 'Not logged in' };
@@ -196,6 +196,7 @@ async function submitScoreToLeaderboard(username, score, prestigeLevel, totalPp,
             vps: safeVps,
             score_full, pp_full, vps_full,
             display_name: displayName || '',
+            bio: bio || '',
             updated_at: Timestamp.now(),
         }, { merge: true });
         return { success: true };
@@ -228,6 +229,7 @@ async function getLeaderboard(limitCount = 50) {
             score_full: data.score_full ?? null,
             pp_full: data.pp_full ?? null,
             vps_full: data.vps_full ?? null,
+            bio: data.bio || '',
         }});
     } catch (e) {
         console.warn('Leaderboard fetch error:', e.message);
@@ -259,6 +261,7 @@ function subscribeLeaderboard(callback, limitCount = 50) {
                 score_full: d.data().score_full || null,
                 pp_full: d.data().pp_full || null,
                 vps_full: d.data().vps_full || null,
+                bio: d.data().bio || '',
             }));
             try { callback(entries); } catch (_) {}
         }, (err) => {
@@ -367,7 +370,7 @@ async function claimDisplayName(name, oldName) {
 // ---- PERIODIC SYNC (hourly + prestige) ----
 
 // Sync our score to Firestore leaderboard (called by timer and on prestige)
-async function syncLeaderboardToFirestore(username, score, prestigeLevel, totalPp, displayName, vps) {
+async function syncLeaderboardToFirestore(username, score, prestigeLevel, totalPp, displayName, vps, bio) {
     if (!currentUser || !db) return { error: 'Not logged in' };
     const { doc, setDoc, Timestamp } = await import(`${FB_BASE}firebase-firestore.js`);
     try {
@@ -386,12 +389,69 @@ async function syncLeaderboardToFirestore(username, score, prestigeLevel, totalP
             vps: safeVps,
             score_full, pp_full, vps_full,
             display_name: displayName || '',
+            bio: bio || '',
             updated_at: Timestamp.now(),
         }, { merge: true });
         return { success: true };
     } catch (e) {
         console.warn('🔥 LB sync failed:', e.message);
         return { error: e.message };
+    }
+}
+
+// Load a specific player's profile data from Firestore by username
+async function getPlayerProfile(username) {
+    if (!db) return null;
+    const { collection, query, where, getDocs, limit } = await import(`${FB_BASE}firebase-firestore.js`);
+    try {
+        // Query leaderboard for matching display_name or username
+        const q = query(
+            collection(db, 'leaderboard'),
+            where('display_name', '==', username),
+            limit(1)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+            const data = snap.docs[0].data();
+            return {
+                uid: snap.docs[0].id,
+                username: data.display_name || data.username || username,
+                score: data.score ?? 0,
+                score_full: data.score_full ?? null,
+                prestige_level: data.prestige_level ?? 0,
+                total_pp: data.total_pp ?? 0,
+                pp_full: data.pp_full ?? null,
+                vps: data.vps ?? 0,
+                vps_full: data.vps_full ?? null,
+                bio: data.bio || '',
+            };
+        }
+        // Fallback: try by username field
+        const q2 = query(
+            collection(db, 'leaderboard'),
+            where('username', '==', username),
+            limit(1)
+        );
+        const snap2 = await getDocs(q2);
+        if (!snap2.empty) {
+            const data = snap2.docs[0].data();
+            return {
+                uid: snap2.docs[0].id,
+                username: data.display_name || data.username || username,
+                score: data.score ?? 0,
+                score_full: data.score_full ?? null,
+                prestige_level: data.prestige_level ?? 0,
+                total_pp: data.total_pp ?? 0,
+                pp_full: data.pp_full ?? null,
+                vps: data.vps ?? 0,
+                vps_full: data.vps_full ?? null,
+                bio: data.bio || '',
+            };
+        }
+        return null;
+    } catch (e) {
+        console.warn('🔥 getPlayerProfile failed:', e.message);
+        return null;
     }
 }
 
@@ -433,6 +493,7 @@ export {
     checkDisplayNameAvailable,
     claimDisplayName,
     syncLeaderboardToFirestore,
+    getPlayerProfile,
     getFirestoreApi,
     getDb,
     signInAnonymously as fbSignInAnon,

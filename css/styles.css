@@ -559,9 +559,9 @@ body {
 .shop-item.affordable:hover { border-color: var(--accent-gold); box-shadow: 0 0 12px rgba(255,215,0,0.2); }
 .shop-item.active { border-color: var(--accent-green); background: rgba(0,255,136,0.05); }
 
-.shop-item-icon { font-size: 14px; width: 52px; min-width: 52px; text-align: center; display: flex; align-items: center; justify-content: center; }
-.shop-icon-img { width: 56px; height: 56px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0; }
-.shop-icon-fallback { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.shop-item-icon { font-size: 14px; width: 44px; min-width: 44px; text-align: center; display: flex; align-items: center; justify-content: center; }
+.shop-icon-img { width: 44px; height: 44px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0; }
+.shop-icon-fallback { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
 /* Ensure ALL game sprites render crisp when downscaled */
 .shop-item img,
 .prestige-upgrade-item img,
@@ -766,6 +766,18 @@ body {
     0%, 100% { box-shadow: 0 4px 0 #8d1a1a, 0 0 20px rgba(255,107,53,0.3); }
     50% { box-shadow: 0 4px 0 #8d1a1a, 0 0 40px rgba(255,107,53,0.5); }
 }
+
+@keyframes rainbow-text {
+    0% { color: #ff0000; }
+    14% { color: #ff8800; }
+    28% { color: #ffff00; }
+    42% { color: #00ff00; }
+    57% { color: #0088ff; }
+    71% { color: #0000ff; }
+    85% { color: #8800ff; }
+    100% { color: #ff0000; }
+}
+.rainbow { animation: rainbow-text 2s linear infinite; }
 
 .click-value {
     position: absolute;

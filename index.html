@@ -310,7 +310,14 @@
 
         <!-- Leaderboard -->
         <div class="leaderboard-float" id="leaderboard-panel">
-            <h3><img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon-sm" alt=""> LEADERBOARD <img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon-sm" alt=""><button class="leaderboard-minimize normal" id="leaderboard-minimize">▲</button></h3>
+            <h3><img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon-sm" alt=""> LEADERBOARD <img src="sprites/images/icons/vibe_icon.webp" class="vibe-icon-sm" alt="">
+                <span id="lb-players-online" style="font-size:6px;color:var(--accent-green);cursor:help;margin-left:auto;margin-right:4px;">Online: 0</span>
+                <div style="display:inline-flex;gap:2px;margin-right:4px;">
+                    <button class="lb-tab active" data-tab="online" style="font-size:5px;padding:1px 4px;background:var(--accent-cyan);color:#000;border:none;cursor:pointer;border-radius:1px;">ONLINE</button>
+                    <button class="lb-tab" data-tab="alltime" style="font-size:5px;padding:1px 4px;background:#333;color:#aaa;border:none;cursor:pointer;border-radius:1px;">ALL</button>
+                </div>
+                <button class="leaderboard-minimize normal" id="leaderboard-minimize">▲</button>
+            </h3>
             <div id="leaderboard-list">
                 <div class="lb-entry"><span style="color:#666;font-size:6px;">Loading...</span></div>
             </div>
@@ -544,6 +551,16 @@
                 <div id="settings-cooldown-info" class="settings-cooldown" style="display:none;"></div>
                 <div id="settings-name-error" class="settings-error"></div>
                 <button id="settings-save-btn" class="settings-save-btn">▶ SAVE</button>
+            </div>
+            <!-- Bio Section -->
+            <div class="settings-section" style="margin-top:8px;padding-top:8px;border-top:1px solid #222;">
+                <div class="settings-label">BIO</div>
+                <div class="settings-hint">Tell other players about yourself (max 200 chars)</div>
+                <textarea id="settings-bio-input" placeholder="Write something about yourself..." maxlength="200" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid #333;color:#ccc;font-family:var(--pixel-font);font-size:7px;padding:6px;resize:vertical;min-height:40px;outline:none;box-sizing:border-box;"></textarea>
+                <div style="display:flex;justify-content:space-between;margin-top:4px;">
+                    <span id="settings-bio-count" style="font-size:6px;color:var(--text-secondary);">0/200</span>
+                    <button id="settings-bio-save" class="settings-save-btn" style="padding:2px 8px;">▶ SAVE</button>
+                </div>
             </div>
             <div class="settings-section" style="margin-top:8px;padding-top:8px;border-top:1px solid #222;">
                 <div class="settings-label">DISPLAY TIER ICON</div>

@@ -49,7 +49,8 @@ import { initFirebase, onAuthChanged, getCurrentUser, isConfigured,
          syncLeaderboardToFirestore as fbSyncLeaderboard,
          getFirestoreApi, getDb, fbSignInAnon,
          checkDisplayNameAvailable as fbCheckName,
-         claimDisplayName as fbClaimName } from './firebase.js';
+         claimDisplayName as fbClaimName,
+         getPlayerProfile as fbGetPlayerProfile } from './firebase.js';
 
 // ---- P2P Leaderboard (WebRTC mesh via Firestore signaling) ----
 import { p2pInit, p2pStart, p2pCleanup, p2pBroadcastScore, p2pSubscribe, p2pGetLocalPlayerId } from './p2p.js';
@@ -85,6 +86,8 @@ let lbFastTimer = null;     // 50ms leaderboard fast render
 let lastP2PEntries = null;  // Cached P2P entries for fast render + profile popups
 let _p2pMergedHash = '';    // Hash to detect P2P data changes
 let _pendingLBUpdate = null; // Debounce handle for full leaderboard render
+let _currentProfileUsername = null; // Tracks open profile for realtime refresh
+let _lbTab = 'online'; // 'online' or 'alltime' — leaderboard tab
 let p2pBroadcastTick = 0;   // Tick counter for periodic P2P broadcast
 
 // Get the local player's P2P ID (prefer module state over localStorage for scoped identity)
@@ -158,6 +161,11 @@ function migrateBN(state) {
         delete state.gateway_upgrades;
     }
     if (!state.prestige_upgrades || typeof state.prestige_upgrades !== 'object') state.prestige_upgrades = {};
+    // Remove stale achievement IDs (e.g. tier achievements that were removed)
+    if (state.achievements && Array.isArray(state.achievements) && typeof ACHIEVEMENTS !== 'undefined') {
+        const validIds = new Set(ACHIEVEMENTS.map(a => a.id));
+        state.achievements = state.achievements.filter(id => validIds.has(id));
+    }
 }
 
 // ---- AUTO-LOGIN ----
@@ -384,6 +392,9 @@ function cacheDOM() {
         settingsNameError: $('settings-name-error'),
         settingsCooldownInfo: $('settings-cooldown-info'),
         settingsSaveBtn: $('settings-save-btn'),
+        settingsBioInput: $('settings-bio-input'),
+        settingsBioCount: $('settings-bio-count'),
+        settingsBioSave: $('settings-bio-save'),
         settingsDisplayName: $('settings-display-name'),
         googleBtn: $('google-btn'),
         githubBtn: $('github-btn'),
@@ -492,6 +503,23 @@ function initUIEvents() {
         });
     }
     if (dom.settingsSaveBtn) dom.settingsSaveBtn.addEventListener('click', saveDisplayName);
+    // Settings: bio save
+    if (dom.settingsBioSave) {
+        dom.settingsBioSave.addEventListener('click', saveBio);
+    }
+    if (dom.settingsBioInput) {
+        dom.settingsBioInput.addEventListener('input', () => {
+            if (dom.settingsBioCount) {
+                dom.settingsBioCount.textContent = dom.settingsBioInput.value.length + '/200';
+            }
+        });
+        dom.settingsBioInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                saveBio();
+            }
+        });
+    }
     // Settings: logout button
     if (dom.settingsLogoutBtn) {
         dom.settingsLogoutBtn.addEventListener('click', () => {
@@ -520,7 +548,7 @@ function initUIEvents() {
                         dom.settingsUpgradeMsg.textContent = '☁️ Cloud save loaded';
                 } else {
                     await fbSave(G);
-                    await fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), Math.min(bnToNumber(G.total_prestiges || BN_ZERO), 1e9), bnToNumber(G.total_pp_earned), G.displayName, bnToNumber(getVPS()));
+                    await fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), Math.min(bnToNumber(G.total_prestiges || BN_ZERO), 1e9), bnToNumber(G.total_pp_earned), G.displayName, bnToNumber(getVPS()), G.settings?.bio || '');
                     dom.settingsUpgradeMsg.textContent = '✅ Google linked! Progress saved to cloud';
                 }
                 updateAllUI();
@@ -856,7 +884,8 @@ function initUIEvents() {
                             G.total_prestiges,
                             G.total_pp_earned,
                             G.displayName,
-                            getVPS()
+                            getVPS(),
+                            G.settings?.bio || ''
                         ).catch(() => {});
                         p2pBroadcastScore(G.lifetime_vibes, G.total_prestiges, getVPS(), G.total_pp_earned);
                     }
@@ -1058,6 +1087,41 @@ canvas.addEventListener('mousemove', (e) => {
         updateLeaderboardUI();
     });
 
+    // Leaderboard tabs: Online / All Time
+    document.querySelectorAll('.lb-tab').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const tab = btn.dataset.tab;
+            if (tab === _lbTab) return;
+            _lbTab = tab;
+            document.querySelectorAll('.lb-tab').forEach(b => {
+                b.style.background = b === btn ? 'var(--accent-cyan)' : '#333';
+                b.style.color = b === btn ? '#000' : '#aaa';
+            });
+            updateLeaderboardUI();
+        });
+    });
+    // Players Online tooltip
+    const onlineEl = document.getElementById('lb-players-online');
+    if (onlineEl) {
+        onlineEl.addEventListener('mouseenter', () => {
+            const tip = document.createElement('div');
+            tip.style.cssText = 'position:fixed;background:#111;border:1px solid #555;padding:6px 10px;font-size:7px;color:#aaa;pointer-events:none;z-index:30000;white-space:nowrap;border-radius:3px;';
+            tip.textContent = 'If there are players online but you don\'t see their scores updating, please refresh the page.';
+            document.body.appendChild(tip);
+            onlineEl._tip = tip;
+        });
+        onlineEl.addEventListener('mousemove', (e) => {
+            if (onlineEl._tip) {
+                onlineEl._tip.style.left = (e.clientX + 10) + 'px';
+                onlineEl._tip.style.top = (e.clientY + 10) + 'px';
+            }
+        });
+        onlineEl.addEventListener('mouseleave', () => {
+            if (onlineEl._tip) { onlineEl._tip.remove(); onlineEl._tip = null; }
+        });
+    }
+
     // Leaderboard username tooltip + profile (delegated)
     const lbList = dom.leaderboardList;
     if (lbList) {
@@ -1075,6 +1139,15 @@ canvas.addEventListener('mousemove', (e) => {
                 tip.textContent = 'Click to view profile';
                 document.body.appendChild(tip);
                 lbList._tip = tip;
+            }
+            // Update tip for current user (Dev gets special rainbow tooltip)
+            const tipEl = lbList._tip;
+            if (/^drgekoz$/i.test(username)) {
+                tipEl.style.cssText = 'position:fixed;background:#111;border:1px solid #ffd700;padding:6px 12px;font-size:10px;pointer-events:none;z-index:30000;white-space:nowrap;font-weight:bold;border-radius:4px;box-shadow:0 0 20px rgba(255,215,0,0.3);';
+                tipEl.innerHTML = '<span class="rainbow">✦ YOU HAVE FOUND THE DEV ✦</span>';
+            } else {
+                tipEl.style.cssText = 'position:fixed;background:#111;border:1px solid #555;padding:4px 8px;font-size:8px;color:#aaa;pointer-events:none;z-index:30000;white-space:nowrap;';
+                tipEl.textContent = 'Click to view profile';
             }
             lbList._tipUsername = username;
             lbList._tip.style.display = 'block';
@@ -1147,7 +1220,9 @@ canvas.addEventListener('mousemove', (e) => {
         if (type === 'autoclickers' || type === 'gateway_upgrades') {
             updateResourceUI();
             updateShopUI();
+            updatePrestigeUI();
             updatePrestigeAffordability();
+            renderPrestigeUpgrades();
             processAchievements();
         }
         if (type === 'prestige' || type === 'reset' || type === 'load') {
@@ -1162,7 +1237,8 @@ canvas.addEventListener('mousemove', (e) => {
                     G.total_prestiges,
                     G.total_pp_earned,
                     G.displayName,
-                    getVPS()
+                    getVPS(),
+                    G.settings?.bio || ''
                 ).catch(() => {});
                 p2pBroadcastScore(G.lifetime_vibes, G.total_prestiges, getVPS(), G.total_pp_earned);
             }
@@ -1686,6 +1762,12 @@ async function tryInitP2P() {
                     tier,
                     tierIcon: iconNum,
                     _p2p: true,
+                    bio: e.bio || '',
+                    rooms: e.rooms || 0,
+                    decor: e.decor || 0,
+                    autoclickers: e.autoclickers || 0,
+                    achievements: e.achievements || 0,
+                    click: e.click || 0,
                 });
             }
             // Add local player from live game state (overrides P2P 'self' data with authoritative local)
@@ -1723,11 +1805,15 @@ async function tryInitP2P() {
                 _pendingLBUpdate = setTimeout(() => {
                     _pendingLBUpdate = null;
                     updateLeaderboardUI(merged);
+                    // Realtime profile popup refresh: if a profile is open, update it
+                    if (_currentProfileUsername) {
+                        // Debounce profile refresh (same as leaderboard)
+                        showPlayerProfile(_currentProfileUsername);
+                    }
                 }, 50);
             }
         },
         fbSyncLeaderboard,
-        getLocalP2PId()
     );
     await mgr.init(); mgr.join(); p2pCrypto = mgr; p2pInitDone = true; p2pStarting = false;
     console.log('🌀 P2P mesh ready —', mgr.kid);
@@ -1753,7 +1839,21 @@ function initGameLoop() {
         }
         // Crypto P2P broadcast every tick (~100ms, 10x/sec)
         if (p2pCrypto) {
-            p2pCrypto.broadcast(G.lifetime_vibes, bnToNumber(G.total_prestiges), getVPS(), G.total_pp_earned, null, G.settings && G.settings.display_tier_icon || 0);
+            // Count total autoclickers across all rooms
+            let totalAC = 0;
+            if (G.room_autoclickers) {
+                for (const roomId of Object.keys(G.room_autoclickers)) {
+                    for (const c of Object.values(G.room_autoclickers[roomId])) totalAC += c || 0;
+                }
+            }
+            p2pCrypto.broadcast(G.lifetime_vibes, bnToNumber(G.total_prestiges), getVPS(), G.total_pp_earned, null, G.settings && G.settings.display_tier_icon || 0, {
+                bio: (G.settings && G.settings.bio) || '',
+                rooms: (G.unlocked_rooms || []).length,
+                decor: (G.owned_decor || []).length,
+                autoclickers: totalAC,
+                achievements: (G.achievements || []).length,
+                click: bnToNumber(getClickValue()),
+            });
         }
         // Update sidebar tab indicators every tick (lightweight)
         updateSidebarTabIndicators();
@@ -1819,10 +1919,21 @@ function initGameLoop() {
     // Save game before page close/reload
     window.addEventListener('beforeunload', () => {
         saveGame();
+        const bio = G.settings && G.settings.bio ? G.settings.bio : '';
         if (G.auth_mode === 'firebase' && fbUser) {
             fbSave(G).catch(() => {});
+            fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), Math.min(bnToNumber(G.total_prestiges || BN_ZERO), 1e9), G.total_pp_earned, G.displayName, getVPS(), bio).catch(() => {});
         } else if (G.auth_token && G.server_online) {
             apiSave(G.auth_token, G).catch(() => {});
+        }
+    });
+    // Also save when tab becomes hidden (more reliable than beforeunload)
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            saveGame();
+            if (G.auth_mode === 'firebase' && fbUser && G.total_prestiges) {
+                fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), Math.min(bnToNumber(G.total_prestiges || BN_ZERO), 1e9), G.total_pp_earned, G.displayName, getVPS(), G.settings?.bio || '').catch(() => {});
+            }
         }
     });
 
@@ -2067,7 +2178,7 @@ function updateShopUI() {
             <div class="shop-item-info">
                 <div class="shop-item-name">${tier.name}</div>
                 <div class="shop-item-desc">${tier.desc}</div>
-                <div class="shop-item-vps">✦ ${tier.vps} VPS each${_boostInfo.stacks > 0 ? ' <span style="color:#4af;">×' + boostMult.toFixed(2) + '</span>' : ''}</div>
+                <div class="shop-item-vps">✦ ${formatNumber(tier.vps)} VPS each${_boostInfo.stacks > 0 ? ' <span style="color:#4af;">×' + formatNumber(boostMult) + '</span>' : ''}</div>
                 ${synergyHtml}
             </div>
             <div class="shop-item-right">
@@ -2081,12 +2192,12 @@ function updateShopUI() {
             desc: tier.desc,
             icon: `sprites/images/icons/individual/${tier.id}_64.webp`,
             stats: [
-                { label: 'VPS each', value: '\u2726 ' + tier.vps, cls: 'cyan' },
+                { label: 'VPS each', value: '✦ ' + formatNumber(tier.vps), cls: 'cyan' },
                 { label: 'Owned', value: String(count), cls: '' },
-                { label: 'Room VPS', value: '\u2726 ' + formatNumber(baseVps), cls: '' },
-                { label: 'Boost', value: '\u00d7' + boostMult.toFixed(2) + ' (' + _boostInfo.stacks + ')', cls: 'cyan' },
-                { label: 'Boosted VPS', value: '\u2726 ' + formatNumber(boostedVps), cls: 'green' },
-                { label: 'Cost', value: formatNumber(cost) + ' \u2726', cls: canBuy ? 'green' : 'gold' }
+                { label: 'Room VPS', value: '✦ ' + formatNumber(baseVps), cls: '' },
+                { label: 'Boost', value: '×' + formatNumber(boostMult) + ' (' + _boostInfo.stacks + ')', cls: 'cyan' },
+                { label: 'Boosted VPS', value: '✦ ' + formatNumber(boostedVps), cls: 'green' },
+                { label: 'Cost', value: formatNumber(cost) + ' ✦', cls: canBuy ? 'green' : 'gold' }
             ],
             synergyFrom: _synFrom,
             synergyTo: _synTo,
@@ -2501,7 +2612,12 @@ async function updateGatewayUI() {
 // ---- LEADERBOARD RENDERING ----
 
 // Map tier number (1-500) to icon filename from the new file ordering
+// Tier-specific overrides for icons that don't follow the standard pattern
+const TIER_ICON_OVERRIDES = {
+    10: 'sl_well_64',
+};
 function _tierPath(n) {
+    if (TIER_ICON_OVERRIDES[n]) return TIER_ICON_OVERRIDES[n];
     return (typeof TIER_ICON_FILES !== 'undefined' && TIER_ICON_FILES[n - 1]) ? TIER_ICON_FILES[n - 1] : 'tier_' + n;
 }
 
@@ -2509,8 +2625,34 @@ function _tierPath(n) {
 function fmtAll(v, fallback = '0') {
     try {
         if (v === undefined || v === null) return fallback;
-        if (typeof v === 'string') { const n = parseFloat(v); return isNaN(n) ? (console.warn('fmtAll: unparseable string',v),v) : formatNumber(n); }
-        return formatNumber(v);
+        if (typeof v === 'string') {
+            // Parse formatted strings like "2.29T" back to full number
+            const fmtMatch = v.match(/^([0-9.]+)\s*([a-zA-Z∞²³⁴⁵⁶⁷⁸⁹×⟨⟩⌈⌉⌊⌋()\[\]{}<>|]+)?$/);
+            if (fmtMatch) {
+                const num = parseFloat(fmtMatch[1]);
+                if (!isNaN(num) && fmtMatch[2]) {
+                    const suffixList = ['k','M','B','T','Q',
+                        'a','c','d','e','f','g','h','i','j','l','n','o','p','r','s','u','v','w','x','y','z',
+                        'A','C','D','E','F','G','H','I','J','L','N','O','P','R','S','U','V','W','X','Y','Z'];
+                    const idx = suffixList.indexOf(fmtMatch[2]);
+                    if (idx >= 0) return formatNumber(num * Math.pow(1000, idx + 1));
+                }
+                if (!isNaN(num) && !fmtMatch[2]) return formatNumber(num);
+            }
+            // Fallback: strip non-numeric chars
+            const cleaned = v.replace(/[^0-9.\-eE+]/g, '');
+            const n = parseFloat(cleaned);
+            if (isNaN(n)) { console.warn('fmtAll: unparseable string',v); return v; }
+            return formatNumber(n);
+        }
+        // BN arrays [mantissa, exponent] — format via formatBN
+        if (Array.isArray(v)) return formatNumber(v);
+        // Regular number (including Infinity sentinel)
+        if (typeof v === 'number') {
+            if (!isFinite(v)) return 'InfZ';
+            return formatNumber(v);
+        }
+        return fallback;
     } catch (e) {
         console.warn('fmtAll error:', e, v);
         return fallback;
@@ -2717,12 +2859,27 @@ async function updateLeaderboardUI(externalEntries) {
     // Deduplicate: keep only the best entry per playerId (or name as fallback)
     entries = deduplicateEntries(entries);
 
-    // Normalize all entry values so every cell is safely formattable
+    // Normalize all entry values to BN arrays or numbers so formatting is consistent
     for (const e of entries) {
         e.vibes = e.vibes ?? 0;
         e.pp = e.pp ?? 0;
         e.vps = e.vps ?? 0;
         e.prestige = e.prestige ?? 0;
+        // If it's a BN array, keep as-is (formatNumber handles it).
+        // If it's a string, convert to number so fmtAll can re-format it.
+        if (typeof e.vibes === 'string') e.vibes = parseFloat(e.vibes.replace(/[^0-9.\-eE+]/g, '')) || 0;
+        if (typeof e.pp === 'string') e.pp = parseFloat(e.pp.replace(/[^0-9.\-eE+]/g, '')) || 0;
+        if (typeof e.vps === 'string') e.vps = parseFloat(e.vps.replace(/[^0-9.\-eE+]/g, '')) || 0;
+        if (typeof e.prestige === 'string') e.prestige = parseInt(e.prestige.replace(/[^0-9\-]/g, '')) || 0;
+    }
+
+    // Filter by tab: "online" shows only P2P-connected players; "alltime" shows everyone
+    const displayName2 = G.displayName || G.username || 'Player';
+    const onlineCount = 1 + entries.filter(e => e._p2p && e.name !== displayName2).length;
+    const onlineEl = document.getElementById('lb-players-online');
+    if (onlineEl) onlineEl.textContent = 'Online: ' + onlineCount;
+    if (_lbTab === 'online') {
+        entries = entries.filter(e => e._p2p || e.name === displayName2 || /^drgekoz$/i.test(e.name));
     }
 
     // DOM diffing: update in-place without flicker
@@ -2779,7 +2936,7 @@ async function updateLeaderboardUI(externalEntries) {
         }
 
         if (el) {
-            // Update existing row in-place
+            // Update existing row in-place — scores via textContent, name via innerHTML for dev rainbow
             oldRowMap.delete(lookupKey);
             if (entry.playerId) { el.dataset.playerId = entry.playerId; }
             const rankEl = el.querySelector('.lb-rank');
@@ -2788,6 +2945,7 @@ async function updateLeaderboardUI(externalEntries) {
             const vpsEl = el.querySelector('.lb-vps');
             const prestigeEl = el.querySelector('.lb-prestige');
             const tierEl = el.querySelector('.lb-tier');
+            const nameEl = el.querySelector('.lb-name');
             if (rankEl) rankEl.textContent = '#' + (i + 1);
             if (vibeEl) vibeEl.textContent = fmtVibes(entry.vibes);
             if (vpsEl) vpsEl.textContent = fmtSafe(entry.vps);
@@ -2796,6 +2954,14 @@ async function updateLeaderboardUI(externalEntries) {
             if (tierEl) {
                 const name = _tierNameForEntry(entry);
                 tierEl.textContent = name;
+            }
+            // Update tier icon in case it changed
+            const iconEl = el.querySelector('.lb-tier-icon');
+            if (iconEl) {
+                const isMe = (entry.name === displayName || entry.name === G.username);
+                const customIcon = isMe && G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : 0;
+                const iconNum = customIcon || (entry.tier >= 0 ? getTierIconNum(entry.tier) : 0);
+                iconEl.innerHTML = iconNum > 0 ? `<img src=\"sprites/images/icons/individual/${_tierPath(iconNum)}.webp\" style=\"width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;display:block;\" onerror=\"this.style.display='none'\">` : '';
             }
         } else {
             // Create new row
@@ -2834,8 +3000,11 @@ async function updateLeaderboardUI(externalEntries) {
     // Remove rows that no longer exist in data
     oldRowMap.forEach(row => row.remove());
 
-    // Replace list content atomically
-    list.innerHTML = '';
+    // Remove stale header if present (new one is in fragment)
+    const oldHdr = list.querySelector('.lb-header');
+    if (oldHdr) oldHdr.remove();
+
+    // Append only new rows + header (existing rows were updated in-place above)
     list.appendChild(fragment);
 }
 
@@ -3070,8 +3239,8 @@ function updateAchievementsUI() {
         el._tooltipData = {
             name: ach.name,
             desc: ach.desc,
-            // Tooltip uses 256x256 version; menu list keeps the 32x32
-            icon: iconSrc ? iconSrc.replace('/32/', '/256/') : '',
+            // Tooltip uses achievements folder (256x256); menu list keeps the 32x32
+            icon: iconSrc ? iconSrc.replace('/32/', '/achievements/') : '',
             stats: ttpStats,
             progress: earned ? 100 : progressPct,
             earned: earned,
@@ -3225,8 +3394,25 @@ async function saveDisplayName() {
         // Upload local save to Firebase
         try {
             await fbSave(G);
-            await fbSubmitScore(name, bnToNumber(G.lifetime_vibes), G.total_prestiges, G.total_pp_earned, name, getVPS());
+            await fbSubmitScore(name, bnToNumber(G.lifetime_vibes), G.total_prestiges, G.total_pp_earned, name, getVPS(), G.settings?.bio || '');
         } catch (_) {}
+    }
+}
+
+function saveBio() {
+    if (!dom.settingsBioInput) return;
+    const bio = dom.settingsBioInput.value.trim();
+    if (bio.length > 200) {
+        showToast('⚠️ Bio too long (max 200 chars)');
+        return;
+    }
+    G.settings.bio = bio;
+    dom.settingsBioCount.textContent = bio.length + '/200';
+    showToast('✅ Bio saved!');
+    saveGame();
+    if (G.auth_mode === 'firebase' && fbUser) {
+        fbSave(G).catch(() => {});
+        fbSubmitScore(G.username || 'Player', bnToNumber(G.lifetime_vibes), Math.min(bnToNumber(G.total_prestiges || BN_ZERO), 1e9), G.total_pp_earned, G.displayName, getVPS(), bio).catch(() => {});
     }
 }
 
@@ -3310,6 +3496,13 @@ function openSettings(tab) {
         if (fontTitleEl && G.settings && G.settings.title_font) fontTitleEl.value = G.settings.title_font;
         if (fontBodyEl && G.settings && G.settings.body_font) fontBodyEl.value = G.settings.body_font;
         if (fontSizeEl && G.settings && G.settings.font_size) fontSizeEl.value = G.settings.font_size;
+        // Sync bio
+        if (dom.settingsBioInput && G.settings) {
+            dom.settingsBioInput.value = G.settings.bio || '';
+            if (dom.settingsBioCount) {
+                dom.settingsBioCount.textContent = (G.settings.bio || '').length + '/200';
+            }
+        }
     } else {
         dom.settingsTabCredits.classList.add('active');
         dom.settingsPanelCredits.classList.remove('hidden');
@@ -3807,7 +4000,7 @@ function addChatMessage(username, text, isOwn, peerTierIcon) {
     }
     el.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:2px;max-width:100%;${isOwn ? 'align-items:flex-end;margin-left:auto;' : ''}">
-            <div class="chat-username" style="font-size:8px;color:${isOwn ? 'var(--accent-gold)' : 'var(--accent-cyan)'};display:flex;align-items:center;gap:4px;cursor:pointer;" data-username="${escapeHtml(username)}"><img src="sprites/images/icons/individual/${_tierPath(iconNum)}.webp" class="chat-tier-icon" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none'">${escapeHtml(username)}</div>
+            <div class="chat-username" style="font-size:8px;color:${isOwn ? 'var(--accent-gold)' : 'var(--accent-cyan)'};display:flex;align-items:center;gap:4px;cursor:pointer;" data-username="${escapeHtml(username)}">${/^drgekoz$/i.test(username) ? '<span style="font-size:6px;color:#ffd700;font-weight:bold;margin-right:2px;">DEV</span>' : ''}<img src="sprites/images/icons/individual/${_tierPath(iconNum)}.webp" class="chat-tier-icon" style="width:44px;height:44px;image-rendering:pixelated;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none'"><span class="${/^drgekoz$/i.test(username) ? 'rainbow' : ''}">${escapeHtml(username)}</span></div>
             <div class="chat-bubble" style="background:${isOwn ? 'rgba(255,215,0,0.15)' : 'rgba(0,255,255,0.1)'};border:1px solid ${isOwn ? 'rgba(255,215,0,0.3)' : 'rgba(0,255,255,0.2)'};border-radius:4px;padding:5px 8px;font-size:8px;word-break:break-word;max-width:280px;">${escapeHtml(text)}</div>
         </div>
     `;
@@ -3816,11 +4009,15 @@ function addChatMessage(username, text, isOwn, peerTierIcon) {
     if (nameEl) {
         nameEl.addEventListener('click', () => showPlayerProfile(username));
         nameEl.addEventListener('mouseenter', () => {
-            // Simple tooltip on hover
             const tip = document.createElement('div');
             tip.className = 'chat-name-tooltip';
-            tip.style.cssText = 'position:fixed;background:#111;border:1px solid #555;padding:4px 8px;font-size:8px;color:#aaa;pointer-events:none;z-index:30000;white-space:nowrap;';
-            tip.textContent = 'Click to view ' + username + "'s profile";
+            if (/^drgekoz$/i.test(username)) {
+                tip.style.cssText = 'position:fixed;background:#111;border:1px solid #ffd700;padding:6px 12px;font-size:10px;pointer-events:none;z-index:30000;white-space:nowrap;font-weight:bold;border-radius:4px;box-shadow:0 0 20px rgba(255,215,0,0.3);';
+                tip.innerHTML = '<span class="rainbow">✦ YOU HAVE FOUND THE DEV ✦</span>';
+            } else {
+                tip.style.cssText = 'position:fixed;background:#111;border:1px solid #555;padding:4px 8px;font-size:8px;color:#aaa;pointer-events:none;z-index:30000;white-space:nowrap;';
+                tip.textContent = 'Click to view ' + username + "'s profile";
+            }
             document.body.appendChild(tip);
             nameEl._tooltip = tip;
         });
@@ -3847,6 +4044,7 @@ async function showPlayerProfile(username) {
 
     // Try to find player data — P2P entries first (real-time), then DOM, then Firestore fallback
     let playerData = null;
+    let playerBio = '';
     const nameField = (n) => n.replace('◆ ', '').replace('⭐ ', '').trim();
     // P2P: lookup by username from the live ledger (has score, prestige, vps, pp, tierIcon)
     if (lastP2PEntries && lastP2PEntries.length > 0) {
@@ -3861,7 +4059,14 @@ async function showPlayerProfile(username) {
                 tier,
                 tierName: tier >= 0 ? TIERS[tier].name : '—',
                 tierIcon: match.tierIcon,
+                bio: match.bio || '',
+                rooms: match.rooms,
+                decor: match.decor,
+                autoclickers: match.autoclickers,
+                achievements: match.achievements,
+                click: match.click || 0,
             };
+            playerBio = match.bio || '';
         }
     }
     // DOM lookup: read from rendered leaderboard rows
@@ -3905,8 +4110,27 @@ async function showPlayerProfile(username) {
                         prestige: match.prestige_level ?? 0,
                         tier: getTierFromPrestige(match.prestige_level ?? 0),
                         tierName: undefined,
+                        bio: match.bio || '',
                     };
+                    playerBio = match.bio || '';
                 }
+            }
+        } catch (_) {}
+    }
+    // Try dedicated player profile fetch from Firestore (for bio + full data)
+    if (fbReady && typeof fbGetPlayerProfile === 'function' && !playerData) {
+        try {
+            const profile = await fbGetPlayerProfile(username);
+            if (profile) {
+                playerData = {
+                    vibes: profile.score_full ?? profile.score ?? 0,
+                    vps: profile.vps_full ?? profile.vps ?? 0,
+                    pp: profile.pp_full ?? profile.total_pp ?? 0,
+                    prestige: profile.prestige_level ?? 0,
+                    tier: getTierFromPrestige(profile.prestige_level ?? 0),
+                    tierName: undefined,
+                };
+                playerBio = profile.bio || '';
             }
         } catch (_) {}
     }
@@ -3918,71 +4142,292 @@ async function showPlayerProfile(username) {
     const customIcon = isLocalPlayer && G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : 0;
     const tierIconNum = customIcon || (tierIdx >= 0 ? getTierIconNum(tierIdx) : 0);
     const tierIconHtml = tierIconNum > 0 ? `<img src="sprites/images/icons/individual/${_tierPath(tierIconNum)}.webp" style="width:154px;height:154px;image-rendering:pixelated;vertical-align:middle;">` : '';
+    const bio = isLocalPlayer ? (G.settings && G.settings.bio ? G.settings.bio : '') : playerBio;
 
     // Stats from leaderboard data or live state
-    const vibesStr = isLocalPlayer ? formatNumber(G.vibes) : (playerData ? fmtVibes(playerData.vibes) : '—');
-    const vpsStr = isLocalPlayer ? formatNumber(getVPS()) : (playerData ? fmtSafe(playerData.vps) : '—');
-    const clickStr = isLocalPlayer ? formatNumber(getClickValue()) : '—';
-    const prestigeStr = isLocalPlayer ? formatNumber(G.total_prestiges || BN_ZERO) : (playerData ? fmtSafe(playerData.prestige) : '—');
-    const ppStr = isLocalPlayer ? formatNumber(G.total_pp_earned || BN_ZERO) : (playerData ? fmtSafe(playerData.pp) : '—');
-    const roomsUnlocked = isLocalPlayer ? (G.unlocked_rooms || []).length : '—';
+    // Helper: format any value (BN array, number, string) using formatNumber
+    const fmtAny = (v, fallback = '0') => {
+        if (v === undefined || v === null) return fallback;
+        if (Array.isArray(v)) return formatNumber(v);
+        if (typeof v === 'number') return formatNumber(v);
+        if (typeof v === 'string') {
+            // Parse formatted strings like "2.29T" back to full number
+            const fmtMatch = v.match(/^([0-9.]+)\s*([a-zA-Z∞²³⁴⁵⁶⁷⁸⁹×⟨⟩⌈⌉⌊⌋()\[\]{}<>|]+)?$/);
+            if (fmtMatch) {
+                const num = parseFloat(fmtMatch[1]);
+                if (isNaN(num)) return v;
+                const suffix = fmtMatch[2];
+                if (!suffix) return formatNumber(num);
+                // Suffix lookup (same order as formatNumber/formatBN)
+                const suffixList = ['k','M','B','T','Q',
+                    'a','c','d','e','f','g','h','i','j','l','n','o','p','r','s','u','v','w','x','y','z',
+                    'A','C','D','E','F','G','H','I','J','L','N','O','P','R','S','U','V','W','X','Y','Z'];
+                const idx = suffixList.indexOf(suffix);
+                if (idx >= 0) return formatNumber(num * Math.pow(1000, idx + 1));
+                // InfZ format — keep as-is, can't reconstruct precisely
+                if (suffix.startsWith('InfZ') || suffix.includes('∞')) return v;
+            }
+            // Fallback: strip non-numeric chars and parse as plain number
+            const cleaned = v.replace(/[^0-9.\-eE+]/g, '');
+            const n = parseFloat(cleaned);
+            return isNaN(n) ? v : formatNumber(n);
+        }
+        return fallback;
+    };
+    const vibesNum = isLocalPlayer ? G.vibes : (playerData ? playerData.vibes : 0);
+    const vpsNum = isLocalPlayer ? getVPS() : (playerData ? playerData.vps : 0);
+    const ppNum = isLocalPlayer ? G.total_pp_earned : (playerData ? playerData.pp : 0);
+    const prestigeNum = isLocalPlayer ? G.total_prestiges : (playerData ? playerData.prestige : 0);
+    const vibesStr = fmtAny(vibesNum);
+    const vpsStr = fmtAny(vpsNum);
+    const clickStr = isLocalPlayer ? formatNumber(getClickValue()) : (playerData && playerData.click != null ? formatNumber(Number(playerData.click) || 0) : '—');
+    const prestigeStr = fmtAny(prestigeNum);
+    const ppStr = fmtAny(ppNum);
+    const roomsUnlocked = isLocalPlayer ? (G.unlocked_rooms || []).length : (playerData && playerData.rooms != null ? playerData.rooms : '—');
     const roomsTotal = ROOMS ? Object.keys(ROOMS).length : 0;
-    const totalDecor = isLocalPlayer ? (G.owned_decor || []).length : '—';
-    const achievementsUnlocked = isLocalPlayer ? (G.achievements || []).length : 0;
-    const achievementsTotal = ACHIEVEMENTS ? ACHIEVEMENTS.length : 0;
-    const achievementPct = achievementsTotal > 0 ? Math.round((achievementsUnlocked / achievementsTotal) * 100) : 0;
-
-    // Count total autoclickers (local only)
-    let totalClickers = '—';
-    if (isLocalPlayer && G.room_autoclickers) {
-        totalClickers = 0;
-        for (const roomId of Object.keys(G.room_autoclickers)) {
-            for (const count of Object.values(G.room_autoclickers[roomId])) {
-                totalClickers += count || 0;
+    const totalDecor = isLocalPlayer ? (G.owned_decor || []).length : (playerData && playerData.decor != null ? playerData.decor : '—');
+    // Estimate achievements from lifetime vibes (Occam's razor for remote players)
+    let achievementsUnlocked, achievementsTotal, achievementPct, achievementNames = [];
+    achievementsTotal = ACHIEVEMENTS ? ACHIEVEMENTS.length : 0;
+    if (isLocalPlayer) {
+        achievementNames = ACHIEVEMENTS.filter(a => (G.achievements || []).includes(a.id)).map(a => a.name);
+        achievementsUnlocked = achievementNames.length;
+    } else if (playerData && playerData.achievements != null) {
+        // P2P peer sent exact achievement count
+        achievementsUnlocked = Number(playerData.achievements) || 0;
+        achievementNames = []; // Can't show names without full list
+    } else {
+        // Estimate: count milestone achievements this player would have based on their stats
+        const lifeVibes = Array.isArray(vibesNum) ? vibesNum : bnFromNumber(Number(vibesNum) || 0);
+        achievementsUnlocked = 0;
+        achievementNames = [];
+        for (const ach of ACHIEVEMENTS) {
+            let earned = false;
+            if (ach.threshold && ach.threshold.type === 'lifetime' && bnGe(lifeVibes, bnFromNumber(ach.threshold.value))) {
+                earned = true;
+            } else if (ach.threshold && ach.threshold.type === 'prestiges' && bnGe(bnFromNumber(Number(prestigeNum) || 0), bnFromNumber(ach.threshold.value || 0))) {
+                earned = true;
+            } else if (ach.threshold && ach.threshold.type === 'vps' && bnGe(bnFromNumber(Number(vpsNum) || 0), bnFromNumber(ach.threshold.value || 0))) {
+                earned = true;
+            } else if (ach.threshold && ach.threshold.type === 'clicks') {
+                // Can't estimate clicks for remote players — skip
+            } else if (ach.threshold && ach.threshold.type === 'room') {
+                const roomCost = Object.values(ROOMS).reduce((s, r) => s + r.cost, 0);
+                if (bnGe(lifeVibes, bnFromNumber(roomCost))) earned = true;
+            } else if (ach.threshold && ach.threshold.type === 'all_rooms') {
+                const roomCost = Object.values(ROOMS).reduce((s, r) => s + r.cost, 0);
+                if (bnGe(lifeVibes, bnFromNumber(roomCost * 2))) earned = true;
+            }
+            if (earned) {
+                achievementsUnlocked++;
+                achievementNames.push(ach.name);
             }
         }
     }
+    achievementPct = achievementsTotal > 0 ? Math.round((achievementsUnlocked / achievementsTotal) * 100) : 0;
+    // 2-column achievement grid
+    let achievementGrid = '';
+    if (achievementNames.length > 0) {
+        const mid = Math.ceil(achievementNames.length / 2);
+        const col1 = achievementNames.slice(0, mid).map(n => `<div style="font-size:6px;color:var(--accent-cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">✓ ${n}</div>`).join('');
+        const col2 = achievementNames.slice(mid).map(n => `<div style="font-size:6px;color:var(--accent-cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">✓ ${n}</div>`).join('');
+        achievementGrid = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;margin-top:4px;"><div>${col1}</div><div>${col2}</div></div>`;
+    }
+
+    // Count total autoclickers (local only) — build flat list for 2-column grid
+    let totalClickers = '—';
+    let upgradeGridItems = [];
+    if (isLocalPlayer && G.room_autoclickers) {
+        totalClickers = 0;
+        for (const roomId of Object.keys(G.room_autoclickers)) {
+            const roomClickers = G.room_autoclickers[roomId];
+            for (const [tierId, count] of Object.entries(roomClickers)) {
+                if (!count) continue;
+                totalClickers += count;
+                const roomDefs = typeof ROOM_AUTOCLICKERS !== 'undefined' ? (ROOM_AUTOCLICKERS[roomId] || []) : [];
+                const def = roomDefs.find(d => d.id === tierId);
+                const defName = def ? def.name : tierId;
+                upgradeGridItems.push(`<div style="font-size:6px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${defName} <span style="color:var(--accent-cyan);">×${count}</span></div>`);
+            }
+        }
+    } else if (!isLocalPlayer && playerData && playerData.autoclickers != null) {
+        totalClickers = Number(playerData.autoclickers) || 0;
+        upgradeGridItems.push(`<div style="font-size:6px;color:var(--text-secondary);">${totalClickers} total (from P2P)</div>`);
+    }
+    // Sort and split into 2 columns
+    let upgradesHtml = '';
+    if (upgradeGridItems.length > 0) {
+        const mid = Math.ceil(upgradeGridItems.length / 2);
+        const col1 = upgradeGridItems.slice(0, mid).join('');
+        const col2 = upgradeGridItems.slice(mid).join('');
+        upgradesHtml = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;margin-top:4px;"><div>${col1}</div><div>${col2}</div></div>`;
+    }
+    // Prestige upgrades breakdown — 2-column for local, estimate for remote
+    let prestigeUpgradeItems = [];
+    if (isLocalPlayer && G.prestige_upgrades) {
+        const entries = Object.entries(G.prestige_upgrades).filter(([_, c]) => c > 0);
+        if (entries.length > 0) {
+            entries.forEach(([id, count]) => {
+                const def = PRESTIGE_UPGRADES.find(u => u.id === id);
+                const name = def ? def.name : id;
+                prestigeUpgradeItems.push(`<div style="font-size:6px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name} <span style="color:var(--accent-pink);">×${count}</span></div>`);
+            });
+        }
+    } else if (!isLocalPlayer && playerData) {
+        // Occam's razor: estimate total prestige purchases from PP/prestige ratio
+        const pp = Number(ppNum) || 0;
+        const pres = Number(prestigeNum) || 0;
+        if (pres > 0 && pp > 0) {
+            const ppPerPres = pp / pres;
+            const estPurchases = Math.max(0, Math.min(20, Math.floor(ppPerPres / 5))); // rough: each prestige upgrade ~5 PP avg
+            prestigeUpgradeItems.push(`<div style="font-size:6px;color:var(--text-secondary);">Est. purchases: ~${estPurchases} upgrades</div>`);
+            prestigeUpgradeItems.push(`<div style="font-size:6px;color:var(--text-secondary);">${fmtAny(ppNum)} PP ÷ ${fmtAny(prestigeNum)} prestiges</div>`);
+        }
+    }
+    let prestigeUpgradeGrid = '';
+    if (prestigeUpgradeItems.length > 0) {
+        const mid = Math.ceil(prestigeUpgradeItems.length / 2);
+        const col1 = prestigeUpgradeItems.slice(0, mid).join('');
+        const col2 = prestigeUpgradeItems.slice(mid).join('');
+        prestigeUpgradeGrid = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;margin-top:4px;"><div>${col1}</div><div>${col2}</div></div>`;
+    }
+    // Decor breakdown — 2-column for local, "—" for remote
+    let decorHtml = '';
+    if (isLocalPlayer && G.owned_decor && G.owned_decor.length > 0) {
+        const activeCount = Object.keys(G.active_decor || {}).length;
+        const decorItems = G.owned_decor.map(did => {
+            for (const roomId of Object.keys(ROOM_DECOR || {})) {
+                const d = ROOM_DECOR[roomId].find(x => x.id === did);
+                if (d) return d.name;
+            }
+            return did;
+        });
+        let decorGrid = '';
+        if (decorItems.length > 0) {
+            const mid = Math.ceil(decorItems.length / 2);
+            const col1 = decorItems.slice(0, mid).map(n => `<div style="font-size:6px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n}</div>`).join('');
+            const col2 = decorItems.slice(mid).map(n => `<div style="font-size:6px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n}</div>`).join('');
+            decorGrid = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;margin-top:4px;"><div>${col1}</div><div>${col2}</div></div>`;
+        }
+        decorHtml = `<div class="prestige-stat-box" style="display:flex;justify-content:space-between;"><span class="prestige-stat-label">Owned</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${totalDecor}</span></div>${decorGrid}`;
+    } else {
+        decorHtml = `<div class="prestige-stat-box" style="display:flex;justify-content:space-between;"><span class="prestige-stat-label">Owned Decor</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${totalDecor}</span></div>`;
+    }
+    // Tier bonuses — calculated for both local AND remote players from prestige count
+    let tierBonusDetails = '';
+    const presForTier = isLocalPlayer ? G.total_prestiges : bnFromNumber(Number(prestigeNum) || 0);
+    {
+        let totalClick = 0, totalVps = 0, totalOffline = 0, totalAll = 0, totalRooms = 0;
+        for (const tier of TIERS) {
+            if (!bnGe(presForTier, tier.requires)) break;
+            switch (tier.type) {
+                case 'click': totalClick += tier.value; break;
+                case 'vps': totalVps += tier.value; break;
+                case 'offline': totalOffline += tier.value; break;
+                case 'all': totalAll += tier.value; break;
+                case 'rooms': totalRooms += tier.value; break;
+            }
+        }
+        // Build 2-column grid of stat items (same style as upgrades)
+        const statItems = [];
+        if (totalClick > 0) statItems.push(`<div style="font-size:6px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Click ×<span style="color:var(--accent-gold);">${1+totalClick}</span></div>`);
+        if (totalVps > 0) statItems.push(`<div style="font-size:6px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">VPS ×<span style="color:var(--accent-green);">${1+totalVps}</span></div>`);
+        if (totalOffline > 0) statItems.push(`<div style="font-size:6px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Offline +<span style="color:var(--accent-pink);">${totalOffline}%</span></div>`);
+        if (totalAll > 0) statItems.push(`<div style="font-size:6px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">All ×<span style="color:var(--accent-cyan);">${1+totalAll}</span></div>`);
+        if (totalRooms > 0) statItems.push(`<div style="font-size:6px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Rooms +<span style="color:var(--accent-gold);">${totalRooms}</span></div>`);
+        if (statItems.length > 0) {
+            const mid = Math.ceil(statItems.length / 2);
+            const col1 = statItems.slice(0, mid).join('');
+            const col2 = statItems.slice(mid).join('');
+            tierBonusDetails = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;margin-top:4px;"><div>${col1}</div><div>${col2}</div></div>`;
+        }
+    }
+
+    // Collapsible section helper
+    const isDev = /^drgekoz$/i.test(username);
+    const devBg = isDev ? ' style="background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.25);padding:12px;border-radius:4px;"' : '';
+    const sec = (id, label, labelColor, content, defaultOpen = false) =>
+        `<details${defaultOpen ? ' open' : ''} style="margin-top:4px;">
+            <summary style="cursor:pointer;font-size:7px;color:${labelColor};padding:4px 0;user-select:none;display:flex;align-items:center;gap:4px;">
+                <span style="font-size:5px;color:var(--text-secondary);">▶</span> ${label}
+            </summary>
+            <div style="padding:4px 0 2px 0;">${content}</div>
+        </details>`;
 
     content.innerHTML = `
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;border-bottom:1px solid #333;padding-bottom:12px;">
+        ${isDev ? `
+        <!-- Dev buttons at top -->
+        <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;">
+            <a href="https://adsdoctormelbourne.com.au" target="_blank" rel="noopener" style="color:#0af;text-decoration:none;font-size:8px;padding:4px 10px;border:1px solid #ffd70055;border-radius:3px;background:rgba(255,215,0,0.05);">🌐 Website</a>
+            <a href="https://github.com/DrGekoz" target="_blank" rel="noopener" style="color:#0af;text-decoration:none;font-size:8px;padding:4px 10px;border:1px solid #ffd70055;border-radius:3px;background:rgba(255,215,0,0.05);">🐙 GitHub</a>
+            <a href="https://buymeacoffee.com/DrGekoz" target="_blank" rel="noopener" style="color:#0af;text-decoration:none;font-size:8px;padding:4px 10px;border:1px solid #ffd70055;border-radius:3px;background:rgba(255,215,0,0.05);">☕ Buy Me a Coffee</a>
+        </div>` : ''}
+        <!-- Header -->
+        <div${devBg}>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;border-bottom:1px solid #333;padding-bottom:12px;">
             ${tierIconHtml}
             <div>
-                <div style="font-size:11px;color:var(--accent-gold);font-weight:bold;">${escapeHtml(username)}</div>
-                <div style="font-size:8px;color:var(--text-secondary);">${tierName}</div>
+                <div style="font-size:20px;color:var(--accent-gold);font-weight:bold;line-height:1.3;"><span class="${/^drgekoz$/i.test(username) ? 'rainbow' : ''}">${escapeHtml(username)}</span></div>
+                <div style="font-size:8px;color:var(--text-secondary);margin-top:2px;">${tierName}${isDev ? ' <span style="color:#ffd700;">✦ DEV</span>' : ''}</div>
+                ${bio ? `<div style="font-size:7px;color:var(--accent-cyan);margin-top:4px;font-style:italic;max-width:240px;">&ldquo;${escapeHtml(bio)}&rdquo;</div>` : ''}
+                <div style="font-size:7px;color:var(--text-secondary);margin-top:4px;">Tier ${tierIconNum > 0 ? tierIconNum : '?'}</div>
             </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <div class="prestige-stat-box" style="grid-column:1/-1;"><span class="prestige-stat-label">TIER ${tierIconNum > 0 ? tierIconNum : '?'}</span><span class="prestige-stat-value" style="color:var(--accent-gold);font-size:10px;">${tierName}</span></div>
+        <!-- Overview row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px;">
             <div class="prestige-stat-box"><span class="prestige-stat-label">VIBES</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${vibesStr}</span></div>
             <div class="prestige-stat-box"><span class="prestige-stat-label">VPS</span><span class="prestige-stat-value" style="color:var(--accent-green);">${vpsStr}</span></div>
             <div class="prestige-stat-box"><span class="prestige-stat-label">CLICK</span><span class="prestige-stat-value" style="color:var(--accent-cyan);">${clickStr}</span></div>
-            <div class="prestige-stat-box"><span class="prestige-stat-label">PRESTIGES</span><span class="prestige-stat-value" style="color:var(--accent-pink);">${prestigeStr}</span></div>
-            <div class="prestige-stat-box"><span class="prestige-stat-label">Total PP Earned</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${ppStr}</span></div>
             <div class="prestige-stat-box"><span class="prestige-stat-label">ROOMS</span><span class="prestige-stat-value" style="color:var(--accent-green);">${roomsUnlocked}/${roomsTotal}</span></div>
-            <div class="prestige-stat-box"><span class="prestige-stat-label">UPGRADES</span><span class="prestige-stat-value" style="color:var(--accent-cyan);">${totalClickers}</span></div>
-            <div class="prestige-stat-box"><span class="prestige-stat-label">DECOR</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${totalDecor}</span></div>
-            <div class="prestige-stat-box" style="grid-column:1/-1;">
-                <span class="prestige-stat-label">ACHIEVEMENTS ${achievementsUnlocked}/${achievementsTotal}</span>
-                <div style="width:100%;height:8px;background:#222;border-radius:2px;margin-top:4px;overflow:hidden;">
+        </div>
+        <!-- CATEGORY: Upgrades (collapsible, closed) -->
+        ${sec('upgrades', '⬆ UPGRADES — ' + (totalClickers !== '—' ? totalClickers + ' total' : '—'), 'var(--accent-cyan)',
+            `<div class="prestige-stat-box" style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                <span class="prestige-stat-label">Total Autoclickers</span>
+                <span class="prestige-stat-value" style="color:var(--accent-cyan);">${totalClickers}</span>
+            </div>
+            ${upgradesHtml}`
+        )}
+        <!-- CATEGORY: Decor (collapsible, closed) -->
+        ${sec('decor', '🎨 DECOR', 'var(--accent-gold)',
+            decorHtml
+        )}
+        <!-- CATEGORY: Prestige (collapsible, closed) -->
+        ${sec('prestige', '💎 PRESTIGE', 'var(--accent-pink)',
+            `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+                <div class="prestige-stat-box"><span class="prestige-stat-label">Prestiges</span><span class="prestige-stat-value" style="color:var(--accent-pink);">${prestigeStr}</span></div>
+                <div class="prestige-stat-box"><span class="prestige-stat-label">PP Earned</span><span class="prestige-stat-value" style="color:var(--accent-gold);">${ppStr}</span></div>
+            </div>
+            ${prestigeUpgradeGrid}`
+        )}
+        <!-- CATEGORY: Tier Upgrades (collapsible, closed) -->
+        ${sec('tiers', '🏆 TIER UPGRADES', 'var(--accent-green)',
+            `<div class="prestige-stat-box" style="display:flex;justify-content:space-between;">
+                <span class="prestige-stat-label">Current Tier</span>
+                <span class="prestige-stat-value" style="color:var(--accent-gold);">${tierName} #${tierIconNum > 0 ? tierIconNum : '?'}</span>
+            </div>
+            ${tierBonusDetails}`
+        )}
+        <!-- CATEGORY: Achievements (collapsible, closed) -->
+        ${sec('achievements', '🎯 ACHIEVEMENTS — ' + achievementsUnlocked + '/' + achievementsTotal, 'var(--accent-cyan)',
+            `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <span class="prestige-stat-label">${achievementsUnlocked}/${achievementsTotal}</span>
+                <div style="flex:1;height:6px;background:#222;border-radius:2px;overflow:hidden;">
                     <div style="width:${achievementPct}%;height:100%;background:var(--accent-cyan);border-radius:2px;transition:width 0.3s;"></div>
                 </div>
+                <span style="font-size:6px;color:var(--text-secondary);">${achievementPct}%</span>
             </div>
+            ${achievementGrid}`
+        )}
         </div>
-        ${/^drgekoz$/i.test(username) ? `
-        <div style="margin-top:12px;padding-top:10px;border-top:1px solid #ffd70033;text-align:center;">
-            <div style="font-size:8px;color:#ffd700;margin-bottom:6px;">✦ GAME DEVELOPER ✦</div>
-            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-                <a href="https://adsdoctormelbourne.com.au" target="_blank" rel="noopener" style="color:#0af;text-decoration:none;font-size:8px;padding:4px 8px;border:1px solid #333;border-radius:2px;">🌐 Website</a>
-                <a href="https://github.com/DrGekoz" target="_blank" rel="noopener" style="color:#0af;text-decoration:none;font-size:8px;padding:4px 8px;border:1px solid #333;border-radius:2px;">🐙 GitHub</a>
-                <a href="https://buymeacoffee.com/DrGekoz" target="_blank" rel="noopener" style="color:#0af;text-decoration:none;font-size:8px;padding:4px 8px;border:1px solid #333;border-radius:2px;">☕ Buy Me a Coffee</a>
-            </div>
-        </div>` : ''}
     `;
 
     popup.classList.remove('hidden');
+    _currentProfileUsername = username;
     if (closeBtn) {
-        closeBtn.onclick = () => popup.classList.add('hidden');
-        popup.addEventListener('click', (e) => { if (e.target === popup) popup.classList.add('hidden'); });
+        closeBtn.onclick = () => { popup.classList.add('hidden'); _currentProfileUsername = null; };
+        // Use onclick instead of addEventListener to avoid accumulating handlers
+        popup.onclick = (e) => { if (e.target === popup) { popup.classList.add('hidden'); _currentProfileUsername = null; } };
     }
 }
 

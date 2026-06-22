@@ -90,7 +90,7 @@ async function portIsAlive(port, timeout = 200) {
     }
 }
 
-// After finding an open port, try to identify it
+// After finding an open port, try to identify it (no-cors since gateway may lack CORS headers)
 async function identifyPort(port) {
     const urls = [
         `http://localhost:${port}/health`,
@@ -102,27 +102,17 @@ async function identifyPort(port) {
             const start = performance.now();
             const res = await fetch(url, {
                 method: 'GET',
+                mode: 'no-cors',
                 cache: 'no-cache',
                 signal: AbortSignal.timeout(800),
             });
             const latency = performance.now() - start;
-            if (res.ok || (res.status >= 200 && res.status < 300)) {
-                let isHermes = false;
-                let label = 'Server';
-                try {
-                    const text = await res.clone().text();
-                    if (/hermes|gateway/i.test(text)) {
-                        isHermes = true;
-                        label = 'Hermes Gateway';
-                    } else if (/html/i.test(text) && res.headers.get('content-type')?.includes('text/html')) {
-                        label = 'Web Server';
-                    }
-                } catch (_) {}
-                return { alive: true, latency, url, isHermes, label };
-            }
-            return { alive: true, latency, url, isHermes: false, label: `HTTP ${res.status}` };
+            // With no-cors, we can't read res.ok or status (opaque response).
+            // If it didn't throw, the server is alive — assume it's a valid gateway.
+            return { alive: true, latency, url, isHermes: true, label: 'Server' };
         } catch (_) { continue; }
     }
+    // Fallback: port is alive but all URLs failed — likely a non-HTTP server
     return { alive: true, latency: 1, url: `http://localhost:${port}`, isHermes: false, label: 'Unknown Server' };
 }
 
@@ -324,34 +314,28 @@ async function pingGateway() {
         const start = performance.now();
         const res = await fetch(`${gatewayStatus.url}/health`, {
             method: 'GET',
+            mode: 'no-cors',
             cache: 'no-cache',
             signal: AbortSignal.timeout(CONFIG.GATEWAY_TIMEOUT),
         });
         const latency = performance.now() - start;
-        if (res.ok || (res.status >= 200 && res.status < 300)) {
-            gatewayStatus.connected = true;
-            gatewayStatus.latency = latency;
-            gatewayStatus.lastPing = Date.now();
-            gatewayStatus.history.push(latency);
-            if (gatewayStatus.history.length > CONFIG.MAX_GATEWAY_LATENCY_HISTORY) {
-                gatewayStatus.history.shift();
-            }
-            if (!G.gateway_bonus_active) {
-                G.gateway_bonus_active = true;
-                notifyStateChange('gateway');
-            }
-            G._gwMult = getLatencyMultiplier();
-            G._gwLabel = getConnectionQuality().label;
-            G._gwLatency = Math.round(latency);
-            notifyListeners();
-            return { success: true, latency };
-        } else {
-            gatewayStatus.latency = latency;
-            gatewayStatus.lastPing = Date.now();
-            G._gwMult = getLatencyMultiplier();
-            notifyListeners();
-            return { success: true, latency };
+        // no-cors returns opaque response — if it didn't throw, server is alive
+        gatewayStatus.connected = true;
+        gatewayStatus.latency = latency;
+        gatewayStatus.lastPing = Date.now();
+        gatewayStatus.history.push(latency);
+        if (gatewayStatus.history.length > CONFIG.MAX_GATEWAY_LATENCY_HISTORY) {
+            gatewayStatus.history.shift();
         }
+        if (!G.gateway_bonus_active) {
+            G.gateway_bonus_active = true;
+            notifyStateChange('gateway');
+        }
+        G._gwMult = getLatencyMultiplier();
+        G._gwLabel = getConnectionQuality().label;
+        G._gwLatency = Math.round(latency);
+        notifyListeners();
+        return { success: true, latency };
     } catch (e) {
         // Connection lost — mark disconnected, try cached port fast rediscover
         gatewayStatus.connected = false;

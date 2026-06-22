@@ -624,43 +624,547 @@ const TIER_REQS = [1,2,3,4,5,6,7,8,9,10,11,12,14,15,16,17,18,19,20,22,23,24,25,2
 const TIERS = (function() {
     const tiers = [];
     const types = ['click', 'vps', 'offline', 'all', 'click', 'vps', 'rooms'];
-    const prefixes = ['Bronze','Silver','Gold','Platinum','Diamond','Master','Grand','Royal','Noble','Solar',
-        'Lunar','Stellar','Cosmic','Void','Eternal','Infinite','Omega','Alpha','Prime','Ultra',
-        'Hyper','Mega','Giga','Tera','Peta','Exa','Zetta','Yotta','Nova','Quasar',
-        'Pulsar','Nebula','Galaxy','Meteor','Comet','Astral','Celestial','Orbital','Solaris','Lumina',
-        'Crystal','Obsidian','Onyx','Ruby','Emerald','Sapphire','Amethyst','Topaz','Jade','Opal',
-        'Titan','Atlas','Hero','Legend','Mythic','Fabled','Ancient','Elder','Primal','Origin',
-        'Zenith','Apex','Pinnacle','Summit','Acme','Peak','Crown','Glory','Victor','Champion',
-        'Sage','Wise','Knight','Paladin','Guardian','Sentinel','Warden','Ranger','Seeker','Hunter',
-        'Phoenix','Dragon','Griffin','Seraph','Angel','Titan','Colossus','Giant','Behemoth','Leviathan',
-        'Storm','Thunder','Lightning','Blaze','Inferno','Ember','Flame','Spark','Volt','Surge',
-        'Frost','Glacier','Arctic','Tundra','Permafrost','Crystal','Shard','Rime','Hail','Blizzard',
-        'Shadow','Shade','Dusk','Twilight','Night','Dark','Eclipse','Void','Abyss','Depth',
-        'Spirit','Ghost','Wraith','Phantom','Specter','Haunt','Mystic','Arcane','Ethereal','Astral',
-        'Iron','Steel','Copper','Tin','Zinc','Brass','Alloy','Metal','Forge','Anvil',
-        'Silk','Satin','Velvet','Linen','Cotton','Fiber','Thread','Weave','Spun','Twine',
-        'Coral','Reef','Tide','Wave','Swell','Current','Drift','Flow','Stream','River',
-        'Moss','Fern','Leaf','Petal','Bloom','Grove','Forest','Jungle','Thicket','Wild',
-        'Dune','Rock','Stone','Pebble','Boulder','Cliff','Crag','Summit','Peak','Ridge',
-        'Haze','Mist','Fog','Cloud','Sky','Aether','Wind','Gale','Breeze','Zephyr',
-        // Cosmic InfZ tiers
-        'Infinity','InfinityZ','Transcend','Singularity','EventHorizon','Nexus','Omni','Proto','Quantum','ZeroPoint',
-        'Entropy','Paradox','Tesseract','Stargate','Wormhole','Supernova','Hypernova','Magnetar','DarkMatter','Antimatter',
-        'Chrono','Temporal','Aeon','Epoch','Genesis','Nirvana','Samsara','Karma','Mantra','Zen',
-        'Binary','Digital','Hologram','Photon','Neutrino','Graviton','Quark','Boson','Fermion','Hadron',
-        'Axiom','Theorem','Fractal','Chaos','Harmony','Resonance','Prism','Spectrum','Laser','Plasma',
-        'Nebula','Orbit','Eclipse','Equinox','Solstice','Umbra','Penumbra','NovaBurst','StarFall','MoonRise',
-        'VoidWalker','StarForge','WorldTree','Yggdrasil','Bifrost','Celestia','Astralis','Luminara','Umbrara','Noctara',
-        'Aetherius','Chronos','Kairos','Telos','Nous','Logos','Psyche','Anima','Animus','Geist',
-        'Numen','Lumen','Umbra','Somnium','Expanse','InfiniteVoid','Boundless','Endless','Timeless','Formless'];
+    // Shape words to strip from icon filenames
+    const SHAPE_WORDS = new Set(['Shield','Circle','Banner','Freeform','Diamond','Crystal','Wreath','Winged','Hexagon','Star','Nature']);
+    // Manual name overrides for all tiers (replacing auto-generated names)
+    const TIER_NAME_OVERRIDES = {
+    1: 'Crossed Axes',
+    2: "Pioneer's Standard",
+    3: 'Oakwood Sentinel',
+    4: "Woodcutter's Mark",
+    5: 'Earthspire',
+    6: "Titan's Shield",
+    7: 'Mossy Medallion',
+    8: 'Mossy Globe',
+    9: 'Petrified Leaf',
+    10: 'Stone Well',
+    11: 'Stone Eden',
+    12: 'Bound Earth',
+    13: 'Twilight Stone',
+    14: 'Void Stone',
+    15: 'Lunar Summit',
+    16: 'Nebula Stone',
+    17: 'Ancient Target',
+    18: "Titan's Burden",
+    19: 'Ancient Seal',
+    20: 'Stone Titan',
+    21: 'Stone Golem',
+    22: 'Elder Golem',
+    23: 'Shadow Spire',
+    24: 'Rustborn Sigil',
+    25: "Anchor's Mark",
+    26: 'Bronze Medal',
+    27: 'Winged Boots',
+    28: 'Spear Crest',
+    29: 'Seedling Shield',
+    30: 'Lantern Keeper',
+    31: 'Earthborn Shield',
+    32: "Ironwright's Seal",
+    33: 'Forge Circle',
+    34: 'Mountain Chronos',
+    35: 'Bronze Peak',
+    36: 'Cosmic Ember',
+    37: 'Bronze Dawn',
+    38: "Scholar's Wreath",
+    39: 'Bronze Bull',
+    40: 'Ember Beast',
+    41: 'Meteor Tracker',
+    42: 'Bell of Dawn',
+    43: 'Bronze Clockwork',
+    44: 'Chalice of Embers',
+    45: 'Clockwork Seal',
+    46: 'Clockwork Golem',
+    47: 'Ragebeast',
+    48: 'Ember Nugget',
+    49: 'Antler Gem',
+    50: 'Iron Bulwark',
+    51: 'Cragspire',
+    52: 'Stallion Shield',
+    53: 'Blade Cross',
+    54: 'War Banner',
+    55: 'Iron Inferno',
+    56: 'Stormwall',
+    57: 'Stormbreaker',
+    58: 'Thunderstrike',
+    59: 'Thundermark',
+    60: "Forgemaster's Mark",
+    61: 'Granite Fang',
+    62: 'Zephyr Guard',
+    63: 'Galewall',
+    64: 'Iron Vortex',
+    65: 'Thundercloud',
+    66: 'Ironstorm',
+    67: 'Iron Zephyr',
+    68: 'Iron Meteor',
+    69: 'Iron Cosmos',
+    70: 'Starfall Guard',
+    71: 'Iron Crescent',
+    72: 'Moon Marble',
+    73: 'Iron Comet',
+    74: 'Iron Cosmos Hex',
+    75: 'Worldbearer',
+    76: 'Runic Ward',
+    77: 'Fractured Bell',
+    78: 'Iron Serpent',
+    79: 'Bell Tower',
+    80: 'Boundless Storm',
+    81: 'Iron Compass',
+    82: 'Iron Wolf',
+    83: 'Iron Nucleus',
+    84: 'Targeting Reticle',
+    85: 'Iron Bastion',
+    86: 'Steel Epoch',
+    87: 'Iron Skull',
+    88: 'Darkstone Guard',
+    89: "Duelist's Pact",
+    90: 'Silverwind Crest',
+    91: 'Silver Knight',
+    92: 'Silver Herald',
+    93: 'Clockwright',
+    94: 'Mistral Hex',
+    95: 'Void Maelstrom',
+    96: 'Silver Compass',
+    97: 'Silver Mask',
+    98: 'Frost Drake',
+    99: 'Silver Specter',
+    100: 'Ashfeather',
+    101: 'Iron Sentinel',
+    102: 'Key of Secrets',
+    103: 'Silver Crown',
+    104: 'Silver Scale',
+    105: 'Mirror Scale',
+    106: 'Silver Shard',
+    107: 'Gilded Shield',
+    108: 'Gilded Star',
+    109: 'Star of Honor',
+    110: 'Gilded Target',
+    111: 'Gilded Crest',
+    112: 'Eagle Standard',
+    113: 'Gold Standard',
+    114: 'Gilded Sakura',
+    115: 'Verdant Glory',
+    116: 'Lotus of Gold',
+    117: 'Aureate Canopy',
+    118: 'Bolt of Zeus',
+    119: 'Aureate Cog',
+    120: 'Goldenspire',
+    121: 'Celestial Harbor',
+    122: 'Solar Tempest',
+    123: "Lion's Sun",
+    124: 'Sundisc',
+    125: 'Solar Spiral',
+    126: 'Radiant Aureole',
+    127: 'Solaris Crown',
+    128: 'Solar Flare',
+    129: 'Golden Flare',
+    130: 'Solstice Star',
+    131: 'Starfire',
+    132: 'Golden Epoch',
+    133: 'Apex Star',
+    134: 'Gilded Galaxy',
+    135: 'Solar Wreath',
+    136: 'Auric Wing',
+    137: 'Solar Vanguard',
+    138: "Heaven's Gate",
+    139: "Heaven's Vanguard",
+    140: 'Gilded Ascension',
+    141: 'Eagle of Gold',
+    142: 'Gilded Compass',
+    143: 'Celestial Navigator',
+    144: 'Dharma Wheel',
+    145: 'Eternity Knot',
+    146: 'All-Seeing Eye',
+    147: 'Infinity Forge',
+    148: "Wayfarer's Star",
+    149: 'Labyrinth Star',
+    150: 'Solar Mandala',
+    151: 'Eternal Gold',
+    152: 'Aureate Infinity',
+    153: 'Aureate Griffin',
+    154: 'Lionheart',
+    155: 'Mane of Gold',
+    156: 'Golden Griffin',
+    157: 'Gilded Eagle',
+    158: 'Scarab Ascendant',
+    159: 'Golden Core',
+    160: 'Gilded Cog',
+    161: 'Gilded Throne',
+    162: 'Harp of Gold',
+    163: 'Scale of Justice',
+    164: 'Sunburst Crown',
+    165: 'Regal Throne',
+    166: 'Jeweled Crown',
+    167: 'Blood Crown',
+    168: 'Royal Decree',
+    169: 'Chalice of Blood',
+    170: 'Amethyst Crown',
+    171: 'Royal Scarab',
+    172: 'Clockwork Eternity',
+    173: 'Time Flow',
+    174: 'Coiled Epoch',
+    175: 'Infinite Hour',
+    176: 'Gilded Hour',
+    177: 'Timeless Wing',
+    178: "Guardian's Hour",
+    179: 'Topaz Circle',
+    180: 'Gilded Knot',
+    181: 'Topaz Wreath',
+    182: 'Gilded Topaz',
+    183: 'Ivory Crusade',
+    184: 'Ivory Shell',
+    185: 'Ashen Whisper',
+    186: 'Pearl Wave',
+    187: 'Opal Wave',
+    188: 'Opal Tide',
+    189: 'Silver Thunderstar',
+    190: 'Silver Peak',
+    191: 'Ivory Vortex',
+    192: 'Ivory Cloud',
+    193: 'Eternal Eclipse',
+    194: 'The Corona',
+    195: 'Moonfield',
+    196: 'Platinum Eclipse',
+    197: 'Supernova',
+    198: 'Platinum Meridian',
+    199: 'Lunar Wreath',
+    200: 'Silver Galaxy',
+    201: 'Platinum Veil',
+    202: 'Eclipse Duality',
+    203: 'Holy Radiance',
+    204: 'Luminous Vanguard',
+    205: 'Compass of Stars',
+    206: 'Ascension',
+    207: 'Unicorn Shield',
+    208: 'Platinum Angel',
+    209: 'Platinum Mind',
+    210: 'Ivory Gate',
+    211: 'Temple Pillars',
+    212: 'Opal Wing',
+    213: 'Frostbloom',
+    214: 'Crystalline Guard',
+    215: 'Glacial Bloom',
+    216: 'Prismatic Jewel',
+    217: 'Diamond Splinter',
+    218: 'Prismatic Diamond',
+    219: 'Starwing Crest',
+    220: 'Sapphire Crusader',
+    221: 'Silver Current',
+    222: 'Stormwave',
+    223: 'Fountain Gem',
+    224: 'Tidal Diamond',
+    225: 'Azure Whirlpool',
+    226: 'Tidal Duality',
+    227: 'Tide Oracle',
+    228: 'Tidal Wing',
+    229: 'Tideleaf',
+    230: 'Cloudveil',
+    231: 'Stormcrystal',
+    232: 'Stormfang',
+    233: 'Frozen Tundra',
+    234: 'Ice Mountain',
+    235: 'Tundra Fortress',
+    236: 'Wind Raptor',
+    237: 'Starshield',
+    238: 'Azure Firmament',
+    239: 'Frost Nova',
+    240: 'Astral Compass',
+    241: 'Starfield Compass',
+    242: 'Sapphire Comet',
+    243: 'Starbloom Wreath',
+    244: 'Azure Galaxy',
+    245: 'Sapphire Ascension',
+    246: 'Tidal Mandala',
+    247: 'Twin Tide',
+    248: 'Azure Specter',
+    249: 'Sapphire Tome',
+    250: 'Azure Eagle',
+    251: 'Azure Leviathan',
+    252: 'Tempest Drake',
+    253: 'Sea Serpent',
+    254: 'Spectrum Atom',
+    255: 'Orbit Station',
+    256: 'Sapphire Circuit',
+    257: 'Orbital Lens',
+    258: 'Castle Sigil',
+    259: 'Sapphire Kite',
+    260: 'Pearl Tide',
+    261: 'Sapphire Edge',
+    262: 'Azure Gem',
+    263: 'Amethyst Fang',
+    264: 'Azure Splinter',
+    265: 'Starfall Shard',
+    266: 'Sapphire Fang',
+    267: 'Azure Prism',
+    268: 'Deep Sapphire',
+    269: 'Deep Sapphire Shard',
+    270: 'Azure Relic',
+    271: 'Sapphire Wing',
+    272: 'Cloud Diamond',
+    273: 'Teardrop Gem',
+    274: 'Frosthelm',
+    275: 'Frost Feather',
+    276: 'Glacial Bastion',
+    277: 'Glacial Guard',
+    278: 'Tundra Ward',
+    279: 'Tidal Shield',
+    280: 'Arctic Star',
+    281: 'Frozen Tide',
+    282: 'Frozen Crest',
+    283: "Tidecaller's Drop",
+    284: 'Glacial Stream',
+    285: 'Arctic Flow',
+    286: 'Cryo Current',
+    287: 'Frostbolt Shield',
+    288: 'Frostbolt',
+    289: "Glacier's Edge",
+    290: 'Glacier Shield',
+    291: 'Frozen Summit',
+    292: 'Glacial Peak',
+    293: 'Frozen Feather',
+    294: 'Tempest Wing',
+    295: 'Arctic Nova',
+    296: 'Stardrift Shard',
+    297: 'Frozen Comet',
+    298: 'Polar Compass',
+    299: 'Rime Wraith',
+    300: 'Frost Bloom',
+    301: 'Frozen Compass',
+    302: 'Polar Diamond',
+    303: 'Frozen Eye',
+    304: 'Arcane Frost',
+    305: 'Frost Wraith',
+    306: 'Frozen Pulse',
+    307: 'Echo Chamber',
+    308: 'Frost Atom',
+    309: 'Neural Circuit',
+    310: 'Teal Matrix',
+    311: 'Crystal Mind',
+    312: 'Glacial Ward',
+    313: 'Crystal Shard',
+    314: 'Ice Matrix',
+    315: 'Glacial Hex',
+    316: 'Frozen Prism',
+    317: 'Aether Cube',
+    318: 'Azure Shard',
+    319: 'Glacial Prism',
+    320: 'Rime Crystal',
+    321: 'Cryo Crystal',
+    322: 'Snowfield Shard',
+    323: 'Verdant Smithy',
+    324: 'World Tree',
+    325: 'Pine Sentinel',
+    326: 'Green Sentinel',
+    327: 'Clover Burst',
+    328: 'Grove Mandala',
+    329: 'Spirit Tree',
+    330: 'Living Circuit',
+    331: 'Emerald Mandala',
+    332: 'Evergreen Wave',
+    333: 'Thornweave',
+    334: 'Heartwood Knot',
+    335: 'Pineleaf Shard',
+    336: 'Jade Swirl',
+    337: 'Jade Wreath',
+    338: 'Verdant Sprout',
+    339: 'Deep Kelp',
+    340: 'Timeless Grove',
+    341: 'Jungle Spray',
+    342: 'Fern Spiral',
+    343: 'Root Network',
+    344: 'Coral Branch',
+    345: 'Verdant Flame',
+    346: 'Forest Quill',
+    347: 'Four-Leaf Clover',
+    348: 'Seaweed Guard',
+    349: 'Jade Maelstrom',
+    350: 'Frozen Grove',
+    351: 'Jade Duality',
+    352: 'Jade Current',
+    353: 'Emerald Forge',
+    354: 'Evergreen Spire',
+    355: 'Verdant Gale',
+    356: 'Zen Garden',
+    357: 'Serpent Glyph',
+    358: "Serpent's Ring",
+    359: 'Jade Dragon',
+    360: 'Ouroboros',
+    361: 'Dragon Eye',
+    362: 'Cipher Code',
+    363: 'Emerald Code',
+    364: 'Helix Strand',
+    365: 'Emerald Cut',
+    366: 'Verdant Crest',
+    367: 'Emerald Clasp',
+    368: 'Emerald Wing',
+    369: 'Jade Stone',
+    370: 'Crimson Rose',
+    371: 'Crimson Banner',
+    372: 'Rose Medallion',
+    373: 'Crimson Petal',
+    374: 'Eternal Blaze',
+    375: 'Blazeheart',
+    376: 'Hellfire Core',
+    377: 'Volcanic Shard',
+    378: 'Inferno Burst',
+    379: 'Crimson Oracle',
+    380: 'Crimson Abyss',
+    381: 'Eternal Ember',
+    382: 'Phoenix Rising',
+    383: 'Inferno Phoenix',
+    384: 'Vermillion Phoenix',
+    385: 'Atomic Core',
+    386: 'Laser Eye',
+    387: 'Crimson Target',
+    388: "Spider's Web",
+    389: 'Ruby Orbit',
+    390: 'Ember Shard',
+    391: 'Carnelian Fang',
+    392: 'Ruby Heart',
+    393: 'Enchanted Vine',
+    394: 'Violet Wreath',
+    395: 'Dark Flame Wing',
+    396: 'Stormhex',
+    397: 'Phantom Core',
+    398: 'Starlit Aegis',
+    399: 'Void Orbit',
+    400: 'Cosmic Orb',
+    401: 'Midnight Sigil',
+    402: 'Void Portal',
+    403: 'Purple Nebula',
+    404: 'Dark Star',
+    405: 'Northern Light',
+    406: 'Moonfall Crest',
+    407: 'Void Wing',
+    408: 'Moonrise Wing',
+    409: 'Eclipse Wing',
+    410: 'Void Crest',
+    411: 'Moonveil',
+    412: 'Starfall Wing',
+    413: 'Twilight Duality',
+    414: 'Arcane Weave',
+    415: 'Sacred Mandala',
+    416: 'Null Sphere',
+    417: 'Arcane Void',
+    418: 'Arcane Eternity',
+    419: 'Arcane Wing',
+    420: 'Omega Void',
+    421: 'Wraith Bloom',
+    422: 'Void Drake',
+    423: 'Void Serpent',
+    424: 'Mystic Colossus',
+    425: 'Echo Shield',
+    426: 'Resonance Field',
+    427: 'Dark Matter',
+    428: 'Void Frequency',
+    429: 'Voidvision',
+    430: 'Arcane Crown',
+    431: 'Timewarp',
+    432: 'Twilight Hourglass',
+    433: 'Violet Bastion',
+    434: 'Amethyst Guard',
+    435: 'Violet Geode',
+    436: 'Amethyst Kite',
+    437: 'Arcane Gem',
+    438: 'Void Splinter',
+    439: 'Violet Prism',
+    440: 'Void Star',
+    441: 'Violet Bloom',
+    442: 'Violet Crown',
+    443: 'Violet Gem Wing',
+    444: 'Crystal Coven',
+    445: 'Violet Wisp',
+    446: 'Blossom Mandala',
+    447: 'Spiral Shell',
+    448: 'Petal Mandala',
+    449: 'Coral Summit',
+    450: 'Rosedawn Bloom',
+    451: 'Coral Shell',
+    452: 'Blush Shell',
+    453: 'Pink Reef',
+    454: 'Petal Crest',
+    455: 'Pink Lotus',
+    456: 'Blushing Phoenix',
+    457: 'Coral Tide',
+    458: 'Eternal Return',
+    459: 'Mindfire',
+    460: 'Rose Quartz',
+    461: 'Obsidian Blade',
+    462: 'Infernal Ward',
+    463: 'Magmarift',
+    464: 'Dark Phoenix',
+    465: 'Shadow Peak',
+    466: 'Event Horizon',
+    467: 'All-Seeing Triangle',
+    468: 'Phantom Shroud',
+    469: 'Death Mask',
+    470: 'Horned Skull',
+    471: 'Stone Face',
+    472: 'Skull Seal',
+    473: "Death's Crest",
+    474: 'Void Crypt',
+    475: 'Shadow Veil',
+    476: 'Dark Thorn',
+    477: 'Obsidian Fang',
+    478: 'Honeycomb',
+    479: 'Ashborn Bastion',
+    480: 'Flameguard',
+    481: 'Pyre Circle',
+    482: 'Forge Wing',
+    483: 'Thunder Shield',
+    484: 'Solar Eclipse',
+    485: 'Amber Starburst',
+    486: 'Ember Star',
+    487: 'Amber Comet',
+    488: 'Sunray Star',
+    489: 'Citrine Star',
+    490: 'Citrine Burst',
+    491: 'Blazing Ascent',
+    492: 'Amber Resonance',
+    493: 'Scorched Crown',
+    494: 'Ember Cube',
+    495: "Eden's Arc",
+    496: 'Prismatic Compass',
+    497: 'Prism Dunes',
+    498: 'Prism Moon',
+    499: 'Prism Nexus',
+    500: 'Chromatic Vault',
+    };
+    // Cool name suffixes cycled for variety
+    const SUFFIXES = ['', ' Sigil', ' Crest', ' Mark', ' Glyph', ' Seal', ' Brand', ' Ward', ' Mantle', ' Aura'];
+    // Derived name templates — pick one per (material, style) pair via hash
+    const TYPES = ['', ' of the ', "'s ", ' ', ' Crest of ', ' Mark of '];
+    function makeTierName(iconFile, idx) {
+        const tn = idx + 1;
+        if (TIER_NAME_OVERRIDES[tn]) return TIER_NAME_OVERRIDES[tn];
+        const parts = iconFile.split('_');
+        // parts[0] = number, parts[-1] = origXXX, middle = material, style, shape
+        const filtered = parts.slice(1, -1).filter(p => !SHAPE_WORDS.has(p));
+        if (filtered.length === 0) return 'Tier ' + (idx + 1);
+        if (filtered.length === 1) return filtered[0] + (SUFFIXES[idx % SUFFIXES.length] || '');
+        const material = filtered[0];
+        const style = filtered[1];
+        // Pick a deterministic template based on the pair's combined char codes
+        const hash = (material.charCodeAt(0) * 31 + style.charCodeAt(0) * 7 + idx) % 8;
+        // Build cool-sounding names
+        switch (hash) {
+            case 0: return style + ' ' + material;                    // "Celestial Stone"
+            case 1: return material + "'s " + style;                  // "Stone's Celestial"
+            case 2: return style + ' of the ' + material;             // "Herald of the Wood"
+            case 3: return style + material + SUFFIXES[idx % SUFFIXES.length];  // "CelestialStone Glyph"
+            case 4: return material + ' ' + style + ' Sigil';         // "Stone Celestial Sigil"
+            case 5: return 'The ' + style + ' ' + material;           // "The Celestial Stone"
+            case 6: return style + 'bound ' + material;               // "Celestialbound Stone"
+            case 7: return material + 'ward ' + style;                // "Stonward Celestial"
+            default: return style + ' ' + material;
+        }
+    }
     for (let i = 0; i < 500; i++) {
         const tierNum = i + 1;
         const raw = TIER_REQS[i];
         const requiresBN = Array.isArray(raw) ? BN(raw[0], raw[1]) : bnFromNumber(raw);
         const type = types[i % types.length];
-        const p1 = prefixes[i % prefixes.length];
-        const p2 = prefixes[(i * 3 + 7) % prefixes.length];
-        const name = p1 + ' ' + p2;
+        const iconFile = typeof TIER_ICON_FILES !== 'undefined' && TIER_ICON_FILES[i] ? TIER_ICON_FILES[i] : '';
+        const name = iconFile ? makeTierName(iconFile, i) : ('Tier ' + tierNum);
         const multFactor = Math.round(Math.max(1, Math.floor(tierNum / 5) + 1) * 0.35);
         let bonus, value;
         switch (type) {
@@ -762,49 +1266,6 @@ const ACHIEVEMENTS = [
     { id: 'auto_10',      name: 'Automation Begins',  desc: 'Buy 10 total autoclickers', icon_img: 'sprites/images/icons/32/ach_auto_10.webp',   icon: '🤖', threshold: { type: 'autoclickers', value: 10 } },
     { id: 'auto_50',      name: 'Robot Army',         desc: 'Buy 50 total autoclickers', icon_img: 'sprites/images/icons/32/ach_auto_50.webp',   icon: '🦾', threshold: { type: 'autoclickers', value: 50 } },
     { id: 'auto_100',     name: 'Fully Automated',    desc: 'Buy 100 total autoclickers', icon_img: 'sprites/images/icons/32/ach_auto_100.webp',  icon: '🤖', threshold: { type: 'autoclickers', value: 100 } },
-    // Tier milestones — achievements, one per tier
-    ...(() => {
-        const names = [];
-        const prefixes = ['Bronze','Silver','Gold','Platinum','Diamond','Master','Grand','Royal','Noble','Solar',
-            'Lunar','Stellar','Cosmic','Void','Eternal','Infinite','Omega','Alpha','Prime','Ultra',
-            'Hyper','Mega','Giga','Tera','Peta','Exa','Zetta','Yotta','Nova','Quasar',
-            'Pulsar','Nebula','Galaxy','Meteor','Comet','Astral','Celestial','Orbital','Solaris','Lumina',
-            'Crystal','Obsidian','Onyx','Ruby','Emerald','Sapphire','Amethyst','Topaz','Jade','Opal',
-            'Titan','Atlas','Hero','Legend','Mythic','Fabled','Ancient','Elder','Primal','Origin',
-            'Zenith','Apex','Pinnacle','Summit','Acme','Peak','Crown','Glory','Victor','Champion',
-            'Sage','Wise','Knight','Paladin','Guardian','Sentinel','Warden','Ranger','Seeker','Hunter',
-            'Phoenix','Dragon','Griffin','Seraph','Angel','Titan','Colossus','Giant','Behemoth','Leviathan',
-            'Storm','Thunder','Lightning','Blaze','Inferno','Ember','Flame','Spark','Volt','Surge',
-            'Frost','Glacier','Arctic','Tundra','Permafrost','Crystal','Shard','Rime','Hail','Blizzard',
-            'Shadow','Shade','Dusk','Twilight','Night','Dark','Eclipse','Void','Abyss','Depth',
-            'Spirit','Ghost','Wraith','Phantom','Specter','Haunt','Mystic','Arcane','Ethereal','Astral',
-            'Iron','Steel','Copper','Tin','Zinc','Brass','Alloy','Metal','Forge','Anvil',
-            'Silk','Satin','Velvet','Linen','Cotton','Fiber','Thread','Weave','Spun','Twine',
-            'Coral','Reef','Tide','Wave','Swell','Current','Drift','Flow','Stream','River',
-            'Moss','Fern','Leaf','Petal','Bloom','Grove','Forest','Jungle','Thicket','Wild',
-            'Dune','Rock','Stone','Pebble','Boulder','Cliff','Crag','Summit','Peak','Ridge',
-            'Haze','Mist','Fog','Cloud','Sky','Aether','Wind','Gale','Breeze','Zephyr',
-            'Infinity','InfinityZ','Transcend','Singularity','EventHorizon','Nexus','Omni','Proto','Quantum','ZeroPoint',
-            'Entropy','Paradox','Tesseract','Stargate','Wormhole','Supernova','Hypernova','Magnetar','DarkMatter','Antimatter',
-            'Chrono','Temporal','Aeon','Epoch','Genesis','Nirvana','Samsara','Karma','Mantra','Zen',
-            'Binary','Digital','Hologram','Photon','Neutrino','Graviton','Quark','Boson','Fermion','Hadron',
-            'Axiom','Theorem','Fractal','Chaos','Harmony','Resonance','Prism','Spectrum','Laser','Plasma',
-            'Nebula','Orbit','Eclipse','Equinox','Solstice','Umbra','Penumbra','NovaBurst','StarFall','MoonRise',
-            'VoidWalker','StarForge','WorldTree','Yggdrasil','Bifrost','Celestia','Astralis','Luminara','Umbrara','Noctara',
-            'Aetherius','Chronos','Kairos','Telos','Nous','Logos','Psyche','Anima','Animus','Geist',
-            'Numen','Lumen','Umbra','Somnium','Expanse','InfiniteVoid','Boundless','Endless','Timeless','Formless'];
-        const icons = ['🥉','🥈','🥇','💎','💠','🎖️','👑','🌟','🔮','⚡','🕳️','🌀','∞','🚀','💥','🌍','💰','🏛️','🪐','🌌','⭐','✨','🔥','💫','🌈','🦄','🐉','🦅','🦊','🐺','🦁','🐯','🦈','🐋','🦀','🐙','🦑','🐍','🦎','🐢'];
-        for (let i = 0; i < TIERS.length; i++) {
-            const tierNum = i + 1;
-            const t = TIERS[i];
-            if (!t) break;
-            const p1 = prefixes[i % prefixes.length];
-            const p2 = prefixes[(i * 3 + 7) % prefixes.length];
-            const name = p1 + ' ' + p2;
-            names.push({ id: 'tier_ach_' + tierNum, name, desc: 'Reach tier ' + tierNum + ' (' + t.name + ')', icon: icons[i % icons.length], threshold: { type: 'prestiges', value: t.requires } });
-        }
-        return names;
-    })(),
 ];
 
 // ---------- DEFAULT GAME STATE ----------
@@ -851,7 +1312,8 @@ function getDefaultState() {
             music_shuffle: true,
             particle_effects: true,
             show_float_text: true,
-            sidebar_position: 'left', // 'left' | 'right'
+            sidebar_position: 'left',
+            bio: '',
         }
     };
 }
@@ -1107,7 +1569,19 @@ function getSynergyBonus(autoclickerId, state = G) {
     let bonus = 0;
     let stacks = 0;
     for (const syn of SYNERGIES) {
-        const ownedCount = state.autoclickers[syn.prereq] || 0;
+        // Sum owned count across ALL rooms
+        let ownedCount = 0;
+        if (state.autoclickers && state.autoclickers[syn.prereq]) {
+            ownedCount += state.autoclickers[syn.prereq];
+        }
+        if (state.room_autoclickers) {
+            for (const roomId of Object.keys(state.room_autoclickers)) {
+                const roomClickers = state.room_autoclickers[roomId];
+                if (roomClickers && roomClickers[syn.prereq]) {
+                    ownedCount += roomClickers[syn.prereq];
+                }
+            }
+        }
         if (ownedCount >= syn.reqCount && syn.targetTiers.includes(autoclickerId)) {
             const s = Math.floor(ownedCount / syn.reqCount);
             bonus += syn.mult * s;
@@ -1122,7 +1596,19 @@ function getSynergyBoostInfo(upgradeId, state = G) {
     let totalMult = 0;
     let stacks = 0;
     for (const syn of SYNERGIES) {
-        const ownedCount = state.autoclickers[syn.prereq] || 0;
+        // Sum owned count across ALL rooms
+        let ownedCount = 0;
+        if (state.autoclickers && state.autoclickers[syn.prereq]) {
+            ownedCount += state.autoclickers[syn.prereq];
+        }
+        if (state.room_autoclickers) {
+            for (const roomId of Object.keys(state.room_autoclickers)) {
+                const roomClickers = state.room_autoclickers[roomId];
+                if (roomClickers && roomClickers[syn.prereq]) {
+                    ownedCount += roomClickers[syn.prereq];
+                }
+            }
+        }
         if (ownedCount >= syn.reqCount && syn.targetTiers.includes(upgradeId)) {
             const s = Math.floor(ownedCount / syn.reqCount);
             totalMult += syn.mult * s;
@@ -1267,10 +1753,19 @@ function getClickValue(state = G) {
 // Prestige threshold: exponential growth 1T × 2.5^(n) where n = prestige count + 1
 // 1st: 2.5T, 2nd: 6.25T, 3rd: 15.6T, 4th: 39T, 5th: 97.7T, ...
 function getPrestigeThreshold(state = G) {
-    const n = bnToNumber(state.total_prestiges || BN_ZERO) + 1;
-    // Exponential growth: base × 2.5^n
-    // n=1: 2.5T, n=2: 6.25T, n=3: 15.6T, n=4: 39T, n=5: 97.7T
-    return Math.floor(1_000_000_000_000 * Math.pow(2.5, n));
+    const presCount = bnToNumber(state.total_prestiges || BN_ZERO);
+    // First prestige: 10T
+    if (presCount === 0) return 10_000_000_000_000; // 10T
+
+    // Subsequent: bump suffix based on current tier level
+    // Tiers 0-9 = 10T, tiers 10-19 = 10Q, tiers 20-29 = 10a, etc.
+    // 10T → 10Q → 10a → 10c → 10d → 10e → ...
+    const suffixes = ['k','M','B','T','Q','a','c','d','e','f','g','h','i','j','l','n','o','p','r','s','u','v','w','x','y','z',
+        'A','C','D','E','F','G','H','I','J','L','N','O','P','R','S','U','V','W','X','Y','Z'];
+    const tierIdx = getCurrentTier(state);
+    const level = Math.floor(Math.max(0, tierIdx) / 10);
+    const suffixIdx = Math.min(4 + level, suffixes.length - 1);
+    return 10 * Math.pow(1000, suffixIdx);
 }
 
 function getPrestigeGain(state = G) {
@@ -1287,11 +1782,14 @@ function isPrestigeUnlockable(state = G) {
     const threshold = getPrestigeThreshold(state);
     // Check if lifetime vibes >= threshold
     if (bnLt(state.lifetime_vibes, threshold)) return false;
-    // If total room cost > threshold, require all 6 rooms
-    const totalRoomCost = Object.values(ROOMS).reduce((sum, r) => sum + r.cost, 0);
-    if (totalRoomCost > threshold) {
-        const allRoomIds = Object.keys(ROOMS);
-        return allRoomIds.every(id => state.unlocked_rooms.includes(id));
+    // Only require all rooms for the FIRST prestige
+    const presCount = bnToNumber(state.total_prestiges || BN_ZERO);
+    if (presCount === 0) {
+        const totalRoomCost = Object.values(ROOMS).reduce((sum, r) => sum + r.cost, 0);
+        if (totalRoomCost > threshold) {
+            const allRoomIds = Object.keys(ROOMS);
+            return allRoomIds.every(id => state.unlocked_rooms.includes(id));
+        }
     }
     return true;
 }
@@ -1590,7 +2088,7 @@ function checkAchievements(state = G, vps = 0) {
         let earned = false;
         switch (ach.threshold.type) {
             case 'lifetime':
-                earned = state.lifetime_vibes >= ach.threshold.value;
+                earned = bnGe(state.lifetime_vibes, bnFromNumber(ach.threshold.value));
                 break;
             case 'clicks':
                 earned = state.total_clicks >= ach.threshold.value;
@@ -1605,7 +2103,7 @@ function checkAchievements(state = G, vps = 0) {
                 earned = Object.keys(ROOMS).every(id => state.unlocked_rooms.includes(id));
                 break;
             case 'vps':
-                earned = vps >= ach.threshold.value;
+                earned = bnGe(vps, bnFromNumber(ach.threshold.value));
                 break;
             case 'gateway':
                 earned = state.gateway_bonus_active;
@@ -1620,7 +2118,13 @@ function checkAchievements(state = G, vps = 0) {
                 earned = state.total_gateway_pings >= ach.threshold.value;
                 break;
             case 'autoclickers':
-                earned = Object.values(state.autoclickers).reduce((a, b) => a + b, 0) >= ach.threshold.value;
+                // Sum from both legacy and room-based autoclickers
+                let autoTotal = 0;
+                for (const c of Object.values(state.autoclickers || {})) autoTotal += c || 0;
+                for (const roomId of Object.keys(state.room_autoclickers || {})) {
+                    for (const c of Object.values(state.room_autoclickers[roomId])) autoTotal += c || 0;
+                }
+                earned = autoTotal >= ach.threshold.value;
                 break;
         }
         if (earned) {

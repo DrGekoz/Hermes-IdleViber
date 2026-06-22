@@ -68,20 +68,19 @@ const DEV_HOST = 'DrGekoz';
 
 // ============================================================
 class P2PLeaderboardManager {
-    constructor(firestore, username, onUpdate, syncFn, peerId) {
+    constructor(firestore, username, onUpdate, syncFn) {
         this.fs = firestore; this.username = username; this.onUpdate = onUpdate;
         this.syncFn = syncFn; this.ledger = new Ledger();
         this.peers = new Map(); this.kp = null; this.kid = null;
         this.seq = 0; this._uploadTimer = null; this._pingTimer = null; this._reconnectTimer = null; this._signalTimer = null;
         this._nonce = Math.floor(Math.random() * 2147483647);
         this._retryPending = null; this._connecting = new Set();
-this._onlineUsernames = new Set();
-this._onlineNames = {}; // peerId -> display name for host detection
-this._isHost = false;
+        this._onlinePeers = new Set(); // Set of usernames currently online
         this._lastLeaderboardHash = '';
         this._myScore = 0; this._myPrestige = 0; this._myVps = 0; this._myPp = 0; this._myTierIcon = 0;
-        // Stable peer ID — never changes, used as ledger key instead of display name
-        this.peerId = peerId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'p' + Date.now() + '_' + Math.random().toString(36).substr(2, 9));
+        this._retryCounts = {};
+        // Use username as the signaling doc key — persistent, no stale ghosts
+        this.peerId = username || 'Player'; // Firestore doc ID = username
     }
 
 async init() {
@@ -98,64 +97,65 @@ console.log('🔑 P2P keyId:', this.kid, 'nonce:', this._nonce, '(fresh)');
         return sorted[0];
     }
 
-_amHost() { return this._isHost; }
+_amHost() { return false; } // No host in mesh topology
 
 join() {
 const { db, doc, setDoc, collection, onSnapshot, deleteDoc, Timestamp } = this.fs;
 if (!db || !doc || !setDoc) { console.warn('🌀 P2P join missing Firestore API'); return; }
-console.log('[P2P] Joining star network as', this.username);
-        const myRef = doc(db, 'sig', this.peerId);
-        crypto.subtle.exportKey('jwk', this.kp.publicKey).then(jwk => {
-            setDoc(myRef, { u: this.username, pid: this.peerId, k: jwk, kid: this.kid, nonce: this._nonce, on: 1, ts: Timestamp.now() }, { merge: true });
-        });
+console.log('[P2P] Joining mesh network as', this.username);
+const myRef = doc(db, 'sig', this.peerId); // keyed by username
+crypto.subtle.exportKey('jwk', this.kp.publicKey).then(jwk => {
+    setDoc(myRef, { u: this.username, k: jwk, kid: this.kid, nonce: this._nonce, on: 1, ts: Timestamp.now() }, { merge: true });
+});
 window.addEventListener('beforeunload', () => { deleteDoc(myRef).catch(() => {}); });
 
-// ---- Track all online peers and detect host changes ----
+// ---- Track all online peers (mesh: connect to EVERYONE) ----
 const peersRef = collection(db, 'sig');
 this._unsubPeers = onSnapshot(peersRef, snap => {
-const newOnline = new Set();
-snap.docs.forEach(s => { const id = s.id; if (id === this.peerId) return; const sd = s.data(); if (!sd?.on) return; newOnline.add(id); this._onlineNames[id] = sd.u || id; });
-// Detect peers that went offline
-for (const k of this._onlineUsernames) {
-if (!newOnline.has(k)) this._onPeerGone(k);
-}
-this._onlineUsernames = newOnline;
-            const oldHost = this._computeHost(this._onlineUsernames);
-            const wasHost = this._isHost;
-            this._isHost = (this._computeHost(newOnline) === this.peerId);
-            if (!wasHost && this._isHost) {
-                console.log('[P2P] Elected Host = true — I am now the HOST');
-// If we just became host (DrGekoz logged in), broadcast migration
-this._broadcastHostMigration();
-} else if (wasHost && !this._isHost) {
-console.log('[P2P] Elected Host = false — host changed to:', this._computeHost(newOnline));
-// Host changed (DrGekoz came online), I'm no longer host — disconnect all and reconnect to DrGekoz
-this._disconnectAll();
-}
-// Connect to the current host (or to everyone if I'm the host)
-            snap.docChanges().forEach(async ch => {
-                const k = ch.doc.id; if (k === this.peerId) return;
-if (ch.type === 'removed') { /* handled above */ return; }
-const d = ch.doc.data(); if (!d?.k || !d?.on) return;
-const existing = this.peers.get(k);
-if (existing && (d.kid || k) !== (existing.keyId || k)) {
-console.log('🔄 P2P peer key changed for', k, '— reconnecting');
-this._onPeerGone(k);
-}
-if (!this.peers.has(k)) {
-if (this._connecting.has(k)) return;
-                    // Only connect: if I'm host (connect to everyone) OR if this peer is the host
-                    const host = this._computeHost(newOnline);
-                    const shouldConnect = this._isHost || (host && host.toLowerCase() === k.toLowerCase());
-if (!shouldConnect) return; // skip — not host, not connecting to
-                    this._connecting.add(k);
-                    try {
-                        const pub = await crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']);
-                        this.peers.set(k, { pc:null, ch:null, pub, name: d.u||'?', seq:0, keyId: d.kid||k, nonce: d.nonce||0 });
-                        this._connect(k, d.kid, d.nonce||0);
-                    } catch(e) { this._connecting.delete(k); console.warn('P2P key import failed for', k); }
-}
-});
+    const newOnline = new Set();
+    const now = Date.now();
+    const MAX_PEER_AGE_MS = 30000;
+    snap.docs.forEach(s => {
+        const id = s.id;
+        const sd = s.data();
+        if (id === this.peerId) return; // skip self
+        if (!sd?.on) return;
+        // Staleness filter
+        const ts = sd.ts;
+        if (ts) {
+            const tsMs = ts.toMillis ? ts.toMillis() : (ts.seconds ? ts.seconds * 1000 : 0);
+            if (tsMs && (now - tsMs > MAX_PEER_AGE_MS)) return;
+        }
+        newOnline.add(id);
+    });
+    // Detect peers that went offline
+    for (const k of this._onlinePeers) {
+        if (!newOnline.has(k)) this._onPeerGone(k);
+    }
+    this._onlinePeers = newOnline;
+
+    // Mesh: connect to EVERY online peer (with staleness filter)
+    snap.docChanges().forEach(async ch => {
+        const k = ch.doc.id; if (k === this.peerId) return;
+        if (ch.type === 'removed') { return; }
+        // Only process peers that passed the staleness filter
+        if (!newOnline.has(k)) return;
+        const d = ch.doc.data(); if (!d?.k || !d?.on) return;
+        const existing = this.peers.get(k);
+        if (existing && (d.kid || k) !== (existing.keyId || k)) {
+            console.log('🔄 P2P peer key changed for', k, '— reconnecting');
+            this._onPeerGone(k);
+        }
+        if (!this.peers.has(k)) {
+            if (this._connecting.has(k)) return;
+            this._connecting.add(k);
+            try {
+                const pub = await crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']);
+                this.peers.set(k, { pc:null, ch:null, pub, name: d.u||k, seq:0, keyId: d.kid||k, nonce: d.nonce||0 });
+                this._connect(k, d.kid, d.nonce||0);
+            } catch(e) { this._connecting.delete(k); console.warn('P2P key import failed for', k); }
+        }
+    });
 });
 
 // ---- Offer/answer signaling ----
@@ -176,7 +176,9 @@ this._unsubIce = onSnapshot(iceRef, snap => {
 snap.docChanges().forEach(ch => {
 if (ch.type === 'removed') return;
 const d = ch.doc.data(); const pk = ch.doc.id;
-const peer = this.peers.get(pk);
+// ICE candidate docs are keyed by random ID, not peer ID — use d.by (sender identity)
+const peerKey = d.by || pk;
+const peer = this.peers.get(peerKey);
 if (peer?.pc && d.c) {
 peer.pc.addIceCandidate(new RTCIceCandidate(d.c)).catch(() => {});
 }
@@ -200,7 +202,7 @@ this._scanTimer = setInterval(() => {
 if (this.peers.size === 0) this._rescanPeers();
 }, 30000);
 
-if (!this._uploadTimer) this._uploadTimer = setInterval(() => this._uploadIfElected(), 900000);
+if (!this._uploadTimer) this._uploadTimer = setInterval(() => this._syncToFirestore(), 15000);
 
         // Log initial host status
         setTimeout(() => {
@@ -213,6 +215,9 @@ if (!this._uploadTimer) this._uploadTimer = setInterval(() => this._uploadIfElec
 // Disconnect all peers (used on host migration)
 _disconnectAll() {
 console.log('[P2P] Elected Host = false — disconnecting for host migration');
+// Clear pending host election to avoid re-triggering during cleanup
+if (this._hostElectionTimer) { clearTimeout(this._hostElectionTimer); this._hostElectionTimer = null; }
+this._lastHostElectionSnapshot = '';
 for (const k of [...this.peers.keys()]) this._onPeerGone(k, true);
 this._connecting.clear();
 }
@@ -232,8 +237,8 @@ if (peer.ch?.readyState === 'open') try { peer.ch.send(msg); } catch (_) {}
 }
 
 async _connect(pk, peerKid, peerNonce) {
-// In star topology, the host ALWAYS makes the offer
-const iAmOfferer = this._amHost();
+// In mesh topology: alphabetically lower username makes the offer (prevents dual connections)
+const iAmOfferer = this.username.toLowerCase() < (this.peers.get(pk)?.name || pk).toLowerCase();
 console.log('[P2P] Connecting to peer:', pk, '| Host is offerer:', iAmOfferer);
 
 const pc = new RTCPeerConnection({ iceServers: [{ urls:'stun:stun.l.google.com:19302' }] });
@@ -276,12 +281,22 @@ if (pc.connectionState === 'connected' || pc.connectionState === 'connecting') r
 if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
 console.log('🔄 P2P connection failed, retry in 2s');
 pc.close();
+// Track retry count to prevent infinite loops
+if (!this._retryCounts) this._retryCounts = {};
+if (!this._retryCounts[pk]) this._retryCounts[pk] = 0;
+if (++this._retryCounts[pk] > 5) { console.log('⛔ P2P max retries for', pk); delete this._retryCounts[pk]; this._onPeerGone(pk); return; }
 setTimeout(() => {
-this._onPeerGone(pk);
 const { doc:fdoc, getDoc } = this.fs;
 getDoc(fdoc(this.fs.db, 'sig', pk)).then(snap => {
 if (!snap.exists()) return;
 const d = snap.data();
+// Staleness check: don't retry if peer doc hasn't been updated recently
+const rts = d.ts;
+if (rts) {
+    const rtsMs = rts.toMillis ? rts.toMillis() : (rts.seconds ? rts.seconds * 1000 : 0);
+    if (rtsMs && (Date.now() - rtsMs > 30000)) { console.log('⛔ P2P stale peer, not retrying:', pk); delete this._retryCounts[pk]; this._onPeerGone(pk); return; }
+}
+this._onPeerGone(pk);
 crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']).then(pub => {
 this.peers.set(pk, { pc:null, ch:null, pub, name: d.u||'?', seq:0, keyId: d.kid||pk, nonce: d.nonce||0 });
 this._connect(pk, d.kid, d.nonce||0);
@@ -380,20 +395,13 @@ this._disconnectAll();
 return;
 }
 
-// ---- GUEST → HOST: score update ----
+// ---- PEER → PEER: score update (mesh: every peer stores directly) ----
 if (payload.type === 'score') {
-// Host receives score update from a guest
-if (!this._amHost()) {
-// Non-host receiving a score update — ignore (relay only)
-return;
-}
 const guestName = payload.id || payload.user || pk;
 console.log('[P2P] Score from', payload.user || guestName, '→', payload.s ? payload.s[0].toFixed(2)+'e'+payload.s[1] : '0');
-this.ledger.set(guestName, { id: payload.id, username: payload.user || guestName, score:payload.s, prestige:payload.pr, vps:payload.v, pp:payload.p, tierIcon:payload.ti });
+this.ledger.set(guestName, { id: payload.id, username: payload.user || guestName, score:payload.s, prestige:payload.pr, vps:payload.v, pp:payload.p, tierIcon:payload.ti, bio:payload.b||'', rooms:payload.r||0, decor:payload.d||0, autoclickers:payload.ac||0, achievements:payload.ach||0, click:payload.cl||0 });
 this.ledger.set('self', { username:this.username, score:this._myScore, prestige:this._myPrestige, vps:this._myVps, pp:this._myPp, tierIcon:this._myTierIcon });
 try { this.onUpdate(this.ledger.sorted()); } catch(e) { console.warn('P2P onUpdate err:', e); }
-// Relay full leaderboard to all guests
-this._hostSendLeaderboard();
 return;
 }
 
@@ -461,21 +469,32 @@ if (!this._staleTimers) this._staleTimers = {};
 this._staleTimers[pk] = setTimeout(() => {
 delete this._staleTimers[pk];
 this.ledger.del(pk);
-if (this._amHost()) {
 try { this.onUpdate(this.ledger.sorted()); } catch(e) { console.warn('P2P onUpdate err:', e); }
-setTimeout(() => this._hostSendLeaderboard(), 100);
-}
 }, 30000);
-}
-// If host, update UI and rebroadcast immediately (but entry stays due to stale buffer)
-if (this._amHost()) {
-try { this.onUpdate(this.ledger.sorted()); } catch(e) { console.warn('P2P onUpdate err:', e); }
-setTimeout(() => this._hostSendLeaderboard(), 100);
 }
 }
 
-// ---- GUEST: send score to host; HOST: store locally and broadcast to all ----
-async broadcast(score, prestige, vps, pp, ts, tierIcon) {
+// ---- MESH: sync master uploads ALL scores to Firestore every 15s ----
+_isSyncMaster() {
+    if (!this._onlinePeers || this._onlinePeers.size === 0) return true;
+    const sorted = [...this._onlinePeers].sort((a,b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    return this.username.toLowerCase() <= sorted[0].toLowerCase();
+}
+_syncToFirestore() {
+    if (!this._isSyncMaster() || !this.syncFn || !this.fs?.db) return;
+    for (const [, e] of this.ledger.m) {
+        if (e.username && e.username !== 'self') {
+            this.syncFn(e.username, e.score, e.prestige||0, e.pp, e.username, e.vps).catch(()=>{});
+        }
+    }
+    // Also sync our own score
+    if (this._myScore) {
+        this.syncFn(this.username, this._myScore, this._myPrestige, this._myPp, this.username, this._myVps).catch(()=>{});
+    }
+}
+
+// ---- MESH: send score to all connected peers ----
+async broadcast(score, prestige, vps, pp, ts, tierIcon, extra) {
 // Store locally
 this._myScore = score;
 this._myPrestige = prestige;
@@ -483,16 +502,19 @@ this._myVps = vps;
 this._myPp = pp;
 this._myTierIcon = tierIcon || 0;
 this.ledger.set('self', { username:this.username, score, prestige, vps, pp, tierIcon: tierIcon || 0 });
-
-if (this._amHost()) {
-// Host: update own score and rebroadcast leaderboard to all guests
+// Update UI immediately
 try { this.onUpdate(this.ledger.sorted()); } catch(e) { console.warn('P2P onUpdate err:', e); }
-this._hostSendLeaderboard();
-} else {
-// Guest: update local ledger immediately, then send score to host
-try { this.onUpdate(this.ledger.sorted()); } catch(e) { console.warn('P2P onUpdate err:', e); }
-// Guest: send score update to host only
+// Send score to ALL connected peers (mesh)
 const payload = { type: 'score', id: this.peerId, user: this.username, s: score, pr: prestige, v: vps, p: pp, ti: tierIcon || 0, ts: ts || Math.floor(Date.now()/1000) };
+// Add optional profile data for popup population
+if (extra) {
+    payload.b = extra.bio || '';         // bio
+    payload.r = extra.rooms || 0;        // rooms unlocked
+    payload.d = extra.decor || 0;        // decor owned
+    payload.ac = extra.autoclickers || 0; // total autoclickers
+    payload.ach = extra.achievements || 0; // achievements unlocked
+    payload.cl = extra.click || 0;       // click value
+}
 const msg = await signPayload(payload, this.kp.privateKey);
 let sent = 0;
 for (const [, peer] of this.peers) {
@@ -505,7 +527,6 @@ for (const [, peer] of this.peers) {
 if (peer.ch?.readyState === 'open') try { peer.ch.send(msg); } catch (_) {}
 }
 }, 1500);
-}
 }
 }
 
@@ -649,6 +670,12 @@ if (this.peers.has(k)) continue;
 if (!this._isHost && host !== k) continue;
                     const d = s.data();
                     if (!d?.k || !d?.on) continue;
+                    // Staleness check for rescanned peers
+                    const rts = d.ts;
+                    if (rts) {
+                        const rtsMs = rts.toMillis ? rts.toMillis() : (rts.seconds ? rts.seconds * 1000 : 0);
+                        if (rtsMs && (Date.now() - rtsMs > 30000)) continue;
+                    }
                     console.log('📡 P2P discovered peer via scan:', k);
                     const pub = await crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']);
                     this.peers.set(k, { pc:null, ch:null, pub, name: d.u||'?', seq:0, keyId: d.kid||k, nonce: d.nonce||0 });
@@ -662,10 +689,30 @@ if (!this._isHost && host !== k) continue;
         return this._amHost();
     }
     _uploadIfElected() {
-        if (!this._amHost() || !this.syncFn) return;
+        if (!this._amHost() || !this.syncFn || !this.fs?.db) return;
+        const { doc, getDoc } = this.fs;
         for (const [, e] of this.ledger.m) {
             if (e.username && e.username !== 'self') {
-                this.syncFn(e.username, e.score, e.prestige||0, e.pp, e.username, e.vps).catch(()=>{});
+                // Read current Firestore score first — only overwrite if local is higher
+                (async () => {
+                    try {
+                        const ref = doc(this.fs.db, 'leaderboard', e.id || e.username);
+                        const snap = await getDoc(ref);
+                        let localScore = 0;
+                        if (Array.isArray(e.score)) {
+                            const [m, exp] = e.score;
+                            localScore = exp > 15 ? 1e15 : (m || 0) * Math.pow(10, Math.min(exp || 0, 15));
+                        } else {
+                            localScore = Number(e.score) || 0;
+                        }
+                        if (snap.exists()) {
+                            const d = snap.data();
+                            const fbScore = d.score ?? d.score_full ? (Array.isArray(d.score_full) ? (d.score_full[1] > 15 ? 1e15 : (d.score_full[0] || 0) * Math.pow(10, Math.min(d.score_full[1] || 0, 15))) : (Number(d.score) || 0)) : 0;
+                            if (fbScore >= localScore) return; // Firestore already has higher or equal score
+                        }
+                        this.syncFn(e.username, e.score, e.prestige||0, e.pp, e.username, e.vps).catch(()=>{});
+                    } catch (_) {}
+                })();
             }
         }
     }
