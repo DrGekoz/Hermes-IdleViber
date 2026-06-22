@@ -114,7 +114,7 @@ const peersRef = collection(db, 'sig');
 this._unsubPeers = onSnapshot(peersRef, snap => {
     const newOnline = new Set();
     const now = Date.now();
-    const MAX_PEER_AGE_MS = 60000;
+    const MAX_PEER_AGE_MS = 86400000; // 24 hours — no heartbeat, doc timestamp = join time
     snap.docs.forEach(s => {
         const id = s.id;
         const sd = s.data();
@@ -184,11 +184,6 @@ peer.pc.addIceCandidate(new RTCIceCandidate(d.c)).catch(() => {});
 }
 });
 });
-
-this._pingTimer = setInterval(() => {
-const { doc, setDoc, Timestamp } = this.fs;
-setDoc(myRef, { ts: Timestamp.now(), on: 1 }, { merge: true }).catch(() => {});
-}, 15000);
 
 this._reconnectTimer = setInterval(() => {
 this._rescanPeers();
@@ -295,7 +290,7 @@ const d = snap.data();
 const rts = d.ts;
 if (rts) {
     const rtsMs = rts.toMillis ? rts.toMillis() : (rts.seconds ? rts.seconds * 1000 : 0);
-    if (rtsMs && (Date.now() - rtsMs > 60000)) { console.log('⛔ P2P stale peer, not retrying:', pk); delete this._retryCounts[pk]; this._onPeerGone(pk); return; }
+    if (rtsMs && (Date.now() - rtsMs > 86400000)) { console.log('⛔ P2P stale peer, not retrying:', pk); delete this._retryCounts[pk]; this._onPeerGone(pk); return; }
 }
 this._onPeerGone(pk);
 crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']).then(pub => {
@@ -479,16 +474,35 @@ _isSyncMaster() {
     return this.username.toLowerCase() <= sorted[0].toLowerCase();
 }
 _syncToFirestore() {
-    if (!this._isSyncMaster() || !this.syncFn || !this.fs?.db) return;
+    if (!this._isSyncMaster() || !this.fs?.db) return;
+    const { doc, setDoc, Timestamp } = this.fs;
+    // Build a single document with all scores
+    const entries = {};
     for (const [, e] of this.ledger.m) {
-        if (e.username && e.username !== 'self') {
-            this.syncFn(e.username, e.score, e.prestige||0, e.pp, e.username, e.vps).catch(()=>{});
-        }
+        if (!e.username || e.username === 'self') continue;
+        entries[e.username] = {
+            s: e.score,       // score (lifetime vibes, BN array)
+            pr: e.prestige,   // prestige count
+            v: e.vps,         // VPS
+            p: e.pp,          // total PP
+            ti: e.tierIcon,   // tier icon
+            b: e.bio || '',   // bio
+        };
     }
-    // Also sync our own score
-    if (this._myScore) {
-        this.syncFn(this.username, this._myScore, this._myPrestige, this._myPp, this.username, this._myVps).catch(()=>{});
-    }
+    // Include self
+    entries[this.username] = {
+        s: this._myScore,
+        pr: this._myPrestige,
+        v: this._myVps,
+        p: this._myPp,
+        ti: this._myTierIcon,
+        b: '',
+    };
+    // Single write to Firestore — one doc, all players
+    try {
+        const ref = doc(this.fs.db, 'leaderboard_snapshot', 'data');
+        setDoc(ref, { entries, ts: Timestamp.now() }, { merge: true }).catch(() => {});
+    } catch (_) {}
 }
 
 // ---- Send current score over a specific channel (used on channel open) ----
@@ -684,7 +698,7 @@ if (!this._isHost && host !== k) continue;
                     const rts = d.ts;
                     if (rts) {
                         const rtsMs = rts.toMillis ? rts.toMillis() : (rts.seconds ? rts.seconds * 1000 : 0);
-                        if (rtsMs && (Date.now() - rtsMs > 60000)) continue;
+                        if (rtsMs && (Date.now() - rtsMs > 86400000)) continue;
                     }
                     console.log('📡 P2P discovered peer via scan:', k);
                     const pub = await crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']);

@@ -183,32 +183,25 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 - **Save on tab close** — `beforeunload` handler saves locally + to cloud
 - **Corrupted save guard** — BN fields at BN_MAX level are clamped back to BN_ZERO, preventing Infinity/NaN display
 - Local API server mode for self-hosted accounts
-- Offline earnings calculated on return (10x format above 1000%)
+const PRESTIGE_THRESHOLDS = [10_000_000_000_000, 10_000_000_000_000_000, ...]; // Grows by tier
+```
 
-### 🏆 Achievements
-- 55 base achievements across vibe, click, prestige, room, VPS, gateway, decor, and autoclicker milestones
-- **500 tier achievements** — programmatically generated from Bronze I to Formless Expanse
-- **Progress bars** — each locked achievement shows a progress bar and percentage, calculated per threshold type
-- Achievement icons from `icon_img` field (custom pixel art), falling back to emoji on load failure
-- Real-time notifications with toast popups
-- Permanent unlock tracking
-- Dev badge with tooltip on hover for contributors
+### 🌐 P2P Mesh Network
+- **Full mesh topology** — every player connects to every other player via WebRTC
+- **ECDSA P-256 signed messages** — every packet verified for authenticity
+- **Deterministic host-free design** — alphabetical username decides offerer, no single point of failure
+- **Real-time leaderboard** — scores update within 500ms across all connected players
+- **Player profiles** — click any name to see their stats, bio, achievements, and tier
+- **Chat system** — real-time messaging over the mesh
+- **Sync master** — lowest username auto-elected to push all scores to Firestore every 15s
+- **30s staleness filter** — ghost peers from crashes are ignored
+- **5 max retries** per failed connection, then permanent drop
 
 ### 🏅 Leaderboard
-- **P2P Star Topology** — DrGekoz is the permanent host when online. All peers connect to the host only via WebRTC data channels using Firestore signaling. Host receives scores and broadcasts the sorted leaderboard. Chat relayed through the host. Host migration is automatic when DrGekoz comes online.
-- **ECDSA P-256 signed messages** — every broadcast signed and verified; JSON text carries full BN arrays for precision
-- **Live All-Column Sync** — VIBES, VPS, PP, PRESTIGE, TIER update in real-time
-- **Local sort** — sort chain: tier → prestige → PP → VPS → Vibes (all descending), computed locally
-- **P2P + Firestore merge** — P2P entries take priority, Firestore cached entries fill gaps
-- **Score reconciliation** — guest compares self scores against host's view and keeps the higher
-- **30s stale buffer** — ledger entries aren't removed immediately on disconnect; 30s grace period prevents flicker
-- **Player Profile Popups** — click a player name on the leaderboard to see game stats (P2P data first, Firestore fallback)
-- **P2P Failsafes** — three-layer safety: per-tick retry, 15s repair timer, 30s full directory scan when isolated
-- **Firestore fallback** — when P2P fails, switches to Firestore onSnapshot or polling
-- **Deterministic Offerer Tiebreaker** — keyId → nonce → username picks the offerer
-- **Bulletproof formatting** — every cell wrapped in try/catch with type guards and safe fallbacks
-- Full BN arrays for accurate InfZ layer display
-- Adaptive grid columns that scale with viewport
+- **Online / All Time tabs** — filter between real-time P2P players and full Firestore history
+- **Players Online counter** — shows live count including yourself
+- **Live DOM diffing** — only changed cells update, no flicker, animations uninterrupted
+- **Suffix-aware number formatting** — all values parsed with full suffix table (k-B-Z-InfZ)
 
 ### ⚙️ Settings
 - **Display name** — set freely, syncs to cloud, no cooldown
