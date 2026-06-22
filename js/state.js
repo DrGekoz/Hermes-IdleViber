@@ -1105,13 +1105,44 @@ const SYNERGIES = [
 
 function getSynergyBonus(autoclickerId, state = G) {
     let bonus = 0;
+    let stacks = 0;
     for (const syn of SYNERGIES) {
         const ownedCount = state.autoclickers[syn.prereq] || 0;
         if (ownedCount >= syn.reqCount && syn.targetTiers.includes(autoclickerId)) {
-            bonus += syn.mult;
+            const s = Math.floor(ownedCount / syn.reqCount);
+            bonus += syn.mult * s;
+            stacks += s;
         }
     }
     return bonus;
+}
+
+// Get total boost multiplier and stack count for an upgrade
+function getSynergyBoostInfo(upgradeId, state = G) {
+    let totalMult = 0;
+    let stacks = 0;
+    for (const syn of SYNERGIES) {
+        const ownedCount = state.autoclickers[syn.prereq] || 0;
+        if (ownedCount >= syn.reqCount && syn.targetTiers.includes(upgradeId)) {
+            const s = Math.floor(ownedCount / syn.reqCount);
+            totalMult += syn.mult * s;
+            stacks += s;
+        }
+    }
+    return { totalMult, stacks };
+}
+
+// Look up display name for an upgrade ID
+function getUpgradeName(id) {
+    // Check room autoclickers first
+    for (const roomId of Object.keys(ROOM_AUTOCLICKERS)) {
+        const def = ROOM_AUTOCLICKERS[roomId].find(d => d.id === id);
+        if (def) return def.name;
+    }
+    // Check global autoclickers
+    const globalDef = AUTOCLICKERS.find(d => d.id === id);
+    if (globalDef) return globalDef.name;
+    return id; // fallback to raw ID
 }
 
 // Get all synergy defs where this upgrade is the prereq (what it boosts)
@@ -1787,7 +1818,7 @@ export {
     getVpsBoostMult,
     wrinklerSystem,
     SYNERGIES,
-    getSynergyBonus, getSynergiesFrom, getSynergiesTo,
+    getSynergyBonus, getSynergiesFrom, getSynergiesTo, getSynergyBoostInfo, getUpgradeName,
     getWrinklerPenalty,
     getEffectiveVpsMultiplier,
     updateWrinklers,
