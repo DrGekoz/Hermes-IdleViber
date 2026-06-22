@@ -15,6 +15,8 @@ Hermes IdleViber is an **ambient idle/incremental game** that lives in your brow
 
 **Sign in** with Google, GitHub, or email/password — your progress follows you across devices via Firestore cloud saves with smart merge (keeps your highest stats).
 
+**Or just jump in** as a guest — no sign-up needed. Guest progress merges automatically when you create an account later.
+
 ---
 
 ## ✦ How It Works
@@ -101,6 +103,7 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 - Bulk buy with calculated max-buyable
 - **Rooms affordability updates every tick** — room cards unlock visually in real-time without tab-hopping
 - Offline earnings with 10x format above 1000%
+- **Building Synergies** — autoclicker synergies that boost other autoclickers when owned (Retro Boost: Win95 PC boosts first 3 PCs by 50%, Legacy Bridge: iMac G3 boosts Mac Mini & Mac Studio by 75%, RGB Overdrive: Gaming Rig boosts RTX & DGX by 100%, Cluster Link: Server Rack boosts Satellite by 150%, Quantum Link: Quantum Core boosts Dyson Sphere by 200%)
 
 ### 🎨 Visual
 - **550+ pixel art icons** — 90 room upgrade icons + 90 decor icons + 500 tier icons + 55 achievement badges + 18 prestige upgrades + 6 dividers + 24 button frames, all generated via Codex CLI (16-bit retro style) chroma-key processed to 256×256 lossless WebP
@@ -128,15 +131,17 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 
 ### 🔌 Integration
 - **Login with Google, GitHub, or email/password** — Firestore-backed authentication
+- **Guest Login** — jump in instantly as Guest_01/02/03 (sequential naming) without signing up. Progress saved and automatically merged when you create an account. Firebase anonymous sign-in for leaderboard visibility.
 - User display name management (change freely, no cooldown)
 - Auto-discovers Hermes gateway by scanning 41 common ports
 - Real-time latency display with quality tiers
 - Gateway VPS multiplier updates live
 - Task-in-progress detection (doubles multiplier when gateway is busy)
 - Manual gateway port override in both Gateway tab and Settings
-- Settings overlay with Name, Audio, and Credits tabs
+- Settings overlay with Name, Audio, Profile, and Credits tabs
 - Sidebar position toggle (left/right)
 - Server MIME types fixed for `.webp` and `.mp4` delivery
+- **P2P Chat** — real-time chat over the WebRTC mesh. Dedicated chat panel with send/receive/typing sound effects and per-sound volume controls. Messages relayed through the host.
 
 ### 💾 Persistence
 - Auto-save every 30s to localStorage
@@ -169,6 +174,8 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 ### ⚙️ Settings
 - **Display name** — set freely, syncs to cloud, no cooldown
 - **Audio** — independent SFX and music volume sliders
+- **Profile** — view account stats and login status
+- **Font & Size** — choose title/body fonts, scale all text and icons proportionally via a size slider (injected CSS overrides all explicit sizes)
 - **Gateway** — manual port input with sync button, status display
 - **Sidebar** — toggle between left and right positions
 - **Account** — view login status, logout
@@ -292,9 +299,11 @@ Hermes-IdleViber/
 │   ├── gateway.js              # Hermes gateway discovery & health polling
 │   ├── firebase.js             # Firebase auth, Firestore CRUD, leaderboard sync, P2P API export
 │   ├── p2p.js                  # P2P WebRTC mesh leaderboard (Firestore signaling, fallback polling)
+│   ├── p2p-crypto.js           # ECDSA P-256 crypto P2P mesh — binary packet encode/decode, chat relay
 │   ├── sprites.js              # Pixel art sprite definitions & room renderer
 │   ├── sfx.js                  # Sound effect engine
 │   ├── music.js                # Music player — 45 chiptune cover MP3s
+│   ├── api.js                  # Local server API client (auth, saves, leaderboard)
 │   └── app.js                  # Main loop, UI binding, event wiring, P2P orchestration
 ├── server/                     # Optional self-hosted backend
 │   ├── index.js                # HTTP server with CORS
@@ -314,12 +323,13 @@ Hermes-IdleViber/
 | `state.js` | Game state object, BigNumber arithmetic (BN), room/upgrade/decor definitions, save/load to localStorage, prestige/tier system, offline earnings |
 | `gateway.js` | Hermes gateway port scanning, latency polling, connection quality assessment |
 | `firebase.js` | Firebase App initialization, Auth (Google/GitHub/Email), Firestore CRUD for saves & leaderboard, `syncLeaderboardToFirestore()`, `getFirestoreApi()` for P2P |
-| `p2p-crypto.js` | **ECDSA P-256 crypto P2P mesh** — binary packet encode/decode, WebRTC signaling via Firestore, deterministic offerer tiebreaker, 5-second ping discovery, auto-reconnect, 15-min cloud backup election |
 | `p2p.js` | Legacy P2P leaderboard module — WebRTC peer connections (pre-crypto, kept for reference) |
+| `p2p-crypto.js` | **ECDSA P-256 crypto P2P mesh** — binary packet encode/decode, WebRTC signaling via Firestore, deterministic offerer tiebreaker, 5-second ping discovery, auto-reconnect, chat relay, 15-min cloud backup election |
 | `sprites.js` | Pixel art sprite rendering on canvas, room backgrounds, particle systems, decor placement |
-| `sfx.js` | 8-bit sound effects for clicks, purchases, prestige, achievements |
+| `sfx.js` | 8-bit sound effects for clicks, purchases, prestige, achievements, chat sounds |
 | `music.js` | Chiptune MP3 player with shuffle, play queue, volume control |
-| `app.js` | Game loop (100ms tick, 180Hz render), UI binding, event handlers, P2P initialization + broadcast orchestration, leaderboard UI, settings overlay |
+| `api.js` | Local server REST API client — auth (register/login), cloud saves, leaderboard submit + fetch |
+| `app.js` | Game loop (100ms tick, 180Hz render), UI binding, event handlers, P2P initialization + broadcast orchestration, chat system, leaderboard UI, settings overlay |
 
 ---
 
