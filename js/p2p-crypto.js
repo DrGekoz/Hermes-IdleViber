@@ -63,7 +63,7 @@ return sb - sa;                         // VIBES desc
 }
 
 // ---- Star-topology host detection ----
-// DrGekoz is ALWAYS the host when online; otherwise alphabetically first
+// Alphabetical first peer ID wins — simple, stable, no special treatment
 const DEV_HOST = 'DrGekoz';
 
 // ============================================================
@@ -92,23 +92,10 @@ console.log('🔑 P2P keyId:', this.kid, 'nonce:', this._nonce, '(fresh)');
 
 // ---- Host detection ----
     _computeHost(onlineSet) {
-        if (!onlineSet) return null;
-        const devLower = DEV_HOST.toLowerCase().replace(/[^a-z0-9]/g, '');
-        // Check peer IDs (UUIDs) and display names for exact DEV_HOST match
-        for (const id of onlineSet) {
-            if (id.toLowerCase().replace(/[^a-z0-9]/g, '') === devLower) return id;
-            const dn = this._onlineNames[id];
-            if (dn && dn.toLowerCase().replace(/[^a-z0-9]/g, '') === devLower) return id;
-        }
-        // Check self — exact match only, so "DrGekoz_02" doesn't accidentally become host
-        if (this.username.toLowerCase().replace(/[^a-z0-9]/g, '') === devLower) {
-            // Return self peerId as the host
-            for (const id of onlineSet) if (id === this.peerId) return id;
-            return this.peerId;
-        }
-        // Fallback: alphabetical first
+        if (!onlineSet || onlineSet.size === 0) return this.peerId;
+        // Alphabetical first — simple, stable, no special treatment for anyone
         const sorted = [...onlineSet].sort((a,b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-        return sorted[0] || this.peerId;
+        return sorted[0];
     }
 
 _amHost() { return this._isHost; }
