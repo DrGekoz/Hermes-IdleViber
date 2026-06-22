@@ -440,7 +440,7 @@ body {
 /* --- SHOP TOOLTIP (fixed top-right of canvas, under gateway HUD) --- */
 .shop-tooltip-main {
     position: absolute;
-    top: 82px;
+    top: 90px;
     right: 12px;
     z-index: 10001;
     background: #0f0f12;
@@ -558,6 +558,7 @@ body {
 .shop-item.affordable { border-color: var(--accent-gold); background: rgba(255,215,0,0.06); }
 .shop-item.affordable:hover { border-color: var(--accent-gold); box-shadow: 0 0 12px rgba(255,215,0,0.2); }
 .shop-item.active { border-color: var(--accent-green); background: rgba(0,255,136,0.05); }
+.shop-item.maxed { border-color: var(--accent-gold); background: rgba(255,215,0,0.05); opacity: 0.7; }
 
 .shop-item-icon { font-size: 14px; width: 44px; min-width: 44px; text-align: center; display: flex; align-items: center; justify-content: center; }
 .shop-icon-img { width: 44px; height: 44px; image-rendering: pixelated; object-fit: contain; flex-shrink: 0; }

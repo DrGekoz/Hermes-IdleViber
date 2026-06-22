@@ -114,7 +114,7 @@ const peersRef = collection(db, 'sig');
 this._unsubPeers = onSnapshot(peersRef, snap => {
     const newOnline = new Set();
     const now = Date.now();
-    const MAX_PEER_AGE_MS = 30000;
+    const MAX_PEER_AGE_MS = 60000;
     snap.docs.forEach(s => {
         const id = s.id;
         const sd = s.data();
@@ -188,11 +188,11 @@ peer.pc.addIceCandidate(new RTCIceCandidate(d.c)).catch(() => {});
 this._pingTimer = setInterval(() => {
 const { doc, setDoc, Timestamp } = this.fs;
 setDoc(myRef, { ts: Timestamp.now(), on: 1 }, { merge: true }).catch(() => {});
-}, 5000);
+}, 15000);
 
 this._reconnectTimer = setInterval(() => {
 this._rescanPeers();
-}, 15000);
+}, 30000);
 
 if (!this._signalTimer) {
 this._signalTimer = setInterval(() => this._runSignaling(), 1000);
@@ -254,21 +254,22 @@ setDoc(doc(this.fs.db, 'sig', pk, 'ice', cid), { c: e.candidate.toJSON(), by: th
 pc.ondatachannel = e => {
 console.log('📥 P2P inbound channel from', pk);
 p.ch = e.channel;
-e.channel.onopen = () => console.log('[P2P] Channel open — guest:', pk);
+e.channel.onopen = () => { console.log('[P2P] Channel open — guest:', pk); this._sendScoreOnChannel(pk); };
 e.channel.onclose = () => console.log('🔌 P2P channel closed', pk);
 e.channel.onmessage = ev => { this._onMsg(pk, ev.data); };
 if (e.channel.readyState === 'open') {
 console.log('[P2P] Channel already open — guest:', pk);
+this._sendScoreOnChannel(pk);
 }
 };
 
 if (iAmOfferer) {
 const ch = pc.createDataChannel('l', { ordered:false, maxRetransmits:0 });
 p.ch = ch;
-ch.onopen = () => console.log('[P2P] Channel open — host → guest:', pk);
+ch.onopen = () => { console.log('[P2P] Channel open — host → guest:', pk); this._sendScoreOnChannel(pk); };
 ch.onclose = () => console.log('🔌 P2P channel closed', pk);
 ch.onmessage = ev => { this._onMsg(pk, ev.data); };
-if (ch.readyState === 'open') console.log('[P2P] Channel already open — host → guest:', pk);
+if (ch.readyState === 'open') { console.log('[P2P] Channel already open — host → guest:', pk); this._sendScoreOnChannel(pk); }
 const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
 const { doc, setDoc, deleteDoc } = this.fs;
 console.log('[P2P] Host sending offer to', pk);
@@ -294,7 +295,7 @@ const d = snap.data();
 const rts = d.ts;
 if (rts) {
     const rtsMs = rts.toMillis ? rts.toMillis() : (rts.seconds ? rts.seconds * 1000 : 0);
-    if (rtsMs && (Date.now() - rtsMs > 30000)) { console.log('⛔ P2P stale peer, not retrying:', pk); delete this._retryCounts[pk]; this._onPeerGone(pk); return; }
+    if (rtsMs && (Date.now() - rtsMs > 60000)) { console.log('⛔ P2P stale peer, not retrying:', pk); delete this._retryCounts[pk]; this._onPeerGone(pk); return; }
 }
 this._onPeerGone(pk);
 crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']).then(pub => {
@@ -352,11 +353,8 @@ try {
 await p.pc.setRemoteDescription(new RTCSessionDescription(sdp));
 if (p) { p._offerSent = false; }
 console.log('✅ P2P connected with', pk);
-// If I'm the host and just connected to a guest, send current leaderboard immediately
-if (this._amHost()) {
-this._lastLeaderboardHash = ''; // force send for newly connected peer
-setTimeout(() => this._hostSendLeaderboard(), 500);
-}
+// Immediately send our score — don't wait for channel onopen or next broadcast tick
+setTimeout(() => this._sendScoreOnChannel(pk), 200);
 } catch (e) { console.warn('❌ _onAnswer err:', e); }
 }
 
@@ -464,13 +462,13 @@ if (this._staleTimers && this._staleTimers[pk]) { clearTimeout(this._staleTimers
 if (immediate) {
 this.ledger.del(pk);
 } else {
-// Stale buffer: keep entry visible for 30s in case of brief disconnect
+// Stale buffer: keep entry visible for 5s in case of brief disconnect
 if (!this._staleTimers) this._staleTimers = {};
 this._staleTimers[pk] = setTimeout(() => {
 delete this._staleTimers[pk];
 this.ledger.del(pk);
 try { this.onUpdate(this.ledger.sorted()); } catch(e) { console.warn('P2P onUpdate err:', e); }
-}, 30000);
+}, 5000);
 }
 }
 
@@ -491,6 +489,17 @@ _syncToFirestore() {
     if (this._myScore) {
         this.syncFn(this.username, this._myScore, this._myPrestige, this._myPp, this.username, this._myVps).catch(()=>{});
     }
+}
+
+// ---- Send current score over a specific channel (used on channel open) ----
+_sendScoreOnChannel(pk) {
+    const peer = this.peers.get(pk);
+    if (!peer || !peer.ch) return;
+    if (!this._myScore) return;
+    const payload = { type: 'score', id: this.peerId, user: this.username, s: this._myScore, pr: this._myPrestige, v: this._myVps, p: this._myPp, ti: this._myTierIcon, ts: Math.floor(Date.now()/1000) };
+    signPayload(payload, this.kp.privateKey).then(msg => {
+        try { peer.ch.send(msg); } catch (_) {}
+    }).catch(() => {});
 }
 
 // ---- MESH: send score to all connected peers ----
@@ -515,10 +524,11 @@ if (extra) {
     payload.ach = extra.achievements || 0; // achievements unlocked
     payload.cl = extra.click || 0;       // click value
 }
-const msg = await signPayload(payload, this.kp.privateKey);
+const msg = await signPayload(payload, this.kp.privateKey).catch(e => { console.warn('P2P sign failed:', e); return null; });
+if (!msg) return;
 let sent = 0;
 for (const [, peer] of this.peers) {
-if (peer.ch?.readyState === 'open') try { peer.ch.send(msg); sent++; } catch (_) {}
+if (peer.ch) try { peer.ch.send(msg); sent++; } catch (_) {}
 }
 if (sent === 0 && !this._retryPending) {
 this._retryPending = setTimeout(() => {
@@ -674,7 +684,7 @@ if (!this._isHost && host !== k) continue;
                     const rts = d.ts;
                     if (rts) {
                         const rtsMs = rts.toMillis ? rts.toMillis() : (rts.seconds ? rts.seconds * 1000 : 0);
-                        if (rtsMs && (Date.now() - rtsMs > 30000)) continue;
+                        if (rtsMs && (Date.now() - rtsMs > 60000)) continue;
                     }
                     console.log('📡 P2P discovered peer via scan:', k);
                     const pub = await crypto.subtle.importKey('jwk', d.k, { name:'ECDSA', namedCurve:'P-256' }, true, ['verify']);

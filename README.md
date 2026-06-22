@@ -2,20 +2,29 @@
 
 <p align="center">
   <i>~ The Ambient Gateway Idle Game ~</i><br>
-  <b>Your Hermes gateway boosts your progression as an upgradeable multiplier.</b>
+  <b>P2P mesh multiplayer idle game with real-time leaderboard, chat, and player profiles.</b>
 </p>
 
 ---
 
 ## ✦ What Is This?
 
-Hermes IdleViber is an **ambient idle/incremental game** that lives in your browser — a cozy pixel-art universe where you click, earn, upgrade, and unlock themed rooms while chiptune music plays and particle effects drift across the screen.
+Hermes IdleViber is an **ambient idle/incremental game** that lives in your browser — a cozy pixel-art universe where you click, earn, upgrade, and unlock themed rooms while chiptune music plays and particle effects drift across the screen. Connect with other players via a **P2P mesh network** — see their scores in real-time, chat, and view detailed player profiles.
 
-**The twist?** The game pings your local Hermes Agent gateway and turns its latency into a VPS multiplier. The faster your gateway responds, the bigger the bonus. It turns your dev tools into a game mechanic — an upgradeable boost you can invest prestige chips into.
+**The twist?** The game pings your local Hermes Agent gateway and turns its latency into a VPS multiplier. The faster your gateway responds, the bigger the bonus.
 
-**Sign in** with Google, GitHub, or email/password — your progress follows you across devices via Firestore cloud saves with smart merge (keeps your highest stats). Auto-registers on login when an account doesn't exist. Display name availability checked via Firebase + P2P before accepting.
+**Sign in** with Google, GitHub, or email/password — your progress follows you across devices via Firestore cloud saves with smart merge. **Or just jump in** as a guest — no sign-up needed.
 
-**Or just jump in** as a guest — no sign-up needed. Guest progress merges automatically when you create an account later. Firebase anonymous sign-in for leaderboard visibility.
+---
+
+## ✦ Quick Start
+
+```bash
+# With HTTP server (recommended)
+cd F:\aaaaaVIBECODING\Hermes-IdleViber\
+node server/index.js
+# Open http://localhost:4444
+```
 
 ---
 

@@ -13,7 +13,7 @@ import {
     getBulkCost, getMaxBuyable,
     addVibes, buyAutoclicker, buyPrestigeUpgrade, buyDecor,
     activateDecor, unlockRoom, switchRoom, doPrestige,
-    BN_ZERO, BN_ONE, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnEq, bnToNumber, bnPow,
+    BN_ZERO, BN_ONE, BN_MAX, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnEq, bnToNumber, bnPow,
     getPrestigeUpgradeCost,
     isPrestigeUnlockable, unlockPrestige, checkAchievements,
     getCurrentTier, getCurrentTierName, getTierFromPrestige,
@@ -88,6 +88,7 @@ let _p2pMergedHash = '';    // Hash to detect P2P data changes
 let _pendingLBUpdate = null; // Debounce handle for full leaderboard render
 let _currentProfileUsername = null; // Tracks open profile for realtime refresh
 let _lbTab = 'online'; // 'online' or 'alltime' — leaderboard tab
+let _lastTierIdx = -1; // Last known tier for unlock detection
 let p2pBroadcastTick = 0;   // Tick counter for periodic P2P broadcast
 
 // Get the local player's P2P ID (prefer module state over localStorage for scoped identity)
@@ -420,25 +421,39 @@ function resizeCanvas() {
 }
 
 function initParticles() {
-    particles.start();
-    // Firefly particles — gateway bonus only
-    setInterval(() => {
-        if (G.gateway_bonus_active) {
-            particles.add('firefly', null, null, 1);
-        }
-    }, 500);
-    // Continuous dust particles — always running
-    setInterval(() => {
-        if (!G || !G.current_room) return;
-        const count = 1 + Math.floor(Math.random() * 3);
-        particles.add('dust', null, null, count);
-    }, 200);
-    // Clear particles when returning from background to avoid burst overload
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-            particles.particles = [];
-        }
-    });
+    // Wait for login background video to fully load before starting particles
+    const loginVideo = document.getElementById('login-video-a');
+    const startParticles = () => {
+        particles.start();
+        // Firefly particles — gateway bonus only
+        setInterval(() => {
+            if (G.gateway_bonus_active) {
+                particles.add('firefly', null, null, 1);
+            }
+        }, 500);
+        // Continuous dust particles — always running
+        setInterval(() => {
+            if (!G || !G.current_room) return;
+            const count = 1 + Math.floor(Math.random() * 3);
+            particles.add('dust', null, null, count);
+        }, 200);
+        // Clear particles when returning from background to avoid burst overload
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                particles.particles = [];
+            }
+        });
+    };
+    // If video already loaded, start immediately; otherwise wait for it
+    if (loginVideo && loginVideo.readyState >= 3) {
+        startParticles();
+    } else if (loginVideo) {
+        loginVideo.addEventListener('canplay', startParticles, { once: true });
+        loginVideo.addEventListener('loadeddata', startParticles, { once: true });
+        setTimeout(startParticles, 5000);
+    } else {
+        startParticles();
+    }
 }
 
 // ---- GATEWAY ----
@@ -813,87 +828,66 @@ function initUIEvents() {
 
             let count = 0;
             const MAX_RUNS = 50000;
-            const MAX_PRESTIGE_TIME = 5; // seconds: max time we'll simulate per prestige
-            // Snapshot VPS at start — used as proxy for earning power through simulation
+            const MAX_PRESTIGE_TIME = 5;
             const simVps = vps;
 
-            function doBatch() {
-                const batchSize = 500;
-                let batchCount = 0;
-                for (let i = 0; i < batchSize && count < MAX_RUNS; i++) {
-                    const threshold = getPrestigeThreshold(G);
+            // Synchronous batch — no requestAnimationFrame yielding
+            for (let i = 0; i < 500 && count < MAX_RUNS; i++) {
+                const threshold = getPrestigeThreshold(G);
+                const maxEarnable = bnMul(simVps, bnFromNumber(MAX_PRESTIGE_TIME));
+                if (bnLt(maxEarnable, bnFromNumber(threshold))) break;
 
-                    // Check: can current VPS generate enough vibes to reach threshold
-                    // within MAX_PRESTIGE_TIME seconds?
-                    // After prestige, lifetime_vibes resets to 0, so we check if
-                    // VPS × MAX_PRESTIGE_TIME ≥ threshold
-                    const maxEarnable = bnMul(simVps, bnFromNumber(MAX_PRESTIGE_TIME));
-                    if (bnLt(maxEarnable, bnFromNumber(threshold))) break;
-
-                    // Simulate earning enough vibes to meet threshold
-                    if (bnLt(G.lifetime_vibes, threshold)) {
-                        const needed = bnSub(bnFromNumber(threshold), G.lifetime_vibes);
-                        if (bnLe(needed, BN_ZERO)) break;
-                        G.vibes = bnAdd(G.vibes, needed);
-                        G.lifetime_vibes = bnAdd(G.lifetime_vibes, needed);
-                    }
-
-                    // Unlock check (inline isPrestigeUnlockable, no notifyStateChange)
-                    if (!G.prestige_unlocked) {
-                        const thresh = getPrestigeThreshold(G);
-                        if (bnLt(G.lifetime_vibes, thresh)) break;
-                        const totalRoomCost = Object.values(ROOMS).reduce((sum, r) => sum + r.cost, 0);
-                        const allRoomIds = Object.keys(ROOMS);
-                        if (totalRoomCost > thresh && !allRoomIds.every(id => G.unlocked_rooms.includes(id))) break;
-                        G.prestige_unlocked = true;
-                    }
-
-                    const gain = getPrestigeGain(G);
-                    if (bnLe(gain, BN_ZERO)) break;
-
-                    // Direct prestige (inline doPrestige, no notifyStateChange)
-                    G.total_pp_earned = bnAdd(G.total_pp_earned, gain);
-                    G.prestige_points = bnAdd(G.prestige_points, gain);
-                    G.total_prestiges = bnAdd(G.total_prestiges, BN_ONE);
-                    G.vibes = BN_ZERO;
-                    G.lifetime_vibes = BN_ZERO;
-                    G.prestige_unlocked = false;
-                    G.autoclickers = {};
-                    G.room_autoclickers = {};
-                    G.owned_decor = [];
-                    G.active_decor = {};
-                    G.placed_decor = {};
-                    G.unlocked_rooms = ['campfire_grove'];
-                    G.current_room = 'campfire_grove';
-
-                    count++;
-                    batchCount++;
+                if (bnLt(G.lifetime_vibes, threshold)) {
+                    const needed = bnSub(bnFromNumber(threshold), G.lifetime_vibes);
+                    if (bnLe(needed, BN_ZERO)) break;
+                    G.vibes = bnAdd(G.vibes, needed);
+                    G.lifetime_vibes = bnAdd(G.lifetime_vibes, needed);
                 }
-                if (batchCount > 0 && count < MAX_RUNS) {
-                    // More possible — yield to UI thread
-                    requestAnimationFrame(doBatch);
-                } else {
-                    // One full UI refresh + sync after all prestige cycles
-                    updateAllUI();
-                    updateLocalLeaderboardEntry();
-                    processAchievements();
-                    if (G.auth_mode === 'firebase' && fbUser && p2pInitialized) {
-                        fbSyncLeaderboard(
-                            G.username || 'Player',
-                            G.lifetime_vibes,
-                            G.total_prestiges,
-                            G.total_pp_earned,
-                            G.displayName,
-                            getVPS(),
-                            G.settings?.bio || ''
-                        ).catch(() => {});
-                        p2pBroadcastScore(G.lifetime_vibes, G.total_prestiges, getVPS(), G.total_pp_earned);
-                    }
-                    showToast(count > 0 ? '⚡ Max Prestige: ' + count + ' prestiges!' : '⛔ Cannot prestige yet');
+
+                if (!G.prestige_unlocked) {
+                    const thresh = getPrestigeThreshold(G);
+                    if (bnLt(G.lifetime_vibes, thresh)) break;
+                    const totalRoomCost = Object.values(ROOMS).reduce((sum, r) => sum + r.cost, 0);
+                    const allRoomIds = Object.keys(ROOMS);
+                    if (totalRoomCost > thresh && !allRoomIds.every(id => G.unlocked_rooms.includes(id))) break;
+                    G.prestige_unlocked = true;
                 }
+
+                const gain = getPrestigeGain(G);
+                if (bnLe(gain, BN_ZERO)) break;
+
+                G.total_pp_earned = bnAdd(G.total_pp_earned, gain);
+                G.prestige_points = bnAdd(G.prestige_points, gain);
+                G.total_prestiges = bnAdd(G.total_prestiges, BN_ONE);
+                G.vibes = BN_ZERO;
+                G.lifetime_vibes = BN_ZERO;
+                G.prestige_unlocked = false;
+                G.autoclickers = {};
+                G.room_autoclickers = {};
+                G.owned_decor = [];
+                G.active_decor = {};
+                G.placed_decor = {};
+                G.unlocked_rooms = ['campfire_grove'];
+                G.current_room = 'campfire_grove';
+                count++;
             }
 
-            requestAnimationFrame(doBatch);
+            if (count > 0) {
+                playPurchase();
+                // Update everything EXCEPT sidebar tab indicators
+                updateResourceUI();
+                updatePrestigeUI();
+                updateShopUI();
+                updateDecorUI();
+                updateRoomUI();
+                updateGatewayUI();
+                renderPrestigeUpgrades();
+                updateCanvas();
+                notifyStateChange('prestige');
+                showToast(`⚡ Max Prestige: ${count} prestiges!`);
+            } else {
+                showToast('⛔ Cannot prestige yet');
+            }
         });
     }
 
@@ -1837,8 +1831,17 @@ function initGameLoop() {
             }
             processAchievements(); // Periodic achievement check (catches VPS milestones)
         }
-        // Crypto P2P broadcast every tick (~100ms, 10x/sec)
-        if (p2pCrypto) {
+        // Detect new tier unlocks every 1s
+        if (prestigeCheckCounter === 0) {
+            const newTier = getCurrentTier(G);
+            if (newTier > _lastTierIdx && _lastTierIdx >= 0) {
+                showTierUnlockPopup(newTier);
+            }
+            _lastTierIdx = newTier;
+        }
+        // Crypto P2P broadcast every 5 ticks (500ms) — not every tick
+        p2pBroadcastTick++;
+        if (p2pBroadcastTick % 5 === 0 && p2pCrypto) {
             // Count total autoclickers across all rooms
             let totalAC = 0;
             if (G.room_autoclickers) {
@@ -1855,8 +1858,10 @@ function initGameLoop() {
                 click: bnToNumber(getClickValue()),
             });
         }
-        // Update sidebar tab indicators every tick (lightweight)
-        updateSidebarTabIndicators();
+        // Update sidebar tab indicators every 2 ticks (200ms) — lightweight but still cheap
+        if (p2pBroadcastTick % 2 === 0) {
+            updateSidebarTabIndicators();
+        }
     }, CONFIG.TICK_INTERVAL);
 
     // Auto-save every 30s + cloud sync + P2P broadcast
@@ -1884,7 +1889,7 @@ function initGameLoop() {
         updateLeaderboardUI(); // Immediate first render
     }
 
-    // Fast leaderboard render every 50ms — reads cached P2P entries + local state
+    // Fast leaderboard render every 200ms (5x/sec) — reads cached P2P entries + local state
     if (lbFastTimer) clearInterval(lbFastTimer);
     if (lbP2PUnsub) {
         lbFastTimer = setInterval(() => {
@@ -1937,7 +1942,7 @@ function initGameLoop() {
         }
     });
 
-    // --- RENDER LOOP: runs at display refresh rate (up to 180Hz) ---
+    let frameCount = 0;
     let lastBgRoom = null;
     let bgCanvas = null;
     let lastFrameTime = 0;
@@ -1976,6 +1981,17 @@ function initGameLoop() {
     }, 1000);
 
     function renderFrame(timestamp) {
+        // Frame skip: render at ~30fps max (every 2nd requestAnimationFrame callback on 60Hz)
+        frameCount++;
+        if (frameCount % 2 !== 0) {
+            animFrame = requestAnimationFrame(renderFrame);
+            return;
+        }
+        // Skip rendering entirely when tab is hidden (save CPU/battery)
+        if (document.visibilityState === 'hidden') {
+            animFrame = requestAnimationFrame(renderFrame);
+            return;
+        }
         const canvas = dom.canvas;
         const ctx = canvas.getContext('2d');
         const w = canvas.width;
@@ -2006,8 +2022,8 @@ function initGameLoop() {
             dom.canvas.style.boxShadow = '0 0 10px rgba(255,68,68,0.1)';
         }
 
-        // Update local leaderboard row every frame for smooth realtime display
-        updateLocalLeaderboardEntry();
+        // Update local leaderboard row every frame for smooth realtime display — DISABLED, handled by lbFastTimer
+        // updateLocalLeaderboardEntry();
 
         animFrame = requestAnimationFrame(renderFrame);
     }
@@ -2117,7 +2133,9 @@ function updatePrestigeUI() {
     } else if (!G.prestige_unlocked) {
         const totalRoomCost = Object.values(ROOMS).reduce((sum, r) => sum + r.cost, 0);
         const allRoomIds = Object.keys(ROOMS);
-        const needRooms = totalRoomCost > threshold && !allRoomIds.every(id => G.unlocked_rooms.includes(id));
+        const presCount = bnToNumber(G.total_prestiges || BN_ZERO);
+        // Only need rooms on the FIRST prestige
+        const needRooms = presCount === 0 && totalRoomCost > threshold && !allRoomIds.every(id => G.unlocked_rooms.includes(id));
         if (needRooms) {
             const locked = allRoomIds.filter(id => !G.unlocked_rooms.includes(id));
             needMsg = `🔒 Unlock all rooms first (${locked.length} left) — then ${formatNumber(threshold)} vibes`;
@@ -2356,12 +2374,12 @@ function renderPrestigeUpgrades() {
         const count = G.prestige_upgrades[upg.id] || 0;
         if (count === 0) continue;
         if (upg.type === 'click_mult') {
-            const val = Math.pow(upg.value, count);
-            if (isFinite(val)) clickMult *= val;
+            const val = bnPow(bnFromNumber(upg.value), count);
+            if (bnCompare(val, BN_MAX) < 0) clickMult = bnToNumber(bnMul(bnFromNumber(clickMult), val));
         }
         if (upg.type === 'perma_mult') {
-            const val = Math.pow(upg.value, count);
-            if (isFinite(val)) vpsMult *= val;
+            const val = bnPow(bnFromNumber(upg.value), count);
+            if (bnCompare(val, BN_MAX) < 0) vpsMult = bnToNumber(bnMul(bnFromNumber(vpsMult), val));
         }
         if (upg.type === 'gw_add') gwAdd += upg.value * count;
         if (upg.type === 'base_vps') baseVps += upg.value * count;
@@ -2383,22 +2401,23 @@ function renderPrestigeUpgrades() {
     });
     sorted.forEach(upg => {
         const count = G.prestige_upgrades[upg.id] || 0;
+        const isMax = upg.maxCount && count >= upg.maxCount;
         const cost = getPrestigeUpgradeCost(upg.id);
-        const canBuy = bnGe(G.prestige_points, cost);
+        const canBuy = !isMax && bnGe(G.prestige_points, cost);
         const el = document.createElement('div');
-        el.className = `shop-item ${canBuy ? 'affordable' : 'locked'} ${count > 0 ? 'owned' : ''}`;
+        el.className = `shop-item ${canBuy ? 'affordable' : 'locked'} ${isMax ? 'maxed' : ''} ${count > 0 ? 'owned' : ''}`;
         el.dataset.upgId = upg.id;
         const iconName = `32/${upg.id}_64.webp`;
         const iconHtml = `<img src="sprites/images/icons/${iconName}" alt="${upg.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">🔶</span>`;
         el.innerHTML = `
             <div class="shop-item-icon">${iconHtml}</div>
             <div class="shop-item-info">
-                <div class="shop-item-name">${upg.name} ${count > 0 ? '×' + count : ''}</div>
+                <div class="shop-item-name">${upg.name} ${count > 0 ? '×' + count : ''}${isMax ? ' <span style="color:var(--accent-gold);font-weight:bold;">MAX</span>' : ''}</div>
                 <div class="shop-item-desc">${upg.desc}</div>
             </div>
             <div class="shop-item-right">
-                <div class="shop-item-count">${count}</div>
-                <div class="shop-item-cost">${formatNumber(cost)} 💎</div>
+                <div class="shop-item-count">${count}${isMax ? '/' + upg.maxCount : ''}</div>
+                <div class="shop-item-cost">${isMax ? 'MAX' : formatNumber(cost) + ' 💎'}</div>
             </div>
         `;
         el.onclick = () => {
@@ -2413,11 +2432,13 @@ function renderPrestigeUpgrades() {
             icon: `sprites/images/icons/individual/${upg.id}_64.webp`,
             stats: [
                 { label: 'Effect', value: upg.desc, cls: 'cyan' },
-                { label: 'Owned', value: String(count), cls: '' },
-                { label: 'Next cost', value: formatNumber(cost) + ' 💎', cls: canBuy ? 'green' : 'gold' }
+                { label: 'Owned', value: String(count) + (isMax ? ' / ' + upg.maxCount + ' MAX' : ''), cls: isMax ? 'gold' : '' },
             ],
             owned: false
         };
+        if (!isMax) {
+            el._tooltipData.stats.push({ label: 'Next cost', value: formatNumber(cost) + ' 💎', cls: canBuy ? 'green' : 'gold' });
+        }
         list.appendChild(el);
     });
 }
@@ -2663,12 +2684,8 @@ function fmtVibes(v) { return fmtAll(v); }
 
 function fmtSafe(v, fallback = '0') { return fmtAll(v, fallback); }
 
-// Return the tier name that matches the DISPLAYED icon, not raw prestige
-// If custom tierIcon is set, show that tier's name instead of prestige-based
+// Return the tier name based on actual prestige, ignoring custom icon
 function _tierNameForEntry(entry) {
-    if (entry.tierIcon && entry.tierIcon > 0 && entry.tierIcon <= TIERS.length) {
-        return TIERS[entry.tierIcon - 1].name;
-    }
     const t = entry.tier != null ? entry.tier : (entry.prestige != null ? getTierFromPrestige(entry.prestige) : -1);
     return t >= 0 ? TIERS[t].name : '—';
 }
@@ -3730,25 +3747,33 @@ function buyAllUpgrades() {
 
     let bought = 0;
     let safety = 0;
+    let roomChanged = false;
+    if (!G.room_autoclickers[room]) { G.room_autoclickers[room] = {}; roomChanged = true; }
 
-    while (safety++ < 500) {
+    while (safety++ < 100) {
         let best = null;
         let bestVal = -1;
+        let bestCost = 0;
         for (const tier of defs) {
-            // Read count fresh from state each iteration (don't cache roomClickers)
-            const count = ((G.room_autoclickers || {})[room] || {})[tier.id] || 0;
+            const count = (G.room_autoclickers[room] || {})[tier.id] || 0;
             const cost = Math.floor(tier.baseCost * Math.pow(1.15, count));
             if (!bnGe(G.vibes, cost)) continue;
-            // VPS per unit after buying = tier.vps * (1 + synergy)
             const val = tier.vps / cost;
-            if (val > bestVal) { bestVal = val; best = tier; }
+            if (val > bestVal) { bestVal = val; best = tier; bestCost = cost; }
         }
         if (!best) break;
-        const result = buyAutoclicker(best.id, 1);
-        if (result) bought += result; else break;
+        if (bnGe(G.vibes, bestCost)) {
+            G.vibes = bnSub(G.vibes, bnFromNumber(bestCost));
+            if (!G.room_autoclickers[room]) G.room_autoclickers[room] = {};
+            G.room_autoclickers[room][best.id] = (G.room_autoclickers[room][best.id] || 0) + 1;
+            bought++;
+        } else {
+            break;
+        }
     }
 
     if (bought > 0) {
+        notifyStateChange('autoclickers');
         playPurchase();
         updateAllUI();
     }
@@ -3789,27 +3814,37 @@ function buyAllPrestige() {
     let bought = 0;
     let safety = 0;
 
-    while (safety++ < 200) {
+    while (safety++ < 50) {
         let best = null;
         let bestVal = -1;
+        let bestCost = null;
         for (const upg of PRESTIGE_UPGRADES) {
             const count = G.prestige_upgrades[upg.id] || 0;
             const cost = getPrestigeUpgradeCost(upg.id);
+            if (upg.maxCount && count >= upg.maxCount) continue; // skip maxed
             if (!bnGe(G.prestige_points, cost)) continue;
-            // Value estimate: gate VPS upgrades give higher value per cost
+            const costNum = bnToNumber(cost);
+            if (!isFinite(costNum) || costNum <= 0) continue;
             let val;
-            if (upg.type === 'gw_add') val = upg.value / bnToNumber(cost);
-            else if (upg.type === 'base_vps') val = upg.value / bnToNumber(cost);
-            else if (upg.type === 'click_mult') val = 0.5 / bnToNumber(cost);
-            else if (upg.type === 'perma_mult') val = (Math.pow(upg.value, count + 1) - Math.pow(upg.value, count)) / bnToNumber(cost);
-            else val = 0.1 / bnToNumber(cost);
-            if (val > bestVal) { bestVal = val; best = upg; }
+            if (upg.type === 'gw_add') val = upg.value / costNum;
+            else if (upg.type === 'base_vps') val = upg.value / costNum;
+            else if (upg.type === 'click_mult') val = 0.5 / costNum;
+            else if (upg.type === 'perma_mult') val = (bnToNumber(bnPow(bnFromNumber(upg.value), count + 1)) - bnToNumber(bnPow(bnFromNumber(upg.value), count))) / costNum;
+            else val = 0.1 / costNum;
+            if (val > bestVal) { bestVal = val; best = upg; bestCost = cost; }
         }
         if (!best) break;
-        if (buyPrestigeUpgrade(best.id)) bought++; else break;
+        if (bnGe(G.prestige_points, bestCost)) {
+            G.prestige_points = bnSub(G.prestige_points, bestCost);
+            G.prestige_upgrades[best.id] = (G.prestige_upgrades[best.id] || 0) + 1;
+            bought++;
+        } else {
+            break;
+        }
     }
 
     if (bought > 0) {
+        notifyStateChange('gateway_upgrades');
         playPurchase();
         updateAllUI();
     }
@@ -4435,4 +4470,27 @@ function escapeHtml(str) {
     const d = document.createElement('div');
     d.textContent = str;
     return d.innerHTML;
+}
+
+// ---- TIER UNLOCK POPUP ----
+function showTierUnlockPopup(tierIdx) {
+    const popup = document.getElementById('tier-unlock-popup');
+    if (!popup) return;
+    const tier = TIERS[tierIdx];
+    if (!tier) return;
+    const currentIcon = G.settings && G.settings.display_tier_icon ? G.settings.display_tier_icon : (tierIdx > 0 ? getTierIconNum(tierIdx - 1) : 1);
+    const newIcon = getTierIconNum(tierIdx);
+    document.getElementById('tier-unlock-current').src = `sprites/images/icons/individual/${_tierPath(currentIcon)}.webp`;
+    document.getElementById('tier-unlock-new').src = `sprites/images/icons/individual/${_tierPath(newIcon)}.webp`;
+    document.getElementById('tier-unlock-name').textContent = tier.name + ' — ' + tier.bonus;
+    document.getElementById('tier-unlock-apply').onclick = () => {
+        if (!G.settings) G.settings = {};
+        G.settings.display_tier_icon = newIcon;
+        popup.classList.add('hidden');
+        updateAllUI();
+    };
+    document.getElementById('tier-unlock-dismiss').onclick = () => {
+        popup.classList.add('hidden');
+    };
+    popup.classList.remove('hidden');
 }

@@ -160,14 +160,27 @@ function bnPow(base, exp) {
     return result;
 }
 
-// Prestige upgrade cost as BN: baseCost * costMult^count
+// Prestige upgrade cost as BN: baseCost * costMult^count * tierMultiplier
 function getPrestigeUpgradeCost(id, state = G) {
     const upg = PRESTIGE_UPGRADES.find(u => u.id === id);
     if (!upg) return BN_MAX;
     const count = (state.prestige_upgrades && state.prestige_upgrades[id]) || 0;
-    if (count === 0) return bnFromNumber(upg.baseCost);
-    const mult = bnPow(bnFromNumber(upg.costMult), count);
-    return bnMul(bnFromNumber(upg.baseCost), mult);
+    let cost = upg.baseCost;
+    if (count > 0) {
+        const mult = bnPow(bnFromNumber(upg.costMult), count);
+        cost = bnToNumber(bnMul(bnFromNumber(cost), mult));
+        if (!isFinite(cost) || cost > 1e308) return BN_MAX;
+    }
+    // Tier-based scaling: costs increase with prestige threshold suffix
+    // At 10T (level 0): multiplier = 1
+    // At 10Q (level 1): multiplier = 2
+    // At 10a (level 2): multiplier = 4 → exponential 2^level
+    const tierIdx = getCurrentTier(state);
+    const level = Math.floor(Math.max(0, tierIdx) / 10); // 0 = T, 1 = Q, 2 = a, ...
+    const tierMult = Math.pow(2, level); // 1×, 2×, 4×, 8×, 16×, ...
+    if (!isFinite(tierMult) || tierMult > 1e9) return BN_MAX;
+    const finalCost = Math.floor(cost * tierMult);
+    return bnFromNumber(Math.max(finalCost, upg.baseCost));
 }
 
 // ---------- ROOMS & THEMES ----------
@@ -589,23 +602,23 @@ const ROOM_AUTOCLICKERS = {
 // ---------- PRESTIGE UPGRADES (permanent, bought with prestige chips) ----------
 const PRESTIGE_UPGRADES = [
     // Gateway buff stack — progressive (each purchase adds value to gw multiplier)
-    { id: 'gw_boost_1', name: '⚡ Latency Amp',     baseCost: 20,  costMult: 2, desc: 'Gateway buff +0.5×',   type: 'gw_add',   value: 0.5 },
-    { id: 'gw_boost_2', name: '⚡ Pipeline Opt',     baseCost: 50,  costMult: 2, desc: 'Gateway buff +1.0×',   type: 'gw_add',   value: 1.0 },
-    { id: 'gw_boost_3', name: '⚡ Quantum Pipe',     baseCost: 125, costMult: 2, desc: 'Gateway buff +2.0×',   type: 'gw_add',   value: 2.0 },
-    { id: 'gw_boost_4', name: '⚡ Neural Bridge',    baseCost: 250, costMult: 2, desc: 'Gateway buff +3.0×',   type: 'gw_add',   value: 3.0 },
-    { id: 'gw_boost_5', name: '⚡ Singularity Link', baseCost: 500, costMult: 2, desc: 'Gateway buff +5.0×',   type: 'gw_add',   value: 5.0 },
+    { id: 'gw_boost_1', name: '⚡ Latency Amp',     baseCost: 20,  costMult: 1.01, desc: 'Gateway buff +0.5×',   type: 'gw_add',   value: 0.5, maxCount: 20000 },
+    { id: 'gw_boost_2', name: '⚡ Pipeline Opt',     baseCost: 50,  costMult: 1.01, desc: 'Gateway buff +1.0×',   type: 'gw_add',   value: 1.0, maxCount: 20000 },
+    { id: 'gw_boost_3', name: '⚡ Quantum Pipe',     baseCost: 125, costMult: 1.01, desc: 'Gateway buff +2.0×',   type: 'gw_add',   value: 2.0, maxCount: 20000 },
+    { id: 'gw_boost_4', name: '⚡ Neural Bridge',    baseCost: 250, costMult: 1.01, desc: 'Gateway buff +3.0×',   type: 'gw_add',   value: 3.0, maxCount: 20000 },
+    { id: 'gw_boost_5', name: '⚡ Singularity Link', baseCost: 500, costMult: 1.01, desc: 'Gateway buff +5.0×',   type: 'gw_add',   value: 5.0, maxCount: 20000 },
     // Click multipliers — progressive (each purchase multiplies click by value)
-    { id: 'click_1',    name: '👆 Click Amplifier',  baseCost: 3,  costMult: 2, desc: 'Click power ×2',       type: 'click_mult', value: 2 },
-    { id: 'click_2',    name: '👆 Turbo Click',      baseCost: 10, costMult: 2, desc: 'Click power ×4',       type: 'click_mult', value: 4 },
-    { id: 'click_3',    name: '👆 Godlike Click',    baseCost: 25, costMult: 2, desc: 'Click power ×10',      type: 'click_mult', value: 10 },
+    { id: 'click_1',    name: '👆 Click Amplifier',  baseCost: 3,  costMult: 1.01, desc: 'Click power ×2',       type: 'click_mult', value: 2, maxCount: 20000 },
+    { id: 'click_2',    name: '👆 Turbo Click',      baseCost: 10, costMult: 1.01, desc: 'Click power ×4',       type: 'click_mult', value: 4, maxCount: 20000 },
+    { id: 'click_3',    name: '👆 Godlike Click',    baseCost: 25, costMult: 1.01, desc: 'Click power ×10',      type: 'click_mult', value: 10, maxCount: 20000 },
     // Base VPS — progressive (each purchase adds flat VPS, multiplied by all multipliers)
-    { id: 'autobuy_1',  name: '🏭 Auto Clicker',     baseCost: 5,  costMult: 2, desc: '+100 base VPS',        type: 'base_vps',  value: 100 },
-    { id: 'autobuy_2',  name: '🏭 Micro Miner',      baseCost: 15, costMult: 2, desc: '+1K base VPS',         type: 'base_vps',  value: 1000 },
-    { id: 'autobuy_3',  name: '🏭 Turbo Node',       baseCost: 40, costMult: 2, desc: '+10K base VPS',        type: 'base_vps',  value: 10000 },
+    { id: 'autobuy_1',  name: '🏭 Auto Clicker',     baseCost: 5,  costMult: 1.01, desc: '+100 base VPS',        type: 'base_vps',  value: 100, maxCount: 20000 },
+    { id: 'autobuy_2',  name: '🏭 Micro Miner',      baseCost: 15, costMult: 1.01, desc: '+1K base VPS',         type: 'base_vps',  value: 1000, maxCount: 20000 },
+    { id: 'autobuy_3',  name: '🏭 Turbo Node',       baseCost: 40, costMult: 1.01, desc: '+10K base VPS',        type: 'base_vps',  value: 10000, maxCount: 20000 },
     // Permanent VPS multiplier — progressive, expensive (each purchase doubles VPS)
-    { id: 'perma_mult', name: '💠 Perma Core',       baseCost: 200, costMult: 3, desc: 'Permanent ×2 VPS',    type: 'perma_mult', value: 2 },
+    { id: 'perma_mult', name: '💠 Perma Core',       baseCost: 200, costMult: 1.01, desc: 'Permanent ×2 VPS',    type: 'perma_mult', value: 2, maxCount: 20000 },
     // Offline earnings — each purchase adds +1% offline rate
-    { id: 'offline_amp', name: '💤 Offline Amp',       baseCost: 50,  costMult: 2, desc: 'Offline earn +1%',    type: 'offline_pct', value: 1 },
+    { id: 'offline_amp', name: '💤 Offline Amp',       baseCost: 50,  costMult: 1.01, desc: 'Offline earn +1%',    type: 'offline_pct', value: 1, maxCount: 20000 },
 ];
 
 // ---------- TRANSCEND UPGRADES (deeper prestige layer) ----------
@@ -1692,13 +1705,13 @@ function getVPS(state = G) {
     }
     // Decor VPS multiplier
     const roomMult = getActiveDecorVpsMult(state);
-    // Permanent multiplier from prestige chips (BN)
+    // Permanent multiplier from prestige chips (BN) — use BN pow for infinite precision
     let permaMult = BN_ONE;
     for (const [upgId, count] of Object.entries(state.prestige_upgrades)) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
         if (upg && upg.type === 'perma_mult' && count) {
-            const val = Math.pow(upg.value, count);
-            if (isFinite(val)) permaMult = bnMul(permaMult, bnFromNumber(val));
+            const val = bnPow(bnFromNumber(upg.value), count);
+            if (bnCompare(val, BN_MAX) < 0) permaMult = bnMul(permaMult, val);
         }
     }
     const vpsBoost = getVpsBoostMult();
@@ -1724,17 +1737,17 @@ function getClickValue(state = G) {
     for (const [upgId, count] of Object.entries(state.prestige_upgrades)) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
         if (upg && upg.type === 'click_mult' && count) {
-            const val = Math.pow(upg.value, count);
-            if (isFinite(val)) clickMult = bnMul(clickMult, bnFromNumber(val));
+            const val = bnPow(bnFromNumber(upg.value), count);
+            if (bnCompare(val, BN_MAX) < 0) clickMult = bnMul(clickMult, val);
         }
     }
-    // Permanent multiplier from prestige chips (BN)
+    // Permanent multiplier from prestige chips (BN) — use BN pow for infinite precision
     let permaMult = BN_ONE;
     for (const [upgId, count] of Object.entries(state.prestige_upgrades)) {
         const upg = PRESTIGE_UPGRADES.find(u => u.id === upgId);
         if (upg && upg.type === 'perma_mult' && count) {
-            const val = Math.pow(upg.value, count);
-            if (isFinite(val)) permaMult = bnMul(permaMult, bnFromNumber(val));
+            const val = bnPow(bnFromNumber(upg.value), count);
+            if (bnCompare(val, BN_MAX) < 0) permaMult = bnMul(permaMult, val);
         }
     }
     // Golden cookie click boost
@@ -1966,10 +1979,12 @@ function buyAutoclicker(id, quantity = 1) {
 function buyPrestigeUpgrade(id) {
     const upg = PRESTIGE_UPGRADES.find(u => u.id === id);
     if (!upg) return false;
+    const count = (G.prestige_upgrades && G.prestige_upgrades[id]) || 0;
+    if (upg.maxCount && count >= upg.maxCount) return false; // maxed out
     const cost = getPrestigeUpgradeCost(id);
     if (bnGe(G.prestige_points, cost)) {
         G.prestige_points = bnSub(G.prestige_points, cost);
-        G.prestige_upgrades[id] = (G.prestige_upgrades[id] || 0) + 1;
+        G.prestige_upgrades[id] = count + 1;
         notifyStateChange('gateway_upgrades');
         return true;
     }
@@ -2341,7 +2356,7 @@ export {
     unlockPrestige,
     checkAchievements,
     formatNumber, formatBN,
-    BN_ZERO, BN_ONE, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnEq, bnToNumber, bnPow,
+    BN_ZERO, BN_ONE, BN_MAX, bnFromNumber, bnCompare, bnAdd, bnSub, bnMul, bnDiv, bnFloor, bnLt, bnLe, bnGt, bnGe, bnEq, bnToNumber, bnPow,
     getPrestigeUpgradeCost,
     calculateOfflineProgress,
     applyOfflineProgress,
