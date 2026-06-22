@@ -1295,6 +1295,7 @@ async function doGuestLogin() {
     // Fallback: local mode
     G.userId = 'guest_' + guestNum;
     G.username = guestName;
+    if (!G.displayName) G.displayName = guestName;
     G.auth_mode = 'local';
     dom.userDisplay.textContent = guestName; dom.userDisplay.title = guestName;
     enterGame();
@@ -1585,7 +1586,8 @@ function enterGame() {
     dom.gameScreen.classList.remove('hidden');
 
     // Set display name
-    const display = G.displayName || G.username || 'Player';
+    if (!G.displayName) G.displayName = G.username || 'Player';
+    const display = G.displayName;
     dom.userDisplay.textContent = display; dom.userDisplay.title = display;
 
     // Persist session cookie (keeps them logged in across page reloads)
@@ -1649,10 +1651,12 @@ async function tryInitP2P() {
     p2pStarting = true;
     const db = getDb(); const fbApi = getFirestoreApi();
     if (!db || !fbApi) { console.log('🌀 P2P waiting for DB/Firestore...'); p2pStarting = false; setTimeout(tryInitP2P, 500); return; }
+    // Ensure displayName is always populated — P2P + leaderboard depend on it
+    if (!G.displayName) G.displayName = G.username || 'Player';
     console.log('🌀 P2P initializing crypto mesh...');
     const mgr = new P2PLeaderboardManager(
         { db, doc:fbApi.doc, setDoc:fbApi.setDoc, getDoc:fbApi.getDoc, getDocs:fbApi.getDocs, collection:fbApi.collection, onSnapshot:fbApi.onSnapshot, deleteDoc:fbApi.deleteDoc, Timestamp:fbApi.Timestamp },
-        G.displayName || G.username || 'Player',
+        G.displayName,
         (sorted) => {
             // Cache for fast render (lbFastTimer) and profile popups
             lastP2PEntries = sorted;
