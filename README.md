@@ -19,6 +19,27 @@ Hermes IdleViber is an **ambient idle/incremental game** that lives in your brow
 
 ---
 
+## ✦ Screenshots
+
+<p align="center">
+  <img src="screenshots/New%20Login%20Page%20Design.png" alt="Login Screen" width="45%">
+  <img src="screenshots/Leaderboard%20can%20be%20'minimized'.png" alt="Leaderboard" width="45%">
+</p>
+
+<p align="center">
+  <img src="screenshots/Campfire%20Grove.png" alt="Campfire Grove" width="30%">
+  <img src="screenshots/Cyber%20Den.png" alt="Cyber Den" width="30%">
+  <img src="screenshots/Zen%20Garden.png" alt="Zen Garden" width="30%">
+</p>
+
+<p align="center">
+  <img src="screenshots/Star%20Deck.png" alt="Star Deck" width="30%">
+  <img src="screenshots/Study%20Lounge.png" alt="Study Lounge" width="30%">
+  <img src="screenshots/Beach%20Cove.png" alt="Beach Cove" width="30%">
+</p>
+
+---
+
 ## ✦ How It Works
 
 ### 1. Click ✦ VIBE ✦
