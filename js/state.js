@@ -1057,11 +1057,50 @@ function popAllWrinklers(state = G) {
 // ---------- BUILDING SYNERGIES ----------
 // Autoclickers that boost others when owned
 const SYNERGIES = [
+    // ---- GLOBAL ----
     { id: 'win95_syn',     name: 'Retro Boost',    desc: 'Win95 PC boosts first 3 PCs by 50%',       prereq: 'win95',    reqCount: 1,    targetTiers: ['win95','win98','imac_g3'], mult: 0.5 },
     { id: 'mac_g3_syn',    name: 'Legacy Bridge',  desc: 'iMac G3 boosts Mac Mini & Mac Studio by 75%', prereq: 'imac_g3', reqCount: 3,    targetTiers: ['mac_mini','mac_studio'], mult: 0.75 },
     { id: 'gaming_syn',    name: 'RGB Overdrive',  desc: 'Gaming Rig boosts RTX & DGX by 100%',      prereq: 'gaming_rig', reqCount: 2, targetTiers: ['rtx_setup','dgx_pod'], mult: 1.0 },
     { id: 'server_syn',    name: 'Cluster Link',   desc: 'Server Rack boosts Satellite by 150%',     prereq: 'server_rack', reqCount: 3, targetTiers: ['satellite'], mult: 1.5 },
-    { id: 'quantum_syn',   name: 'Quantum Link',   desc: 'Quantum Core boosts all by 25%',            prereq: 'quantum', reqCount: 2,    targetTiers: ['dyson'], mult: 2.0 },
+    { id: 'quantum_syn',   name: 'Quantum Link',   desc: 'Quantum Core boosts Dyson Sphere by 200%', prereq: 'quantum', reqCount: 2, targetTiers: ['dyson'], mult: 2.0 },
+    // ---- CAMPFIRE GROVE ----
+    { id: 'cg_spark_syn',     name: 'Ignition',        desc: 'Spark Tinder boosts Kindling & Campfire by 50%',  prereq: 'cg_spark',    reqCount: 5,  targetTiers: ['cg_kindling','cg_campfire'], mult: 0.5 },
+    { id: 'cg_campfire_syn',  name: 'Blaze',           desc: 'Campfire boosts Bonfire & Fire Pit by 75%',        prereq: 'cg_campfire', reqCount: 5,  targetTiers: ['cg_bonfire','cg_fire_pit'], mult: 0.75 },
+    { id: 'cg_forge_syn',     name: 'Iron Age',        desc: 'Forge boosts Sawmill & Lumberyard by 75%',         prereq: 'cg_forge',    reqCount: 3,  targetTiers: ['cg_sawmill','cg_lumberyard'], mult: 0.75 },
+    { id: 'cg_log_cabin_syn', name: 'Timber',          desc: 'Log Cabin boosts Tree Farm by 100%',               prereq: 'cg_log_cabin', reqCount: 3,  targetTiers: ['cg_tree_farm'], mult: 1.0 },
+    { id: 'cg_tree_farm_syn', name: 'Wild Growth',     desc: 'Tree Farm boosts Forest Spirit by 150%',           prereq: 'cg_tree_farm', reqCount: 3,  targetTiers: ['cg_forest_spirit'], mult: 1.5 },
+    // ---- CYBER DEN ----
+    { id: 'cd_led_syn',       name: 'Circuit Path',    desc: 'LED Array boosts Pi & Switch by 50%',             prereq: 'cd_led',      reqCount: 5,  targetTiers: ['cd_pi','cd_switch'], mult: 0.5 },
+    { id: 'cd_gaming_syn',    name: 'Overclock',       desc: 'Gaming PC boosts Render Farm by 75%',              prereq: 'cd_gaming_pc', reqCount: 3,  targetTiers: ['cd_render'], mult: 0.75 },
+    { id: 'cd_server_syn',    name: 'Server Farm',     desc: 'Server Rack boosts Datacenter by 100%',            prereq: 'cd_server',  reqCount: 3,  targetTiers: ['cd_datacenter'], mult: 1.0 },
+    { id: 'cd_datacenter_syn', name: 'Supercluster',   desc: 'Datacenter boosts Supercomputer & Neural Net by 100%', prereq: 'cd_datacenter', reqCount: 3, targetTiers: ['cd_super','cd_neural'], mult: 1.0 },
+    { id: 'cd_ai_core_syn',   name: 'Singularity',     desc: 'AI Core boosts Digital & Cyberspace by 150%',     prereq: 'cd_ai_core', reqCount: 3,  targetTiers: ['cd_digital','cd_cyberspace'], mult: 1.5 },
+    // ---- ZEN GARDEN ----
+    { id: 'zg_mat_syn',       name: 'Foundation',      desc: 'Sitting Mat boosts Bamboo & Wind Chime by 50%',  prereq: 'zg_mat',      reqCount: 5,  targetTiers: ['zg_bamboo','zg_chime'], mult: 0.5 },
+    { id: 'zg_bamboo_syn',    name: 'Growth',          desc: 'Bamboo boosts Koi Pond & Rock Garden by 50%',    prereq: 'zg_bamboo',   reqCount: 5,  targetTiers: ['zg_koi','zg_rock'], mult: 0.5 },
+    { id: 'zg_tea_syn',       name: 'Ceremony',        desc: 'Tea House boosts Temple & Waterfall by 75%',     prereq: 'zg_tea',      reqCount: 3,  targetTiers: ['zg_temple','zg_waterfall'], mult: 0.75 },
+    { id: 'zg_waterfall_syn', name: 'Flow',            desc: 'Waterfall boosts Cherry Tree & Meditation Hall by 100%', prereq: 'zg_waterfall', reqCount: 3, targetTiers: ['zg_cherry','zg_hall'], mult: 1.0 },
+    { id: 'zg_hall_syn',      name: 'Enlightenment',   desc: 'Meditation Hall boosts Cosmic Mind & Nirvana by 150%', prereq: 'zg_hall', reqCount: 3, targetTiers: ['zg_cosmic','zg_nirvana'], mult: 1.5 },
+    // ---- STAR DECK ----
+    { id: 'sd_chart_syn',     name: 'Navigation',      desc: 'Star Chart boosts Telescope & Observatory by 50%', prereq: 'sd_chart', reqCount: 5, targetTiers: ['sd_telescope','sd_observatory'], mult: 0.5 },
+    { id: 'sd_telescope_syn', name: 'Discovery',       desc: 'Telescope boosts Satellite & Space Station by 75%', prereq: 'sd_telescope', reqCount: 3, targetTiers: ['sd_satellite','sd_station'], mult: 0.75 },
+    { id: 'sd_lunar_syn',     name: 'Colonization',    desc: 'Lunar Base boosts Mars Colony & Asteroid Mine by 100%', prereq: 'sd_lunar', reqCount: 3, targetTiers: ['sd_mars','sd_asteroid'], mult: 1.0 },
+    { id: 'sd_starforge_syn', name: 'Starforge',       desc: 'Star Forge boosts Nebula & Black Hole by 150%', prereq: 'sd_starforge', reqCount: 3, targetTiers: ['sd_nebula','sd_blackhole'], mult: 1.5 },
+    { id: 'sd_nebula_syn',    name: 'Cosmic Scale',    desc: 'Nebula boosts Galaxy & Cosmic String by 200%',   prereq: 'sd_nebula', reqCount: 3, targetTiers: ['sd_galaxy','sd_cosmic_string'], mult: 2.0 },
+    // ---- STUDY LOUNGE ----
+    { id: 'sl_bookmark_syn',  name: 'Curated',         desc: 'Bookmark boosts Lamp & Bookshelf by 50%',        prereq: 'sl_bookmark', reqCount: 5, targetTiers: ['sl_lamp','sl_bookshelf'], mult: 0.5 },
+    { id: 'sl_bookshelf_syn', name: 'Study Session',   desc: 'Bookshelf boosts Desk & Typewriter by 50%',     prereq: 'sl_bookshelf', reqCount: 5, targetTiers: ['sl_desk','sl_typewriter'], mult: 0.5 },
+    { id: 'sl_desk_syn',      name: 'Research',        desc: 'Desk boosts Book Cart & Reading Nook by 75%',   prereq: 'sl_desk', reqCount: 3, targetTiers: ['sl_cart','sl_reading'], mult: 0.75 },
+    { id: 'sl_reading_syn',   name: 'Archive',         desc: 'Reading Nook boosts Archive & Grand Library by 100%', prereq: 'sl_reading', reqCount: 3, targetTiers: ['sl_archive','sl_grand'], mult: 1.0 },
+    { id: 'sl_archive_syn',   name: 'Vault',           desc: 'Archive boosts Vault & Ancient Tome by 150%',   prereq: 'sl_archive', reqCount: 3, targetTiers: ['sl_vault','sl_tome'], mult: 1.5 },
+    { id: 'sl_tome_syn',      name: 'Omniscience',     desc: 'Ancient Tome boosts Well of Knowledge & Omni by 200%', prereq: 'sl_tome', reqCount: 3, targetTiers: ['sl_well','sl_omni'], mult: 2.0 },
+    // ---- BEACH COVE ----
+    { id: 'bc_castle_syn',    name: 'Shoreline',       desc: 'Sand Castle boosts Sea Shell & Beach Towel by 50%', prereq: 'bc_castle', reqCount: 5, targetTiers: ['bc_shell','bc_towel'], mult: 0.5 },
+    { id: 'bc_towel_syn',     name: 'Watersports',     desc: 'Beach Towel boosts Surfboard & Tiki Torch by 50%', prereq: 'bc_towel', reqCount: 5, targetTiers: ['bc_surfboard','bc_tiki'], mult: 0.5 },
+    { id: 'bc_surfboard_syn', name: 'Voyage',          desc: 'Surfboard boosts Sailboat & Lighthouse by 75%',  prereq: 'bc_surfboard', reqCount: 3, targetTiers: ['bc_sailboat','bc_lighthouse'], mult: 0.75 },
+    { id: 'bc_sailboat_syn',  name: 'Harbor',          desc: 'Sailboat boosts Fishing Pier & Resort by 100%',  prereq: 'bc_sailboat', reqCount: 3, targetTiers: ['bc_pier','bc_resort'], mult: 1.0 },
+    { id: 'bc_resort_syn',    name: 'Deep Sea',        desc: 'Resort boosts Cruise Ship & Underwater City by 150%', prereq: 'bc_resort', reqCount: 3, targetTiers: ['bc_cruise','bc_underwater'], mult: 1.5 },
+    { id: 'bc_cruise_syn',    name: 'Oceanic',         desc: 'Cruise Ship boosts Coral Reef & Ocean Spirit by 200%', prereq: 'bc_cruise', reqCount: 3, targetTiers: ['bc_reef','bc_ocean_spirit'], mult: 2.0 },
 ];
 
 function getSynergyBonus(autoclickerId, state = G) {
@@ -1073,6 +1112,16 @@ function getSynergyBonus(autoclickerId, state = G) {
         }
     }
     return bonus;
+}
+
+// Get all synergy defs where this upgrade is the prereq (what it boosts)
+function getSynergiesFrom(upgradeId) {
+    return SYNERGIES.filter(s => s.prereq === upgradeId);
+}
+
+// Get all synergy defs where this upgrade is a target (what boosts it)
+function getSynergiesTo(upgradeId) {
+    return SYNERGIES.filter(s => s.targetTiers.includes(upgradeId));
 }
 
 // Sum of unlocked tier bonuses for a given type (click, vps, offline, all, rooms)
@@ -1738,7 +1787,7 @@ export {
     getVpsBoostMult,
     wrinklerSystem,
     SYNERGIES,
-    getSynergyBonus,
+    getSynergyBonus, getSynergiesFrom, getSynergiesTo,
     getWrinklerPenalty,
     getEffectiveVpsMultiplier,
     updateWrinklers,

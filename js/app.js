@@ -6,7 +6,7 @@ import {
     G, CONFIG, ROOMS, ROOM_DECOR, getDecorForRoom, AUTOCLICKERS, ROOM_AUTOCLICKERS, PRESTIGE_UPGRADES, ACHIEVEMENTS, TIERS,
     GOLDEN_COOKIE_TYPES, GOLDEN_COOKIE_INTERVAL_MIN, GOLDEN_COOKIE_INTERVAL_MAX, GOLDEN_COOKIE_DURATION,
     goldenCookieSystem, spawnGoldenCookie, collectGoldenCookie, getClickBoostMult, getVpsBoostMult,
-    wrinklerSystem, SYNERGIES, getSynergyBonus, getWrinklerPenalty, getEffectiveVpsMultiplier,
+    wrinklerSystem, SYNERGIES,    getSynergyBonus, getSynergiesFrom, getSynergiesTo,getWrinklerPenalty, getEffectiveVpsMultiplier,
     updateWrinklers, popWrinkler, popAllWrinklers,
     getVPS, getClickValue, getPrestigeGain, getPrestigeThreshold, formatNumber, formatBN,
     getActiveDecorVpsMult, calculateOfflineProgress, applyOfflineProgress,
@@ -2045,12 +2045,20 @@ function updateShopUI() {
         el.className = `shop-item ${canBuy ? '' : 'locked'}`;
         el.dataset.tierId = tier.id;
         const iconHtml = `<img src="sprites/images/icons/32/${tier.id}_64.webp" alt="${tier.name}" class="shop-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display=''" loading="lazy"><span class="shop-icon-fallback" style="display:none">💻</span>`;
+        // Synergy display
+        const _synFrom = typeof getSynergiesFrom === 'function' ? getSynergiesFrom(tier.id) : [];
+        const _synTo = typeof getSynergiesTo === 'function' ? getSynergiesTo(tier.id) : [];
+        let synergyHtml = '';
+        if (_synFrom.length) synergyHtml += _synFrom.map(s => '<span style="color:#4af;font-size:7px;">✦ ' + s.name + ': +' + Math.round(s.mult*100) + '% ' + s.targetTiers.join(', ') + '</span>').join('<br>');
+        if (_synTo.length) { if (synergyHtml) synergyHtml += '<br>'; synergyHtml += _synTo.map(s => '<span style="color:#af4;font-size:7px;">✦ ' + s.name + ': +' + Math.round(s.mult*100) + '% from ' + s.prereq + '</span>').join('<br>'); }
+        if (synergyHtml) synergyHtml = '<div style="margin-top:3px;line-height:1.3;">' + synergyHtml + '</div>';
         el.innerHTML = `
             <div class="shop-item-icon">${iconHtml}</div>
             <div class="shop-item-info">
                 <div class="shop-item-name">${tier.name}</div>
                 <div class="shop-item-desc">${tier.desc}</div>
                 <div class="shop-item-vps">✦ ${tier.vps} VPS each</div>
+                ${synergyHtml}
             </div>
             <div class="shop-item-right">
                 <div class="shop-item-count">${count}</div>
@@ -2063,11 +2071,13 @@ function updateShopUI() {
             desc: tier.desc,
             icon: `sprites/images/icons/individual/${tier.id}_64.webp`,
             stats: [
-                { label: 'VPS each', value: '✦ ' + tier.vps, cls: 'cyan' },
-                { label: 'Room VPS', value: '✦ ' + formatNumber(tier.vps * count), cls: 'green' },
+                { label: 'VPS each', value: '\u2726 ' + tier.vps, cls: 'cyan' },
+                { label: 'Room VPS', value: '\u2726 ' + formatNumber(tier.vps * count), cls: 'green' },
                 { label: 'Owned here', value: String(count), cls: '' },
-                { label: 'Cost', value: formatNumber(cost) + ' ✦', cls: canBuy ? 'green' : 'gold' }
-            ]
+                { label: 'Cost', value: formatNumber(cost) + ' \u2726', cls: canBuy ? 'green' : 'gold' }
+            ],
+            synergyFrom: _synFrom,
+            synergyTo: _synTo
         };
         dom.upgradeList.appendChild(el);
     });
@@ -3325,6 +3335,21 @@ function showShopTooltip(data, event) {
         html += `<div style="height:4px;background:#1a1a1a;border:1px solid #333;margin:4px 0;border-radius:2px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent-cyan),var(--accent-gold));border-radius:2px;"></div></div>`;
     } else if (data.earned) {
         html += `<div class="tt-stat"><span class="tt-value green">✓ COMPLETE</span></div>`;
+    }
+    // Synergy display in tooltip
+    if (data.synergyFrom && data.synergyFrom.length > 0) {
+        html += '<div class="tt-stat" style="margin-top:4px;"><span class="tt-label green">BOOSTS</span></div>';
+        data.synergyFrom.forEach(s => {
+            const pct = Math.round(s.mult * 100);
+            html += '<div class="tt-stat" style="font-size:7px;color:#4af;">✦ ' + s.name + ': +' + pct + '% ' + s.targetTiers.join(', ') + '</div>';
+        });
+    }
+    if (data.synergyTo && data.synergyTo.length > 0) {
+        html += '<div class="tt-stat" style="margin-top:4px;"><span class="tt-label gold">BOOSTED BY</span></div>';
+        data.synergyTo.forEach(s => {
+            const pct = Math.round(s.mult * 100);
+            html += '<div class="tt-stat" style="font-size:7px;color:#af4;">✦ ' + s.name + ': +' + pct + '% from ' + s.prereq + '</div>';
+        });
     }
     
     tt.innerHTML = html;

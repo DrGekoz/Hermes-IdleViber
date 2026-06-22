@@ -324,7 +324,6 @@ async function pingGateway() {
         const start = performance.now();
         const res = await fetch(`${gatewayStatus.url}/health`, {
             method: 'GET',
-            mode: 'no-cors',
             cache: 'no-cache',
             signal: AbortSignal.timeout(CONFIG.GATEWAY_TIMEOUT),
         });
