@@ -1347,7 +1347,6 @@ async function drawBackground(roomId, ctx, w, h) {
             } else {
                 _bgDraw(v, ctx, w, h);
             }
-        }
         return true;
     }
 
