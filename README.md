@@ -13,9 +13,9 @@ Hermes IdleViber is an **ambient idle/incremental game** that lives in your brow
 
 **The twist?** The game pings your local Hermes Agent gateway and turns its latency into a VPS multiplier. The faster your gateway responds, the bigger the bonus. It turns your dev tools into a game mechanic — an upgradeable boost you can invest prestige chips into.
 
-**Sign in** with Google, GitHub, or email/password — your progress follows you across devices via Firestore cloud saves with smart merge (keeps your highest stats).
+**Sign in** with Google, GitHub, or email/password — your progress follows you across devices via Firestore cloud saves with smart merge (keeps your highest stats). Auto-registers on login when an account doesn't exist. Display name availability checked via Firebase + P2P before accepting.
 
-**Or just jump in** as a guest — no sign-up needed. Guest progress merges automatically when you create an account later.
+**Or just jump in** as a guest — no sign-up needed. Guest progress merges automatically when you create an account later. Firebase anonymous sign-in for leaderboard visibility.
 
 ---
 
@@ -64,29 +64,31 @@ Each room has **15 unique upgrade tiers**, themed to that room. Every upgrade ad
 | 📚 **Study Lounge** | 1T ✦ | Cozy bookshelves & lamplight |
 | 🏖 **Beach Cove** | 10T ✦ | Sunset waves on pixel sand |
 
-Each room's autoclickers track their own purchase count — buying cheap upgrades in a new room doesn't reset your expensive ones from other rooms. All room VPS stacks together globally.
+Each room's autoclickers track their own purchase count. Room affordability updates every tick — cards unlock visually in real-time without tab-hopping.
+
+**Building Synergies** — autoclickers boost other autoclickers when owned (Retro Boost, Legacy Bridge, RGB Overdrive, Cluster Link, Quantum Link).
 
 ### 4. Decor Every Room
-15 decor items per room (90 total across all rooms, matching upgrade icons). Each adds a permanent VPS multiplier to that room.
+15 decor items per room (90 total). Each adds a permanent VPS multiplier. Items render at 40% size (102×102) on the canvas. **Single instance per decor** — clicking an active decor removes all instances; clicking EQUIP restores them at saved positions. **Click-to-front** brings any decor above others. **Drag** uses instant cursor follow (no lerp lag). **Positions survive prestige** via saved_decor_placements. **Buy All places decor at saved positions.**
 
 ### 5. Prestige & Tiers
 Reset your run for **Prestige Chips (PP)** — permanent currency that buys escalating upgrades:
-- Gateway buffs (+× to gateway multiplier)
-- Click multipliers (×2 → ×4 → ×10)
-- Base VPS bonuses (+100 → +1K → +10K)
+- Gateway buffs, click multipliers, base VPS bonuses
 - Permanent ×2 VPS (stacks multiplicatively)
 - Offline earnings rate boosts
 
-All prestige upgrades are **re-buyable** with progressive cost scaling. Use the **Buy All** button or hold-to-spam to burn through chips fast.
+**Prestige threshold grows exponentially** — `1T × 2.5ⁿ` where n = prestige count + 1. Each prestige is materially harder than the last.
 
-**⚡ Max Prestige** button runs non-blocking batches (500 prestige cycles via requestAnimationFrame) — no UI freeze. Uses BigNumber math throughout for overflow safety.
+**⚡ Max Prestige** runs non-blocking batches via requestAnimationFrame. VPS-gated: only allows prestige cycles where `VPS × 5s ≥ next threshold`, preventing infinite chain-prestiging.
 
-Every prestige grants a **Tier** (Bronze I → Silver I → ... → Formless Expanse), unlocking a corresponding achievement. **500 uniquely-scaling tiers** with requirements going from 1 prestige up to `InfZ^∞`. Tier progression accelerates through normal suffixes into InfZ ×N notation, with the final tiers reaching InfZ^∞ territory. Tiers grant progressively stronger permanent bonuses (×click, ×VPS, ×all, +offline%, room unlock speed) at 65% more conservative scaling than before.
+Every prestige grants a **Tier** (Bronze I → Silver I → ... → Formless Expanse), unlocking a corresponding achievement. **500 uniquely-scaling tiers** with requirements going from 1 prestige up to InfZ^∞. Tiers grant progressively stronger permanent bonuses.
+
+**Tier Grid in Settings** — the tier icon picker rebuilds every time you open settings, reading live game state. Unlocked tiers show gold + checkmark + full-color icon. Locked tiers show gray + grayscale. Tooltip shows 'UNLOCKED' (green) or 'REQUIRES N prestiges' (gray).
+
+**Tier names match displayed icons** — the leaderboard checks if a custom tier icon is set and shows the matching tier name, falling back to prestige-based tier.
 
 ### 6. Gateway Bonus
-The game pings your Hermes gateway every 5 seconds. Your latency determines your VPS multiplier — lower latency = higher bonus. No gateway running? You still earn at base rates. Gateway buffs can also be upgraded with prestige chips for an even bigger boost.
-
-The Gateway tab shows a **2-line HUD**: VPS multiplier on line 1, latency + prestige breakdown on line 2. Manual port override available. Auto-scans common ports instantly, plus the web server range (1024-10000) in ~20s.
+The game pings your Hermes gateway every 5 seconds. Your latency determines your VPS multiplier — lower latency = higher bonus. Gateway buffs can be upgraded with prestige chips. Manual port override in both Gateway tab and Settings. Task-in-progress detection doubles the multiplier when gateway is busy.
 
 ### 7. InfinityZ Number System
 When your vibes exceed Z (the last suffix tier), the number system cycles through infinite layers of InfZ^n notation:
@@ -101,9 +103,9 @@ When your vibes exceed Z (the last suffix tier), the number system cycles throug
 | ⋮ | ⋮ | ⋮ |
 | InfZ^∞ | `InfZ^∞` | Final sentinel for numbers beyond comprehension |
 
-Each layer cycles through base + all 47 (or 56 for plain-number) suffixes per count. When a count wraps, the next layer takes over. The game literally never runs out of notation.
+Each layer cycles through base + all suffixes per count. When a count wraps, the next layer takes over. The game literally never runs out of notation.
 
-Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mantissa, exponent]` arrays in scientific notation, supporting unlimited growth with automatic normalization and overflow guards.
+Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mantissa, exponent]` arrays in scientific notation, supporting unlimited growth with automatic normalization and overflow guards. Arithmetic functions return gracefully on overflow instead of crashing. Cloud migration handles malformed BN arrays.
 
 ---
 
@@ -115,45 +117,47 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 - **⚡ Buy All** buttons on upgrades, decor, and prestige tabs (most expensive first)
 - **🖱 Hold-to-spam** rapid-purchase on all shop items (autoclickers + prestige)
 - **🔔 Real-time sidebar tab indicators** — gold dots pulse on tabs with affordable items, green dot when prestige is ready, cyan dot for new achievements
-- **90 decor items** with visual canvas placement — single instance per decor, click-and-drag, drag reworked for instant cursor follow (no lerp lag), click-to-front brings any decor above others
-- **Equip/unequip decor** — clicking an active decor removes all instances from canvas; clicking EQUIP restores them at saved positions without entering placement mode
-- **Decor positions survive prestige** — positions saved to localStorage, restored when re-buying via Buy All or single purchase
-- **Buy All places decor at saved positions** — items with previous positions restore automatically, first-time purchases enter placement mode
+- **90 decor items** with visual canvas placement — single instance per decor, click-and-drag, click-to-front, decor positions survive prestige
+- **Building Synergies** — autoclicker synergies that boost other autoclickers when owned
 - **InfinityZ number system** — numbers never cap, display scales infinitely
 - **BigNumber (BN) engine** — all game values stored as [mantissa, exponent] arrays, resilient to overflow, with guard recovery for corrupted saves
 - Bulk buy with calculated max-buyable
-- **Rooms affordability updates every tick** — room cards unlock visually in real-time without tab-hopping
+- Rooms affordability updates every tick
 - Offline earnings with 10x format above 1000%
-- **Building Synergies** — autoclicker synergies that boost other autoclickers when owned (Retro Boost: Win95 PC boosts first 3 PCs by 50%, Legacy Bridge: iMac G3 boosts Mac Mini & Mac Studio by 75%, RGB Overdrive: Gaming Rig boosts RTX & DGX by 100%, Cluster Link: Server Rack boosts Satellite by 150%, Quantum Link: Quantum Core boosts Dyson Sphere by 200%)
+- **Prestige threshold:** exponential `1T × 2.5ⁿ` — each prestige materially harder
+- **Max Prestige:** VPS-gated batch processing via requestAnimationFrame — no UI freeze
+- **Tier Grid:** live rebuild on settings open, unlocked/locked visual states
+- **Tier Names:** match displayed custom icon, fall back to prestige-based
 
 ### 🎨 Visual
 - **550+ pixel art icons** — 90 room upgrade icons + 90 decor icons + 500 tier icons + 55 achievement badges + 18 prestige upgrades + 6 dividers + 24 button frames, all generated via Codex CLI (16-bit retro style) chroma-key processed to 256×256 lossless WebP
-- **24 room-themed pixel art button frames** — 6 materials × 4 sizes (wood grain rivets for Campfire Grove, glowing circuit traces for Cyber Den, mossy cobblestone for Zen Garden, brushed stainless steel for Star Deck, brass+gold engraved for Study Lounge, light wood+seashell for Beach Cove). Applied to all buttons via `background-image: var(--room-btn-img)` with `image-rendering: pixelated` and auto-switching per room
-- **Unified white text + black stroke** — all UI text globally uses white fill with 8-direction black `text-shadow` outer stroke. Active sidebar tab inverts to black fill + white stroke. Functional colored text (gold prestige, cyan values) retains its fill color. Buttons dim via `filter: brightness(0.85)` on hover. Login page title, subtitle, divider, and messages also use standard white+black.
-- **No borders on buttons** — all cyan 2px borders removed from pixel buttons, sidebar tabs, login buttons, music controls. The button image is the button. Active tab uses room-colored glow instead of a border.
-- **VIBE button** — uses room-themed XL button image with 3D box-shadow depth, no white border or gradient overlay.
-- 6 unique room backgrounds with atmospheric effects
-- **Login screen video wallpaper** — looping MP4 with seamless 1.5s crossfade (dual canvas/video handoff)
-- **Room backgrounds use dual-video handoff** — instead of native `<video loop>` (which has a built-in seek pause), two non-looping videos crossfade at 1.5s for perfectly seamless looping
-- **Ping-pong mode** for Campfire & Study — pre-captured frames animated forward/backward
+- **24 room-themed pixel art button frames** — 6 materials × 4 sizes, applied to all buttons via CSS custom properties with `image-rendering: pixelated`
+- **Unified white text + black stroke** — all UI text globally uses white fill with 8-direction black `text-shadow` outer stroke. Colored functional text (gold prestige, cyan values) retains its fill color.
+- **No borders on buttons** — the button image IS the button. Active tab uses room-colored glow instead of a border.
+- **VIBE button** — room-themed XL button image with 3D box-shadow depth, no white border or gradient overlay
+- 6 unique room backgrounds with atmospheric effects (dual-video handoff for seamless looping)
+- **Login screen video wallpaper** — looping MP4 with seamless 1.5s crossfade
 - Particle systems: fireflies, matrix rain, cherry blossoms, aurora, smoke, dust, waves
 - Godrays & dynamic lighting
 - **180Hz render loop** with delta-time frame interpolation — particle speed consistent at any framerate
 - Pixel-perfect rendering with `image-rendering: pixelated`
 - Custom chroma-key removal pipeline for transparent icon assets
-- **3-line InfZ display** on prestige chip box and Total This Round stat box
-- **Room-themed pixel art buttons** for all 6 rooms (cg/cd/zg/sd/sl/bc) with auto-detected text contrast
-- **Room divider images** — PNG banners at top of sidebar and canvas overlay, room-switching via proper prefix lookup
+- **3-line InfZ display** on prestige chip box and stat boxes
+- **Room-themed pixel art buttons** for all 6 rooms with auto-detected text contrast
+- **Room divider images** — PNG banners at top of sidebar and canvas overlay
+- **Canvas dividers** — pixel-art horizontal dividers for each room theme
 
 ### 🎵 Audio
-- 45 chiptune cover MP3s — game classics (Zelda, Mario, Pokemon, Megaman, Chrono, Castlevania), pop covers (Blinding Lights, Take On Me, Eye of the Tiger), anime hits (Otonoke, Naruto), and memes
+- 45 chiptune cover MP3s — game classics, pop covers, anime hits, and memes
 - Shuffle play across the full playlist
 - Adjustable SFX & music volume
 
 ### 🔌 Integration
-- **Login with Google, GitHub, or email/password** — Firestore-backed authentication
-- **Guest Login** — jump in instantly as Guest_01/02/03 (sequential naming) without signing up. Progress saved and automatically merged when you create an account. Firebase anonymous sign-in for leaderboard visibility.
+- **Login with Google, GitHub, or email/password** — Firestore-backed authentication. **5-second timeout** on Firebase auth — falls through to local mode if CDN stalls.
+- **Guest Login** — jump in instantly, progress saved and merged when you create an account
+- **Auto-register** on login when account doesn't exist in Firestore
 - User display name management (change freely, no cooldown)
+- **P2P Chat** — real-time chat over WebRTC with send/receive/typing sounds
 - Auto-discovers Hermes gateway by scanning 41 common ports
 - Real-time latency display with quality tiers
 - Gateway VPS multiplier updates live
@@ -162,41 +166,47 @@ Under the hood, all numbers use a **BigNumber (BN) system** — stored as `[mant
 - Settings overlay with Name, Audio, Profile, and Credits tabs
 - Sidebar position toggle (left/right)
 - Server MIME types fixed for `.webp` and `.mp4` delivery
-- **P2P Chat** — real-time chat over the WebRTC mesh. Dedicated chat panel with send/receive/typing sound effects and per-sound volume controls. Messages relayed through the host.
+- Cache-busting version parameter (`?v=N`) on all assets
 
 ### 💾 Persistence
 - Auto-save every 30s to localStorage
-- **Firebase Firestore cloud saves** with smart merge — merges local and cloud saves keeping the highest prestiges, PP, and lifetime vibes (never overwrites progress)
-- **P2P Star Topology** — DrGekoz is the permanent host when online. All other players connect to the host only (not each other). The host receives score updates from every peer and broadcasts the full sorted leaderboard back to everyone in real-time. Host migration is automatic when DrGekoz comes online.
-- Hourly Firestore leaderboard sync for persistence
+- **Firebase Firestore cloud saves** with smart merge — keeps the highest prestiges, PP, and lifetime vibes across devices
+- **Save on tab close** — `beforeunload` handler saves locally + to cloud
+- **Corrupted save guard** — BN fields at BN_MAX level are clamped back to BN_ZERO, preventing Infinity/NaN display
 - Local API server mode for self-hosted accounts
 - Offline earnings calculated on return (10x format above 1000%)
 
 ### 🏆 Achievements
 - 55 base achievements across vibe, click, prestige, room, VPS, gateway, decor, and autoclicker milestones
-- **500 tier achievements** — programmatically generated from Bronze I to Formless Expanse — one per prestige tier
-- Real-time achievement notifications with toast popups
+- **500 tier achievements** — programmatically generated from Bronze I to Formless Expanse
+- **Progress bars** — each locked achievement shows a progress bar and percentage, calculated per threshold type
+- Achievement icons from `icon_img` field (custom pixel art), falling back to emoji on load failure
+- Real-time notifications with toast popups
 - Permanent unlock tracking
 - Dev badge with tooltip on hover for contributors
 
 ### 🏅 Leaderboard
-- **P2P Star Topology** — DrGekoz is the permanent host when online (DEV_HOST). All other players connect to the host only via direct peer-to-peer data channels (WebRTC) using Firestore as a signaling server. The host receives score updates from every peer, maintains the authoritative ledger, and broadcasts the full sorted leaderboard back to all connected peers. Chat messages are relayed through the host. Host migration is seamless when DrGekoz comes online.
-- **Live All-Column Sync** — VIBES, VPS, PP, PRESTIGE, and TIER columns update in real-time across the mesh.
-- **P2P Failsafes** — when broadcast reaches 0 peers, immediately rescans the full signaling directory (forceScan), reconnects every failed peer, and queues 1.5s + 2s retry broadcasts. Three-layer safety: per-tick retry chain, 15s repair timer, 30s full directory scan when isolated.
-- **Firestore fallback** — when P2P fails (NAT restrictions, no peers), automatically switches to Firestore onSnapshot or polling (30s interval)
-- **Deterministic Offerer Tiebreaker** — keyId → random nonce → username always picks one peer as the offerer, no stalemates
+- **P2P Star Topology** — DrGekoz is the permanent host when online. All peers connect to the host only via WebRTC data channels using Firestore signaling. Host receives scores and broadcasts the sorted leaderboard. Chat relayed through the host. Host migration is automatic when DrGekoz comes online.
+- **ECDSA P-256 signed messages** — every broadcast signed and verified; JSON text carries full BN arrays for precision
+- **Live All-Column Sync** — VIBES, VPS, PP, PRESTIGE, TIER update in real-time
+- **Local sort** — sort chain: tier → prestige → PP → VPS → Vibes (all descending), computed locally
+- **P2P + Firestore merge** — P2P entries take priority, Firestore cached entries fill gaps
+- **Score reconciliation** — guest compares self scores against host's view and keeps the higher
+- **30s stale buffer** — ledger entries aren't removed immediately on disconnect; 30s grace period prevents flicker
+- **Player Profile Popups** — click a player name on the leaderboard to see game stats (P2P data first, Firestore fallback)
+- **P2P Failsafes** — three-layer safety: per-tick retry, 15s repair timer, 30s full directory scan when isolated
+- **Firestore fallback** — when P2P fails, switches to Firestore onSnapshot or polling
+- **Deterministic Offerer Tiebreaker** — keyId → nonce → username picks the offerer
 - **Bulletproof formatting** — every cell wrapped in try/catch with type guards and safe fallbacks
-- Stores full BN arrays for accurate InfinityZ layer display
-- VPS column alongside vibes, prestige, and PP columns
+- Full BN arrays for accurate InfZ layer display
 - Adaptive grid columns that scale with viewport
-- **Sort chain**: highest tier → prestige → PP → VPS → Vibes (all descending)
-- Clear polling when Firestore subscription starts — no double reads, respects quota
 
 ### ⚙️ Settings
 - **Display name** — set freely, syncs to cloud, no cooldown
 - **Audio** — independent SFX and music volume sliders
 - **Profile** — view account stats and login status
-- **Font & Size** — choose title/body fonts, scale all text and icons proportionally via a size slider (injected CSS overrides all explicit sizes)
+- **Tier Icon Picker** — 500-tier scrollable grid, live rebuild on settings open, unlocked/locked visual states
+- **Font & Size** — choose title/body fonts, scale all text and icons proportionally
 - **Gateway** — manual port input with sync button, status display
 - **Sidebar** — toggle between left and right positions
 - **Account** — view login status, logout
@@ -225,90 +235,6 @@ node server/index.js
 
 ---
 
-## ✦ Recent Updates
-
-|- **Login Hang Fix** — added 5s timeout to Firebase auth calls via `Promise.race`; guest login and email login now fall through to local mode if Firebase stalls. Auto-registers on login when account doesn't exist in Firestore. Display name availability checked via Firebase + P2P before accepting.
-|- **P2P Leaderboard Overhaul** — leaderboard rewritten with local sort, P2P+Firestore merge, score reconciliation, deduplication, and save-on-close. Host thrashing fixed via exact `DEV_HOST` match + stale peer filter. Handshake hardened with retry timeouts, ICE candidate relay, race guards. Stable `peerId`-based ledger (not display name) prevents key collisions on rename. Chat messages relayed through the host. 30s stale buffer prevents leaderboard flicker on P2P disconnect.
-|- **Player Profile Popups** — clicking a player name on the leaderboard opens a profile popup with game stats. Falls back to Firestore leaderboard data when P2P is unavailable.
-|- **Prestige Exponential Threshold** — prestige threshold formula changed from linear `1T×(n+1)×sqrt(log₂(vps))` to exponential `1T×2.5ⁿ` so each prestige materially harder. Max Prestige button now VPS-gated: only allows prestige cycles where `VPS×5s ≥ next threshold`, preventing infinite chain-prestiging.
-|- **Tier Grid Live Refresh** — tier selection grid in settings now rebuilds on every panel open, reading live game state. Unlocked tiers show gold number + checkmark + full-color icon. Locked tiers show gray number + grayscale icon with brightness dim. Tooltip shows 'UNLOCKED' (green) or 'REQUIRES N prestiges' (gray).
-|- **Tier Names Match Displayed Icons** — tier names on the leaderboard now check the custom icon first (via new `_tierNameForEntry()` helper), falling back to prestige-based tier. Fixes mismatch when a player has a custom tier icon set.
-|- **Big VIBES Display** — large centered VIBES value rendered above the sidebar divider, visible at all times.
-|- **Cache-Busting System** — all asset URLs now carry a version parameter (`?v=N`), bumped on changes to force browser re-download. Currently at v139.
-|- **Background Video Refinements** — Campfire Grove uses dual-video crossfade (matching other rooms' seamless loop technique). Cache-busting applied to all video backgrounds. Ping-pong mode improved for Campfire & Study scenes.
-|- **55 Achievement Badge Icons**
-- **Achievement Progress Bars** — each locked achievement now shows a progress bar and percentage toward completion, calculated per threshold type (lifetime vibes, clicks, prestige count, VPS, gateway latency, decor count, autoclicker count). Unlocked achievements show a checkmark
-- **Achievement `icon_img` Field** — achievements in state.js now reference image files instead of emoji, falling back to emoji on load failure
-- **73 Tier Icons Re-Done** — tiers 243, 246, 249, 262-265, 298-302, 326-329, 392-393, 408-463, and 464-500 regenerated as unique pixel-art rank emblems (not based on tier names), 1:1 aspect ratio, 256×256 lossless WebP
-- **6 Canvas Dividers** — pixel-art horizontal dividers (1000×200, 5:1 aspect ratio) for each room theme: warm brown wood (Campfire Grove), glowing circuit traces (Cyber Den), stone/moss (Zen Garden), deep space nebula (Star Deck), mahogany/gold (Study Lounge), sandy beach/turquoise (Beach Cove). Later reverted to original `*_ui_divider.png` files
-- **Canvas Divider Sizing** — dividers display at 69% canvas width (15% larger than default), centered with `aspect-ratio: 5/1`, capped at 1000px native resolution
-- **Campfire Divider Redone** — cg_canvas_divider re-generated with a pixel-art campfire burning in the exact center
-
-- **All 78 Room Upgrade Icons** — every autoclicker across all 6 rooms (cg_spark → bc_ocean_spirit) now has a custom pixel-art icon generated via Codex CLI, processed with chroma-key transparency at 256×256 lossless WebP
-- **50 Tier Rank Emblem Icons** — each tier icon re-generated via Codex CLI as pixel-art rank emblems (30 new, 20 kept from existing) cycling through metal, nature, tech, magic, and cosmic themes, displayed on leaderboard tier column
-- **Prestige Upgrade Icons Overhaul** — all 18 prestige and transcend upgrade icons regenerated via Codex CLI with neon/crystal pixel-art styling (gw_boost_1→5, click_1→3, autobuy_1→3, perma_mult, offline_amp, trans_click→trans_master)
-- **!important Fix for Button Text** — all button text now uses `!important` on `color` to correctly override conflicting CSS rules. Previously the `.login-box button` rule with `!important` was winning over the room-themed button block.
-- **Corrupted Cloud Save Guard** — `migrateBN()` now clamps any BN field with exponent at `BN_MAX` level back to `BN_ZERO`, preventing Infinity/NaN from old corrupted saves from displaying as massive InfZ values.
-- **Dead Code Removed** — `setButtonTextContrast()` function removed. Text contrast vars are now set inline.
-- **All Tab Text White + Black Stroke** — active sidebar tabs now use white fill with black stroke instead of inverted colors. Settings tabs added to the main button block for consistent button backgrounds and text styling.
-- **Decor Click-to-Front** — clicking any decor on the canvas brings it to the front by reordering the `placed_decor` object so it renders last (on top of other items).
-- **P2P Retry Hardening** — when broadcast sends 0 peers, now aggressively rescans signaling collection for all online peers (not just when peer list is empty), immediately reconnects failed peers, and queues 1.5s + 2s retry broadcasts to give channels time to establish. Added `forceScan` parameter to `_rescanPeers()` for on-demand full directory scan.
-
-- **Tab & Login Text Standardized** — all sidebar tab text (inactive, hover, active) now uses hardcoded white fill with black stroke instead of room-themed colors. Login page title, subtitle, divider, and messages also use white fill + black stroke for consistency.
-- **Vibe Button Cleanup** — removed white 4px border and orange gradient background from the VIBE click button. Button now uses only the room-themed XL button image as its background with the 3D box-shadow depth effect.
-- **Colored Text Preserved** — functional colored text (gold prestige values, cyan stats, green values) keeps its fill color while still getting the black text-shadow outer stroke. Only button text and UI labels get forced white fill.
-- **Room-Themed Button System** — 24 pixel art button frames (6 rooms × 4 sizes) generated via Codex CLI: wood grain with rivets (Campfire Grove), glowing cyan circuit traces (Cyber Den), mossy cobblestone (Zen Garden), brushed stainless steel (Star Deck), brass+gold engraved (Study Lounge), light wood+seashell (Beach Cove). All buttons dynamically swap per room via CSS custom properties with `image-rendering: pixelated` and `background-size: 100% 100%`.
-- **Unified Text Contrast System** — all UI text uses white fill with 8-direction black outer stroke via `text-shadow` for consistent readability over any background. Active sidebar tab inverts to black fill + white stroke. Colored functional text (gold prestige, cyan values) retains its fill color. Buttons dim via `filter: brightness(0.85)` on hover instead of solid background overlay (button image stays visible, text keeps color).
-- **Cyan Borders Removed** — all pixel buttons, sidebar tabs, login buttons, and music controls had their 2px cyan borders removed. The button image IS the button now. Active tab gets a room-colored glow (`box-shadow` + `text-shadow`) instead of a blue border.
-- **Adaptive Tab Labels** — sidebar tab text uses adaptive contrast. Tab labels cleaned up (emojis removed).
-- **Icon Overhaul** — all 90 room upgrade icons + 90 room decor icons regenerated via Codex CLI with new item names (cg_log_stool→cg_fire_ring, cd_digital_clock→cd_holographic_display, etc.). Chroma-key processed with aspect-ratio preservation to 256×256 lossless WebP. Decor `.png` references in sprites.js updated to `.webp`.
-- **Tooltip Icons 20% Larger** — `.tt-icon-img` increased from 128px to 154px for better visibility.
-
-- **Decor Canvas Overhaul** — decor items now render at 40% size (102×102) on canvas, single instance per decor type enforced, equip/unequip restores to saved positions without placement mode, drag reworked for instant cursor follow (no lerp lag), positions survive prestige via `saved_decor_placements`
-- **Room Divider Images** — switched from webp to user-cropped PNG banners, room prefix lookup fixed (was using `roomId.substring(0,2)` which produced wrong filenames), 5× larger with `object-position: top center` to prevent top cropping
-- **Login Screen Video Wallpaper** — looping MP4 covers full screen behind login box with seamless 1.5s crossfade using single-video + first-frame canvas overlay (same technique as room backgrounds)
-- **Smooth Room Backgrounds** — replaced native `<video loop>` (which has a built-in seek pause) with dual-video handoff: two non-looping videos crossfade at 1.5s margin, no native loop, no pause. CROSSFADE_SEC increased from 0.8 to 1.5.
-- **P2P Connection Failsafes** — `broadcast()` now triggers `_rescanPeers()` when 0 peers are reachable. New `_rescanPeers()` method reconnects failed peers and scans the full Firestore signaling directory for undiscovered players. Three-layer: per-tick (100ms), 15s repair, 30s full scan.
-- **Real-time Room Affordability** — room cards in the Rooms tab now update their `affordable` CSS class every tick without needing to switch tabs. Added `data-room-id` attribute for per-card lookup.
-- **Server MIME Types** — added `.webp` (image/webp) and `.mp4` (video/mp4) to the dev server's MIME types so browsers correctly render webp images and mp4 videos.
-- **P2P WebRTC Mesh Leaderboard** — players connect via direct peer-to-peer data channels (WebRTC) using Firestore as a signaling server. Scores broadcast in real-time across the mesh. Automatically falls back to Firestore onSnapshot/polling when P2P is unavailable. Hourly Firestore sync for long-term persistence.
-- **ECDSA P-256 Crypto Layer (JSON Messaging)** — every broadcast is signed with ECDSA P-256 and verified by the receiving peer. Messages are JSON text carrying full BN arrays `[mantissa, exponent]` — no float64 precision loss, no Infinity overflow. `formatBN` renders the exact InfZ notation on the receiving end.
-- **Deterministic Offerer Tiebreaker** — when two peers discover each other, a guaranteed-decidable tournament (keyId → random nonce → username) picks one side to create the WebRTC offer. No more "both wait for the other" stalemates.
-- **5-Second Ping Discovery** — every peer refreshes its Firestore signaling doc every 5 seconds. Peers appear and disappear in real-time, with automatic reconnection on failure.
-- **15-Second Reconnection Timer** — scans peers every 15s; if a peer's channel is closed or failed, it re-fetches the sig doc and reconnects automatically.
-- **Stale Signaling Cleanup** — old offer/answer docs from failed connection attempts are auto-deleted instead of looping on retry forever.
-- **Double-Init Race Guard** — `p2pStarting` mutex prevents two concurrent P2P initialization attempts from creating conflicting managers.
-- **Live All-Column Sync** — VIBES, VPS, PP, PRESTIGE, and TIER columns update in real-time across the mesh, with full BN InfZ notation for each value.
-- **DEV Badge Name Matching** — the DEV badge tooltip in DrGekoz's leaderboard row embedded extra text in the `.lb-name` element. The P2P row-matching logic now strips `(DEV)` and tooltip content so the name comparison works correctly.
-- **Bulletproof Leaderboard Formatting** — every cell is wrapped with try/catch, type guards, BN array handling via `formatBN`, and safe fallbacks. `formatBN` is now properly exported from state.js and imported throughout the app.
-- **BigNumber System Hardening** — all game values now guarded with `_bnGuard()` for null/undefined/isFinite recovery. `BN_MAX` sentinel prevents infinite exponent overflow. Arithmetic functions return gracefully on overflow instead of crashing. Cloud migration handles malformed BN arrays.
-- **Cloud Save Merge** — instead of blindly overwriting, cloud saves now merge with local saves keeping the highest prestiges, total PP, and lifetime vibes. Smart progress preservation across devices.
-- **Max Prestige Batching** — runs in non-blocking 500-cycle batches via `requestAnimationFrame` — no UI freeze even at extreme VPS levels. BigNumber math throughout.
-- **Prestige Overhaul** — Max Prestige uses math formula, runs instantly; prestige threshold scales dynamically with VPS (log₂ factor), stops at 1hr cap; gentler sqrt-log formula for early-game pacing; 1.06× tier scaling
-- **180Hz Render Loop** — delta-time frame interpolation keeps particle effects and animations smooth and speed-consistent at any refresh rate
-- **3-line InfZ Display** — prestige chip box, Total This Round stat box, and prestige chip gain text all show 3-line InfZ formatted values
-- **Gateway HUD Redesign** — VPS multiplier on line 1, latency + prestige breakdown on line 2; manual port override
-- **Tier Achievements** — 500 programmatic tier achievements, one per prestige tier (Bronze I → Formless Expanse), generated on the fly
-- **Realtime Leaderboard** — live tier column (Bronze→Silver→Gold→...), BN-accurate InfZ values, VPS column, adaptive grid, dev badge tooltip on hover
-- **Google & GitHub OAuth Login** — sign in with Google or GitHub accounts, or email/password. Settings overlay with name, audio, credits tabs, sidebar position toggle, gateway port sync, and Buy Me a Coffee support.
-- **Offline Stats Enhancement** — offline rate switches to 10x format above 1000%
-- **InfinityZ number system** — numbers beyond Z display as `InfZ ×N`, `InfZ ×1k`, ... `InfZ ×1Z`, `InfZ ×2` cycling through InfZ^n notation with distinct brackets per power layer
-- **Buy All buttons** — ⚡ Buy All on upgrades, decor, and prestige tabs (buys most expensive first, spends everything)
-- **Hold-to-spam** — works for both autoclicker upgrades AND prestige upgrades
-- **Real-time tab indicators** — sidebar tabs show gold/green/cyan dots when items are affordable or ready
-- **127+ pixel art icons** — 78 autoclicker, 49 prestige/decor, and 102 decor placement sprites — all Codex CLI-generated 16-bit pixel art
-- **Per-room cost progression** — costs track the current room's purchase count, not global
-- **Prestige cost fixes** — progressive cost scaling for all re-buyable prestige upgrades
-- **Dev badge tooltip** — hover over your name on the leaderboard to see contributor status
-- **Icon re-encoding** — all prestige/autoclicker icons re-encoded to smaller file sizes for faster loading
-- **500 Tiers** — expanded from 250 to 500 uniquely-scaling tiers with cosmic InfZ-themed naming. Requirements use BN (BigNumber) from tier 1, accelerating from `1 → 2.1M → InfZ ×N → InfZ^∞`. 65% more conservative bonuses. `total_prestiges` is now a BN for infinite precision.
-- **InfZ^n Number Display** — number system now shows proper InfZ^n notation with bracket styles: `InfZ ×N` (InfZ^1), `InfZ² (N)` (InfZ²), `InfZ³ [N]` (InfZ³), onward through `InfZ^∞` for numbers beyond all comprehension
-- **Prestige Upgrade BN Pricing** — prestige upgrade costs now use BigNumber arithmetic (`bnPow` + `getPrestigeUpgradeCost`) instead of `Math.pow`, removing the Infinity cap that made high-count upgrades permanently unpurchasable
-- **Max Prestige Silent Batching** — rewritten to suppress all `notifyStateChange` during the batch loop, eliminating the browser lockup that occurred with 1500+ UI rebuilds per click
-- **Prestige UI BN Comparison Fixes** — all `gain > 0`, `gain <= 0`, `chips >= cost` comparisons now use proper BN comparison functions (`bnGt`, `bnLe`, `bnGe`) instead of native JS which silently failed on BN arrays
-
----
-
 ## ✦ Architecture
 
 ```text
@@ -319,7 +245,7 @@ Hermes-IdleViber/
 │   ├── state.js                # Game state engine, BN math, formulas, definitions, save/load
 │   ├── gateway.js              # Hermes gateway discovery & health polling
 │   ├── firebase.js             # Firebase auth, Firestore CRUD, leaderboard sync, P2P API export
-│   ├── p2p.js                  # P2P WebRTC mesh leaderboard (Firestore signaling, fallback polling)
+│   ├── p2p.js                  # Legacy P2P leaderboard module (pre-crypto, kept for reference)
 │   ├── p2p-crypto.js           # ECDSA P-256 crypto P2P mesh — binary packet encode/decode, chat relay
 │   ├── sprites.js              # Pixel art sprite definitions & room renderer
 │   ├── sfx.js                  # Sound effect engine
