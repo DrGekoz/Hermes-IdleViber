@@ -1,4 +1,4 @@
-# 🔥 Hermes IdleViber
+# 🔥 Hermes IdleViber ---
 
 <p align="center">
   <i>~ The Ambient Gateway Idle Game ~</i><br>
